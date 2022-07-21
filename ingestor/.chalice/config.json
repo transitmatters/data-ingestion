@@ -3,7 +3,19 @@
   "app_name": "ingestor",
   "stages": {
     "dev": {
-      "api_gateway_stage": "api"
+      "api_gateway_stage": "api",
+      "autogen_policy": false,
+      "lambda_functions": {
+        "store_yesterday_alerts": {
+          "iam_policy_file": "alerts-policy.json"
+        },
+        "store_new_train_runs": {
+          "iam_policy_file": "newtrains-policy.json"
+        },
+        "store_bluebikes_data": {
+          "iam_policy_file": "bluebikes-policy.json"
+        }
+      }
     }
   }
 }
