@@ -1,7 +1,7 @@
 #!/bin/bash -x
 
 STACK_NAME=ingestor
-BUCKET=ingestorLambdaDeployments
+BUCKET=ingestor-lambda-deployments
 
 poetry export -f requirements.txt --output ingestor/requirements.txt --without-hashes
 
