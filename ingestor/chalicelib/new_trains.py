@@ -16,7 +16,7 @@ ROUTE_DEFINITIONS = {
 EVENT_DEPARTURE = ["DEP", "PRD"]
 
 BUCKET = "tm-mbta-performance"
-KEY = "ingestTest/NewTrains/run_counts/{}.csv"
+KEY = "NewTrains/run_counts/{}.csv"
 
 
 def train_runs(route, date):

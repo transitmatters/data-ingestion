@@ -5,8 +5,9 @@ import datetime
 
 from chalicelib import s3
 
-BUCKET = "tm-mbta-performance"
-KEY = "ingestTest/tm-bluebikes/{}/{}/bluebikes.csv"
+BUCKET = "tm-bluebikes"
+def get_key(date, timestamp):
+    return f"{date}/{timestamp}/bluebikes.csv"
 
 def store_station_status():
     resp = requests.get("https://gbfs.bluebikes.com/gbfs/en/station_status.json")
@@ -18,7 +19,7 @@ def store_station_status():
     timestamp = datajson.get('last_updated')
     date = datetime.datetime.fromtimestamp(timestamp).date()
     
-    key = KEY.format(date, timestamp)
+    key = get_key(date, timestamp)
     
     s3.upload_df_as_csv(BUCKET, key, df)
 

@@ -17,7 +17,7 @@
       ],
       "Effect": "Allow",
       "Resource": [
-        "arn:aws:s3:::tm-mbta-performance/ingestTest/*"
+        "arn:aws:s3:::tm-mbta-performance/NewTrains/run_counts/*"
       ]
     }
   ]

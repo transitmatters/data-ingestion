@@ -16,7 +16,7 @@
       ],
       "Effect": "Allow",
       "Resource": [
-        "arn:aws:s3:::tm-mbta-performance/ingestTest/*"
+        "arn:aws:s3:::tm-mbta-performance/Alerts/*"
       ]
     }
   ]
