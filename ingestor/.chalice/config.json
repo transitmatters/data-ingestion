@@ -1,19 +1,20 @@
 {
   "version": "2.0",
   "app_name": "ingestor",
+  "automatic_layer": true,
   "stages": {
-    "dev": {
+    "prod": {
       "api_gateway_stage": "api",
       "autogen_policy": false,
       "lambda_functions": {
         "store_yesterday_alerts": {
-          "iam_policy_file": "alerts-policy.json"
+          "iam_policy_file": "policy-alerts.json"
         },
         "store_new_train_runs": {
-          "iam_policy_file": "newtrains-policy.json"
+          "iam_policy_file": "policy-newtrains.json"
         },
         "store_bluebikes_data": {
-          "iam_policy_file": "bluebikes-policy.json"
+          "iam_policy_file": "policy-bluebikes.json"
         }
       }
     }

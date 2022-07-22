@@ -1,0 +1,28 @@
+{
+  "Parameters": {
+    "MbtaV2ApiKey": {
+      "Type": "String",
+      "Description": "MBTA Performance API Key"
+    }
+  },
+  "Resources": {
+    "StoreYesterdayAlerts": {
+      "Properties": {
+        "Environment": {
+          "Variables": {
+            "MBTA_V2_API_KEY": { "Ref": "MbtaV2ApiKey" }
+          }
+        }
+      }
+    },
+    "StoreNewTrainRuns": {
+      "Properties": {
+        "Environment": {
+          "Variables": {
+            "MBTA_V2_API_KEY": { "Ref": "MbtaV2ApiKey" }
+          }
+        }
+      }
+    }
+  }
+}

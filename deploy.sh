@@ -1,5 +1,14 @@
 #!/bin/bash -x
 
+STACK_NAME=ingestor
+BUCKET=ingestorLambdaDeployments
+
 poetry export -f requirements.txt --output ingestor/requirements.txt --without-hashes
 
-cd ingestor && poetry run chalice deploy
+pushd ingestor/
+
+poetry run chalice package --stage prod --merge-template .chalice/envvars.json cfn/
+aws cloudformation package --template-file cfn/sam.json --s3-bucket $BUCKET --output-template-file cfn/packaged.yaml
+aws cloudformation deploy --template-file cfn/packaged.yaml --stack-name $STACK_NAME \
+    --capabilities CAPABILITY_NAMED_IAM --no-fail-on-empty-changeset \
+    --parameter-overrides MbtaV2ApiKey=$MBTA_V2_API_KEY
