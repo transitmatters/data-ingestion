@@ -36,6 +36,7 @@ def update_all(date):
             update_statistics_file(route, date, run_count)
         except Exception:
             print(f"Unable to store new train run count for route={route}", file=sys.stderr)
+            print(sys.exc_info()[2], file=sys.stderr)
             continue
 
 
