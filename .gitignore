@@ -1,1 +1,2 @@
 .env.local
+**/__pycache__
