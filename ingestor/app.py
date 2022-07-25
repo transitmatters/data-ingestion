@@ -33,5 +33,10 @@ def store_new_train_runs(event):
 #################
 # STORE BLUEBIKES FEED
 @app.schedule(Cron('0/5', '*', '*', '*', '?', '*'))
-def store_bluebikes_data(event):
+def store_bluebikes_station_status(event):
     bluebikes.store_station_status()
+
+# 10am UTC -> 6am EST
+@app.schedule(Cron(0, 10, '*', '*', '?', '*'))
+def store_bluebikes_station_info(event):
+    bluebikes.store_station_info()

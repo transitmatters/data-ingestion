@@ -1,17 +1,21 @@
-import json
-import requests
-import pandas as pd
+import boto3
 import datetime
 import geopy
-import boto3
+import json
 import numpy as np
+import pandas as pd
+import pytz
+import requests
 
 from chalicelib import s3
 
 BUCKET = "tm-bluebikes"
+TZ = pytz.timezone("US/Eastern")
+
+#################
+# STATION STATUS TO BE PULLED FROM FEED EVERY 5 MINUTES
 def get_station_status_key(date, timestamp):
     return f"station_status/{date}/{timestamp}/bluebikes.csv"
-
 
 def store_station_status():
     resp = requests.get("https://gbfs.bluebikes.com/gbfs/en/station_status.json")
@@ -21,19 +25,15 @@ def store_station_status():
     df = pd.DataFrame.from_records(datajson.get('data').get('stations'))
 
     timestamp = datajson.get('last_updated')
-    date = datetime.datetime.fromtimestamp(timestamp).date()
+    date = datetime.datetime.fromtimestamp(timestamp, TZ).date()
     
     key = get_station_status_key(date, timestamp)
     
     s3.upload_df_as_csv(BUCKET, key, df)
 
     
-def get_distance(df, lat, lon, n_lat, n_lon):
-    loc = (df[lat], df[lon])
-    n_loc = (df[n_lat], df[n_lon])
-    dist = geopy.distance.distance(loc, n_loc).km
-    return dist
-
+##################
+# STATION INFO TO BE PULLED FROM FEED DAILY AT 6AM
 def get_station_info_key(date):
     return f"station_info/{date}/station_info.csv"
 
@@ -52,10 +52,18 @@ def store_station_info():
 
     # combine, write
     df = station_df.merge(region_df, on='region_id', how='left')
-    key = get_station_info_key(date=datetime.datetime.today().date())
+    date = datetime.datetime.fromtimestamp(station_info.get('last_updated'), TZ).date()
+
+    key = get_station_info_key(date)
     
     s3.upload_df_as_csv(BUCKET, key, df)
-    return df
+
+
+def get_distance(df, lat, lon, n_lat, n_lon):
+    loc = (df[lat], df[lon])
+    n_loc = (df[n_lat], df[n_lon])
+    dist = geopy.distance.distance(loc, n_loc).km
+    return dist
 
 
 def get_neighbor_key(date):
