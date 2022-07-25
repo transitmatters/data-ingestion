@@ -22,11 +22,11 @@ def store_station_status():
 
     datajson = json.loads(resp.content)
 
-    df = pd.DataFrame.from_records(datajson.get('data').get('stations'))
-
     timestamp = datajson.get('last_updated')
+    df = pd.DataFrame.from_records(datajson.get('data').get('stations'))
+    df['datetimepulled'] = timestamp
+
     date = datetime.datetime.fromtimestamp(timestamp, TZ).date()
-    
     key = get_station_status_key(date, timestamp)
     
     s3.upload_df_as_csv(BUCKET, key, df)
@@ -59,20 +59,21 @@ def store_station_info():
     s3.upload_df_as_csv(BUCKET, key, df)
 
 
+##################
+# Neighbor stations and ridability calculated daily
+##################
 def get_distance(df, lat, lon, n_lat, n_lon):
     loc = (df[lat], df[lon])
     n_loc = (df[n_lat], df[n_lon])
     dist = geopy.distance.distance(loc, n_loc).km
     return dist
 
-
 def get_neighbor_key(date):
     return f"station_info/{date}/station_neighbors.csv"
 
-
-def store_neighbor_stations():
-    # get station dfs
-    df = store_station_info()
+def calc_neighbors(date):
+    # get station info
+    df = s3.download_csv_as_df(BUCKET, get_station_info_key(date))
     
     # create two frames
     first = df[['station_id', 'lat', 'lon']]
@@ -105,7 +106,7 @@ def store_neighbor_stations():
     final = final.drop_duplicates()
     
     # write to s3
-    key = get_neighbor_key(date=datetime.datetime.today().date())
+    key = get_neighbor_key(date)
     s3.upload_df_as_csv(BUCKET, key, final)
     return final
 
@@ -114,36 +115,16 @@ def get_rideability_key(date):
     return f"rideability/{date}/rideability.csv"
 
 
-def get_single_day_bluebikes(single_day):
-    df = pd.DataFrame()
-    
-    s3 = boto3.client('s3')
-    paginator = s3.get_paginator('list_objects_v2')
-    pages = paginator.paginate(Bucket='tm-bluebikes', Prefix=single_day)
+def gather_single_day_data(single_day):
+    keys = s3.ls(BUCKET, f"station_status/{single_day}")
+    dfs = [s3.download_csv_as_df(BUCKET, key) for key in keys]
+    df = pd.concat(dfs)
 
-    for page in pages:
-        for obj in page['Contents']:
-            print(obj['Key'])
-            temp_df = pd.read_csv("s3://tm-bluebikes/"+obj['Key'])
-            temp_df['datetimepulled'] = obj['Key'].split('/')[1]
-            df = pd.concat([df, temp_df])
-                            
-    return df
-
-
-def get_bluebikes_data(day):
-    days = [day, day+datetime.datetime.timedelta(days=1)]
-    df = pd.DataFrame()
-    
-    for single_day in days:
-        temp_df = get_single_day_bluebikes(single_day=str(single_day))
-        df = pd.concat([df, temp_df])
-            
     return df
 
 
 def merge_bluebikes_data(day):
-    df = get_bluebikes_data(day)
+    df = gather_single_day_data(day)
     
     # create fields to determine rideability
     df['pct_full'] = df['num_bikes_available'] / (df['num_docks_available'] + df['num_bikes_available'])
@@ -156,7 +137,7 @@ def merge_bluebikes_data(day):
                                  , 'pct_full':'n_pct_full'
                                  , 'rideable':'n_rideable'})
     
-    neighbor = pd.read_csv('s3://tm-bluebikes/station_info'+day+'station_neighbors.csv')
+    neighbor = calc_neighbors(day)
     
     # merge data
     df_tot = df_sm.merge(neighbor[['station_id', 'neighbor_station_id']], on='station_id', how='left')
@@ -167,7 +148,7 @@ def merge_bluebikes_data(day):
     return df_tot
 
 
-def store_rideability_data(day):
+def calc_rideability(day):
     df = merge_bluebikes_data(day)
     
     # determine if the station is rideable for a given time
@@ -187,6 +168,6 @@ def store_rideability_data(day):
     ride = final.groupby(['station_id']).agg({'tot_rideable':'mean','datetimepulled':'size'}).reset_index()
     ride = ride.rename(columns={'tot_rideable':'rideability','datetimepulled':'count'})
     
-    key = get_rideability_key(date=datetime.datetime.today().date() - datetime.datetime.timedelta(days=1))
+    key = get_rideability_key(day)
     s3.upload_df_as_csv(BUCKET, key, ride)
     return ride

@@ -1,5 +1,6 @@
 import boto3
 import io
+import pandas as pd
 import zlib
 
 s3 = boto3.client('s3')
@@ -22,6 +23,7 @@ def upload(bucket, key, bytes, compress=True):
         bytes = zlib.compress(bytes)
     s3.put_object(Bucket=bucket, Key=key, Body=bytes)
 
+
 def upload_df_as_csv(bucket, key, df):
     key = str(key)
 
@@ -31,3 +33,21 @@ def upload_df_as_csv(bucket, key, df):
 
     s3.upload_fileobj(buffer, bucket, Key=key,
         ExtraArgs={'ContentType': 'text/csv'})
+
+
+def download_csv_as_df(bucket, key):
+    key = str(key)
+    obj = s3.get_object(Bucket=bucket, Key=key)
+    return pd.read_csv(obj["Body"])
+
+
+def ls(bucket, prefix):
+    paginator = s3.get_paginator('list_objects_v2')
+    pages = paginator.paginate(Bucket=bucket, Prefix=prefix)
+
+    all_keys = []
+    for page in pages:
+        keys = [x['Key'] for x in page['Contents']]
+        all_keys.extend(keys)
+
+    return all_keys
