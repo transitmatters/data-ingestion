@@ -13,13 +13,13 @@
         "store_new_train_runs": {
           "iam_policy_file": "policy-newtrains.json"
         },
-        "bluebikes_store_station_status": {
+        "bb_store_station_status": {
           "iam_policy_file": "policy-bluebikes-store.json"
         },
-        "bluebikes_store_station_info": {
+        "bb_store_station_info": {
           "iam_policy_file": "policy-bluebikes-store.json"
         },
-        "bluebikes_calc_daily_rideability": {
+        "bb_calc_daily_stats": {
           "iam_policy_file": "policy-bluebikes-calc.json"
         }
       }
