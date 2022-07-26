@@ -45,4 +45,7 @@ def bb_store_station_info(event):
 @app.schedule(Cron(0, 6, '*', '*', '?', '*'))
 def bb_calc_daily_stats(event):
     yesterday = date.today() - timedelta(days=1)
-    bluebikes.calc_rideability(yesterday)
+    bluebikes.calc_neighbors(yesterday)
+    # someday, but for now it takes >300s on a lambda.
+    # want to optimize
+    # bluebikes.calc_rideability(yesterday)
