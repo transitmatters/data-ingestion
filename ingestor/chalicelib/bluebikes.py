@@ -1,6 +1,5 @@
-import boto3
 import datetime
-import geopy
+from geopy import distance
 import json
 import numpy as np
 import pandas as pd
@@ -65,7 +64,7 @@ def store_station_info():
 def get_distance(df, lat, lon, n_lat, n_lon):
     loc = (df[lat], df[lon])
     n_loc = (df[n_lat], df[n_lon])
-    dist = geopy.distance.distance(loc, n_loc).km
+    dist = distance.distance(loc, n_loc).km
     return dist
 
 def get_neighbor_key(date):
@@ -75,35 +74,31 @@ def calc_neighbors(date):
     # get station info
     df = s3.download_csv_as_df(BUCKET, get_station_info_key(date))
     
-    # create two frames
-    first = df[['station_id', 'lat', 'lon']]
-    second = df[['station_id', 'lat', 'lon']].rename(columns={'station_id':'neighbor_station_id', 
-                                                              'lat':'neighbor_lat', 
-                                                              'lon':'neighbor_lon'
-                                                              })
+    # create two frames, removing stations with no capacity ('temporarily disabled')
+    first = df.loc[df['capacity'] > 0, ['station_id', 'lat', 'lon']]
+    second = first.rename(columns={'station_id':'neighbor_station_id', 
+                                   'lat':'neighbor_lat', 
+                                   'lon':'neighbor_lon'
+                                   })
     
-    # cross join, filter where station = neighbor station
+    # cross join, filter out where station = neighbor station
     dist = first.merge(second, how='cross')
-    dist = dist[dist['station_id']!=dist['neighbor_station_id']]
+    dist = dist[dist['station_id'] != dist['neighbor_station_id']]
     
     # create distance metric
-    dist['distance_km'] = dist.apply(get_distance, axis=1, lat='lat', lon='lon',
-                                     n_lat='neighbor_lat', n_lon='neighbor_lon'
-                                     )
+    dist['distance_km'] = dist.apply(get_distance, axis=1,
+        args=('lat', 'lon', 'neighbor_lat', 'neighbor_lon'))
+    dist = dist[['station_id', 'neighbor_station_id', 'distance_km']]
     
     # filter neighbors to those within 400m
-    neighbor = dist[dist['distance_km']<=0.4]
-    neighbor = neighbor[['station_id', 'neighbor_station_id', 'distance_km']]
+    neighbor = dist[dist['distance_km'] <= 0.4]
     
     # find the nearest neighbor within 600m
     nearest = dist.groupby('station_id').min('distance_km').reset_index()
-    nearest = nearest.merge(dist, on=['station_id','distance_km'], how='left')
-    nearest = nearest[['station_id','neighbor_station_id','distance_km']]
-    nearest = nearest[nearest['distance_km']<=0.6]
+    next_nearest = nearest[(nearest.distance_km > 0.4) & (nearest.distance_km <= 0.6)]
     
     # combine all stations within 400m with the nearest within 600m, drop dupes
-    final = pd.concat([neighbor, nearest])
-    final = final.drop_duplicates()
+    final = pd.concat([neighbor, next_nearest])
     
     # write to s3
     key = get_neighbor_key(date)
@@ -122,7 +117,7 @@ def gather_single_day_data(single_day):
 
     return df
 
-
+# TODO: edge case with valet
 def merge_bluebikes_data(day):
     df = gather_single_day_data(day)
     
