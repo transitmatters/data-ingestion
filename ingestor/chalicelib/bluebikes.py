@@ -106,7 +106,7 @@ def calc_neighbors(date):
     neighbor = dist[dist['distance_km'] <= 0.4]
     
     # find the nearest neighbor within 600m
-    nearest = dist.groupby('station_id').min('distance_km').reset_index()
+    nearest = dist.loc[dist.groupby('station_id')['distance_km'].idxmin()]
     next_nearest = nearest[(nearest.distance_km > 0.4) & (nearest.distance_km <= 0.6)]
     
     # combine all stations within 400m with the nearest within 600m, drop dupes
