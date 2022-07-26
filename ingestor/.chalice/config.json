@@ -20,7 +20,8 @@
           "iam_policy_file": "policy-bluebikes-store.json"
         },
         "bb_calc_daily_stats": {
-          "iam_policy_file": "policy-bluebikes-calc.json"
+          "iam_policy_file": "policy-bluebikes-calc.json",
+          "lambda_timeout": 300
         }
       }
     }
