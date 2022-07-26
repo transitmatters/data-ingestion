@@ -67,6 +67,19 @@ def get_distance(df, lat, lon, n_lat, n_lon):
     dist = distance.distance(loc, n_loc).km
     return dist
 
+def haversine(lat, lon, n_lat, n_lon):
+    """
+    Distance function impl. from StackOverflow compatible with numpy arrays.
+    Distances are slightly different than geopy, so perhaps we use 405 meters as cutoff to be kind?
+    """
+    radius = 6371.
+    d_lat = np.radians(lat - n_lat)
+    d_lon = np.radians(lon - n_lon)
+    a = np.sin(d_lat / 2)**2 + np.cos(np.radians(lat)) * np.cos(np.radians(n_lat)) * np.sin(d_lon / 2)**2
+    c = 2. * np.arctan2(np.sqrt(a), np.sqrt(1-a))
+    d = radius * c
+    return d
+
 def get_neighbor_key(date):
     return f"station_info/{date}/station_neighbors.csv"
 
@@ -86,8 +99,7 @@ def calc_neighbors(date):
     dist = dist[dist['station_id'] != dist['neighbor_station_id']]
     
     # create distance metric
-    dist['distance_km'] = dist.apply(get_distance, axis=1,
-        args=('lat', 'lon', 'neighbor_lat', 'neighbor_lon'))
+    dist['distance_km'] = haversine(dist['lat'], dist['lon'], dist['neighbor_lat'], dist['neighbor_lon'])
     dist = dist[['station_id', 'neighbor_station_id', 'distance_km']]
     
     # filter neighbors to those within 400m
