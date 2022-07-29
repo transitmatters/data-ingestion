@@ -164,14 +164,17 @@ def calc_daily_stats(day):
     
     # convert from epoch & filter out overnight
     final['datetimepulled'] = pd.to_datetime(final['datetimepulled'], unit='s', utc=True).dt.tz_convert('US/Eastern')
-    final = final[(final['datetimepulled'].dt.time>=datetime.time(6,0,0)) &
-                  (final['datetimepulled'].dt.time<=datetime.time(22,0,0))
+    final = final[(final['datetimepulled'].dt.time >= datetime.time(6,0,0)) &
+                  (final['datetimepulled'].dt.time < datetime.time(22,0,0))
                   ]
     
     # group by station id and date and calculate % of observations that were rideable
     ride = final.groupby(['station_id']).agg({'tot_rideable':'mean','datetimepulled':'size'}).reset_index()
     ride = ride.rename(columns={'tot_rideable':'rideability','datetimepulled':'count'})
     ride['date'] = day
+
+    # TODO: merge station_info (name_x and name_y) with results for readability
+    # also consider: determine if unrideable because too many or too few bikes
     
     key = get_rideability_key(day)
     s3.upload_df_as_csv(BUCKET, key, ride)

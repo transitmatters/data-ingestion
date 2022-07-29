@@ -21,7 +21,7 @@
         },
         "bb_calc_daily_stats": {
           "iam_policy_file": "policy-bluebikes-calc.json",
-          "lambda_timeout": 300,
+          "lambda_timeout": 60,
           "lambda_memory_size": 256
         }
       }
