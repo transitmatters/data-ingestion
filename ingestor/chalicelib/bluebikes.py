@@ -83,12 +83,12 @@ def haversine(lat, lon, n_lat, n_lon):
 def get_neighbor_key(date):
     return f"station_info/{date}/station_neighbors.csv"
 
-def calc_neighbors(date):
+def calc_neighbors(date, exclude=[]):
     # get station info
     df = s3.download_csv_as_df(BUCKET, get_station_info_key(date))
     
     # create two frames, removing stations with no capacity ('temporarily disabled')
-    first = df.loc[df['capacity'] > 0, ['station_id', 'lat', 'lon']]
+    first = df.loc[~df['station_id'].isin(exclude), ['station_id', 'lat', 'lon']]
     second = first.rename(columns={'station_id':'neighbor_station_id', 
                                    'lat':'neighbor_lat', 
                                    'lon':'neighbor_lon'
@@ -104,7 +104,7 @@ def calc_neighbors(date):
     
     # filter neighbors to those within 400m
     neighbor = dist[dist['distance_km'] <= 0.4]
-    
+
     # find the nearest neighbor within 600m
     nearest = dist.loc[dist.groupby('station_id')['distance_km'].idxmin()]
     next_nearest = nearest[(nearest.distance_km > 0.4) & (nearest.distance_km <= 0.6)]
@@ -130,13 +130,22 @@ def gather_single_day_data(single_day):
     return df
 
 # TODO: edge case with valet
-def merge_bluebikes_data(day):
+def calc_daily_stats(day):
     df = gather_single_day_data(day)
+
+    # find uninstalled stations to exclude from neighbor calculation
+    # TODO: worry about (un)installing a station midday
+    # currently uninstalled for any part of day -> station does not exist
+    uninstalled = df[df['is_installed'] == 0].station_id.unique().tolist()
+    neighbor = calc_neighbors(day, exclude=uninstalled)
     
+    # don't include uninstalled stations in daily output either
+    df = df[~df['station_id'].isin(uninstalled)]
+
     # create fields to determine rideability
     df['pct_full'] = df['num_bikes_available'] / (df['num_docks_available'] + df['num_bikes_available'])
-    df['rideable'] = np.where((df['pct_full']>=0.1) & (df['pct_full']<=0.85),1,0)
-    df = df[df['station_status']=='active']
+    df['rideable'] = np.where((df['pct_full']>=0.1) & (df['pct_full']<=0.85) & (df['station_status'] == 'active'), 1, 0)
+
 
     # create data frames on rideability for station and neighbors
     df_sm = df[['station_id', 'pct_full', 'rideable', 'datetimepulled']]
@@ -144,22 +153,14 @@ def merge_bluebikes_data(day):
                                  , 'pct_full':'n_pct_full'
                                  , 'rideable':'n_rideable'})
     
-    neighbor = calc_neighbors(day)
-    
-    # merge data
+    # merge datapoints with neighbors, then merge neighbors with neighbor rideability
     df_tot = df_sm.merge(neighbor[['station_id', 'neighbor_station_id']], on='station_id', how='left')
     df_tot = df_tot.merge(df_n, on=['neighbor_station_id', 'datetimepulled'], how='left')
     
-    # create new field that determines if station is rideable
+    # create new field that determines if station pair is rideable
+    # then group by station_id to determine overall rideability for that timepoint
     df_tot['tot_rideable'] = df_tot[['rideable', 'n_rideable']].max(axis=1)
-    return df_tot
-
-
-def calc_rideability(day):
-    df = merge_bluebikes_data(day)
-    
-    # determine if the station is rideable for a given time
-    final = df.groupby(['station_id', 'datetimepulled'])['tot_rideable'].max().reset_index()
+    final = df_tot.groupby(['station_id', 'datetimepulled'])['tot_rideable'].max().reset_index()
     
     # convert from epoch & filter out overnight
     final['datetimepulled'] = pd.to_datetime(final['datetimepulled'], unit='s', utc=True).dt.tz_convert('US/Eastern')
@@ -167,13 +168,10 @@ def calc_rideability(day):
                   (final['datetimepulled'].dt.time<=datetime.time(22,0,0))
                   ]
     
-    # add column for date, filter to just that day
-    final['date'] = final['datetimepulled'].dt.date
-    final = final[final['date']==day]
-    
     # group by station id and date and calculate % of observations that were rideable
     ride = final.groupby(['station_id']).agg({'tot_rideable':'mean','datetimepulled':'size'}).reset_index()
     ride = ride.rename(columns={'tot_rideable':'rideability','datetimepulled':'count'})
+    ride['date'] = day
     
     key = get_rideability_key(day)
     s3.upload_df_as_csv(BUCKET, key, ride)
