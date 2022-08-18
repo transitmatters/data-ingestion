@@ -1,5 +1,10 @@
 #!/bin/bash -x
 
+if [[ -z "$MBTA_V2_API_KEY" ]]; then
+    echo "Must provide MBTA_V2_API_KEY in environment" 1>&2
+    exit 1
+fi
+
 STACK_NAME=ingestor
 BUCKET=ingestor-lambda-deployments
 

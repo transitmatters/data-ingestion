@@ -33,5 +33,16 @@ def store_new_train_runs(event):
 #################
 # STORE BLUEBIKES FEED
 @app.schedule(Cron('0/5', '*', '*', '*', '?', '*'))
-def store_bluebikes_data(event):
+def bb_store_station_status(event):
     bluebikes.store_station_status()
+
+# 10am UTC -> 6am EST
+@app.schedule(Cron(0, 10, '*', '*', '?', '*'))
+def bb_store_station_info(event):
+    bluebikes.store_station_info()
+
+# 6am UTC -> 2am EST
+@app.schedule(Cron(0, 6, '*', '*', '?', '*'))
+def bb_calc_daily_stats(event):
+    yesterday = date.today() - timedelta(days=1)
+    bluebikes.calc_daily_stats(yesterday)
