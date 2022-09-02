@@ -25,32 +25,37 @@ def train_runs(route, date):
     events = sum([stop["events"] for stop in api_data], [])
     departures = filter(lambda event: event["event_type"] in EVENT_DEPARTURE, events)
     by_trip_id = {event["trip_id"]: event for event in departures}  # Just in case a single trip gets a DEP and a PRD
-    return list(filter(lambda event: int(event["vehicle_label"]) in spec["labels"], by_trip_id.values()))
 
+    total_count = len(by_trip_id)
+    new_count = len(list(filter(lambda event: int(event["vehicle_label"]) in spec["labels"], by_trip_id.values())))
+    return total_count, new_count
 
 def update_all(date):
     for route in ROUTE_DEFINITIONS.keys():
         print(f"Storing new train runs for {route}...")
         try:
-            run_count = len(train_runs(route, date))
-            update_statistics_file(route, date, run_count)
+            run_counts = train_runs(route, date)
+            update_statistics_file(route, date, run_counts)
         except Exception:
             print(f"Unable to store new train run count for route={route}", file=sys.stderr)
             print(sys.exc_info()[2], file=sys.stderr)
             continue
 
 
-def update_statistics_file(route, date, count):
-    csv_row = "{formatted_date},{count}\n".format(
+def update_statistics_file(route, date, trip_counts):
+    total_trips, new_trips = trip_counts
+    csv_row = "{formatted_date},{total_trips},{new_trips}\n".format(
         formatted_date=date.strftime("%Y-%m-%d"),
-        count=count
+        total_trips=total_trips,
+        new_trips=new_trips
     )
     key = KEY.format(route)
     try:
         data = s3.download(BUCKET, key, compressed=False) + csv_row
     except ClientError as ex:
-        if ex.response['Error']['Code'] != 'NoSuchKey':
+        if ex.response['Error']['Code'] == 'NoSuchKey':
+            data = "service_date,total_trips,new_trips\n" + csv_row
+        else:
             raise
-        data = "service_date,run_count\n" + csv_row
 
     s3.upload(BUCKET, key, data.encode(), compress=False)
