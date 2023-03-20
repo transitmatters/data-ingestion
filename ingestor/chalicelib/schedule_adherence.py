@@ -1,15 +1,31 @@
 import datetime
 from decimal import Decimal
 import json
+from urllib.parse import urlencode
 import boto3
-from botocore.exceptions import ClientError
+from datetime import datetime
 import requests
 
-from chalicelib import dynamo, line_traversal, constants
+from chalicelib import dynamo, constants
 
 
 dyn_resource = boto3.resource("dynamodb")
 table = dyn_resource.Table("OverviewStats")
+
+
+
+
+def get_tt_api_requests(stops, current_date):
+    api_requests = []
+    for stop_pair in stops:
+        params = {
+            "from_stop": stop_pair[0],
+            "to_stop": stop_pair[1],
+        }
+        url = constants.DD_URL_SINGLE_TT.format(date=datetime.strftime(current_date, constants.DATE_FORMAT_BACKEND), parameters=urlencode(params))
+        api_requests.append(url)
+    return api_requests
+
 
 
 # TODO: Maybe this should be a x hour rolling average of the past x hours of active service (?) or maybe last x trips
@@ -21,7 +37,7 @@ def update_current_schedule_adherence():
         today = now
         if now.hour < 6:  # get yesterday's speeds until 6 am.
             today = today.replace(hour=0, minute=0, second=0, microsecond=0) - datetime.timedelta(days=1) + datetime.timedelta(hours=23, minutes=59)
-        api_requests = line_traversal.get_tt_api_requests(constants.TERMINI[line], now)
+        api_requests = get_tt_api_requests(constants.TERMINI[line], now)
         for request in api_requests:
             response = requests.get(request)
             try:

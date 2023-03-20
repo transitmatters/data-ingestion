@@ -28,18 +28,6 @@ def get_agg_tt_api_requests(stops, current_date, delta):
     return api_requests
 
 
-def get_tt_api_requests(stops, current_date):
-    api_requests = []
-    for stop_pair in stops:
-        params = {
-            "from_stop": stop_pair[0],
-            "to_stop": stop_pair[1],
-        }
-        url = constants.DD_URL_SINGLE_TT.format(date=datetime.strftime(current_date, constants.DATE_FORMAT_BACKEND), parameters=urlencode(params))
-        api_requests.append(url)
-    return api_requests
-
-
 def send_requests(api_requests):
     tt_object = {}
     for request in api_requests:
