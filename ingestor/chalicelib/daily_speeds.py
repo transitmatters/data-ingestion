@@ -29,7 +29,7 @@ def get_agg_tt_api_requests(stops, current_date, delta):
 
 
 def send_requests(api_requests):
-    tt_object = {}
+    speed_object = {}
     for request in api_requests:
         response = requests.get(request)
         try:
@@ -39,32 +39,30 @@ def send_requests(api_requests):
             raise
         data = json.loads(response.content.decode("utf-8"), parse_float=Decimal, parse_int=Decimal)
         for item in data:
-            if item["service_date"] in tt_object:
-                tt_object[item['service_date']]["median"] += item['50%']
-                tt_object[item['service_date']]["count"] += item['count']
-                tt_object[item['service_date']]["entries"] += 1
+            if item["service_date"] in speed_object:
+                speed_object[item['service_date']]["median"] += item['50%']
+                speed_object[item['service_date']]["count"] += item['count']
+                speed_object[item['service_date']]["entries"] += 1
             else:
-                tt_object[item["service_date"]] = {
+                speed_object[item["service_date"]] = {
                     "median": item['50%'] if item['50%'] else 0,
                     "count": item['count'] if item['count'] else 0,
                     "entries": 1,
                 }
-    return tt_object
+    return speed_object
 
-
-def remove_invalid_tt_objects(tt_object, expected_num_entries):
-    return filter(lambda item: remove_invalid_entries(item[1], expected_num_entries, item[0]), list(tt_object.items()))
-
-def format_tt_objects(tt_objects, line):
-    formatted_tt_objects = []
-    for (curr_date, metrics) in tt_objects:
-            formatted_tt_objects.append({
+def format_tt_objects(speed_objects, line, expected_num_entries):
+    # Remove entries which are missing a leg of the trip.
+    filtered_speed_objects = filter(lambda item: remove_invalid_entries(item[1], expected_num_entries, item[0]), list(speed_objects.items()))
+    formatted_speed_objects = []
+    for (curr_date, metrics) in filtered_speed_objects:
+            formatted_speed_objects.append({
                 "line": line,
                 "date": curr_date,
                 "value": metrics["median"],
                 "count": metrics["count"]
             })
-    return formatted_tt_objects
+    return formatted_speed_objects
 
 
 ''' Only should be run manually. Calculates median TTs and trip counts for all days between start and end dates.'''
@@ -73,22 +71,22 @@ def populate_daily_table(start_date, end_date, line):
     stops = constants.TERMINI[line]
     current_date = start_date
     delta = timedelta(days=300)
-    tt_objects = []
+    speed_objects = []
     while current_date < end_date:
         print(f"Calculating Daily values for 300 day chunk starting at: {current_date}")
         API_requests = get_agg_tt_api_requests(stops, current_date, delta)
-        tt_object = send_requests(API_requests)
+        curr_speed_object = send_requests(API_requests)
         # Remove entries which don't have values for all routes.
-        tt_object_filtered = remove_invalid_tt_objects(tt_object, len(API_requests))
-        tt_object_formatted = format_tt_objects(tt_object_filtered, line)
-        tt_objects.extend(tt_object_formatted)
+        formatted_speed_object = format_tt_objects(curr_speed_object, line, len(API_requests))
+        speed_objects.extend(formatted_speed_object)
         current_date += delta
     print("Writing objects to DailySpeed table")
-    dynamo.write_to_traversal_table(tt_objects, "DailySpeed") 
+    dynamo.dynamo_batch_write(speed_objects, "DailySpeed") 
     print("Done")
 
+
 def update_daily_table(date):
-    tt_objects = []
+    speed_objects = []
     for line in constants.LINES:
         stops = constants.TERMINI[line]
         delta = timedelta(days=1)
@@ -96,12 +94,11 @@ def update_daily_table(date):
         print(f"Calculating update on [{line}] for date: {date_string}")
         API_requests = get_agg_tt_api_requests(stops, date, delta)
         tt_object = send_requests(API_requests)
-        # Remove entries which don't have values for all routes.
-        tt_object_filtered = list(remove_invalid_tt_objects(tt_object, len(API_requests)))
-        if len(tt_object_filtered) == 0:
+        formatted_speed_objects = format_tt_objects(tt_object, line, len(API_requests))
+        if len(formatted_speed_objects) == 0:
             print("No data for date {date_string}")
             return
-        tt_objects.extend(format_tt_objects(tt_object_filtered, line))
-    print(f"Writing values: {tt_objects}")
-    dynamo.write_to_traversal_table(tt_objects, "DailySpeed")
+        speed_objects.extend(formatted_speed_objects)
+    print(f"Writing values: {speed_objects}")
+    dynamo.dynamo_batch_write(speed_objects, "DailySpeed")
     print("Complete.")

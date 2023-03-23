@@ -1,6 +1,8 @@
-'''array of stop pairs which encompass entire system. Not actually termini - one before the termini.'''
+from datetime import datetime, timedelta
+from dateutil.relativedelta import relativedelta
 
 
+'''array of stop pairs which encompass entire system. Not actually termini - one before the terminal stop.'''
 TERMINI = {
     # RL: Davis SB = 70063, Shawmut SB = 70091, Quincy Adams SB = 70103, Quincy Adams NB = 70104, Davis NB = 70064, Shawmut NB = 70092
     "RL": [[70063, 70091], [70092, 70064], [70063, 70103], [70104, 70064]],
@@ -17,3 +19,34 @@ DATE_FORMAT_BACKEND = "%Y-%m-%d"
 
 DD_URL_AGG_TT = "https://dashboard-api2.transitmatters.org/aggregate/traveltimes?{parameters}"
 DD_URL_SINGLE_TT = "https://dashboard-api2.transitmatters.org/traveltimes/{date}?{parameters}"
+
+
+
+
+def get_monthly_table_update_start():
+    yesterday = datetime.today() - timedelta(days=1)
+    first_of_month = datetime(yesterday.year, yesterday.month, 1)
+    return first_of_month
+
+
+def get_weekly_table_update_start():
+    yesterday = datetime.now() - timedelta(days=1)
+    days_since_sunday = (yesterday.weekday() + 1) % 7
+    most_recent_sunday = yesterday - timedelta(days=days_since_sunday)
+    return most_recent_sunday
+
+
+TABLE_MAP = {
+    "weekly": {
+        "table_name": "WeeklySpeed",
+        "delta": timedelta(days=7),
+        "start_date": datetime.strptime("2016-01-10T08:00:00", DATE_FORMAT),  # Start on first Sunday with data.
+        "update_start": get_weekly_table_update_start()
+    },
+    "monthly": {
+        "table_name": "MonthlySpeed",
+        "delta": relativedelta(months=1),
+        "start_date": datetime.strptime("2016-01-01T08:00:00", DATE_FORMAT),  # Start on 1st of first month with data.
+        "update_start": get_monthly_table_update_start()
+    }
+}

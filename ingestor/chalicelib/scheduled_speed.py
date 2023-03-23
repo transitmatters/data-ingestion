@@ -1,16 +1,9 @@
 from decimal import Decimal
 import json
 from urllib.parse import urlencode
-import boto3
-from datetime import datetime, timedelta
+from datetime import datetime
 import requests
-
 from chalicelib import dynamo, constants
-
-
-dyn_resource = boto3.resource("dynamodb")
-table = dyn_resource.Table("OverviewStats")
-
 
 def get_tt_api_requests(stops, current_date):
     api_requests = []
@@ -25,6 +18,7 @@ def get_tt_api_requests(stops, current_date):
 
 
 def update_scheduled_speed_entry(date):
+    scheduled_speed_objects = []
     for line in constants.LINES:
         benchmark = 0
         api_requests = get_tt_api_requests(constants.TERMINI[line], date)
@@ -40,4 +34,9 @@ def update_scheduled_speed_entry(date):
                 print("No data")
                 return
             benchmark += sum(tt["benchmark_travel_time_sec"] for tt in data if "benchmark_travel_time_sec" in tt) / len(data)
-        dynamo.update_speed_adherence(line, datetime.strftime(date, constants.DATE_FORMAT_BACKEND), benchmark)
+        scheduled_speed_objects.append({
+            "line": line,
+            "date": datetime.strftime(date, constants.DATE_FORMAT_BACKEND),
+            "value": Decimal(benchmark)
+        })
+    dynamo.dynamo_batch_write(scheduled_speed_objects)
