@@ -65,9 +65,9 @@ def format_tt_objects(speed_objects, line, expected_num_entries):
     return formatted_speed_objects
 
 
-''' Only should be run manually. Calculates median TTs and trip counts for all days between start and end dates.'''
 def populate_daily_table(start_date, end_date, line):
-    print(f"populating DailySpeeds for line: {line}")
+    ''' Populate DailySpeed table. Calculates median TTs and trip counts for all days between start and end dates.'''
+    print(f"populating DailySpeed for line: {line}")
     stops = constants.TERMINI[line]
     current_date = start_date
     delta = timedelta(days=300)
@@ -86,6 +86,7 @@ def populate_daily_table(start_date, end_date, line):
 
 
 def update_daily_table(date):
+    ''' Update DailySpeed table'''
     speed_objects = []
     for line in constants.LINES:
         stops = constants.TERMINI[line]

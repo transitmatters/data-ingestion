@@ -73,18 +73,24 @@ def update_scheduled_speed(event):
     scheduled_speed.update_scheduled_speed_entry(today)
 
 
-
-# 7am UTC -> 2/3am EDT
+# 7am UTC -> 2/3am ET
 @app.schedule(Cron(0, 7, '*', '*', '?', '*'))
-def update_weekly_and_monthly_tables():
+def update_weekly_and_monthly_tables(event):
     agg_speed_tables.update_tables("weekly")
     agg_speed_tables.update_tables("monthly")
 
 
+# Manually triggered lambda for populating monthly or weekly tables. Only needs to be ran once. 
 @app.lambda_function()
 def populate_weekly_or_monthly_tables(params, context):
+    '''
+    line options: RL | OL | BL
+    range options: weekly | monthly
+    '''
     agg_speed_tables.populate_table(params["line"], params["range"]) # monthly or weekly range
 
+
+# Manually triggered lambda for populating daily tables. Should only be ran once. Takes line key as input (RL | OL | BL)
 @app.lambda_function()
 def populate_daily(params, context):
     start_date = datetime.strptime("2016-01-15", constants.DATE_FORMAT_BACKEND)

@@ -11,7 +11,7 @@
       "Resource": "arn:*:logs:*:*:*"
     },
     {
-      "Action": ["dynamodb:UpdateItem"],
+      "Action": ["dynamodb:BatchWriteItem"],
       "Effect": "Allow",
       "Resource": [
         "arn:aws:dynamodb:us-east-1:473352343756:table/DailyScheduledSpeed"

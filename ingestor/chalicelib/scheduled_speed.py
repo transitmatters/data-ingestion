@@ -18,6 +18,7 @@ def get_tt_api_requests(stops, current_date):
 
 
 def update_scheduled_speed_entry(date):
+    print(f"Updating DailyScheduledSpeed for {date}")
     scheduled_speed_objects = []
     for line in constants.LINES:
         benchmark = 0
@@ -39,4 +40,5 @@ def update_scheduled_speed_entry(date):
             "date": datetime.strftime(date, constants.DATE_FORMAT_BACKEND),
             "value": Decimal(benchmark)
         })
-    dynamo.dynamo_batch_write(scheduled_speed_objects)
+    dynamo.dynamo_batch_write(scheduled_speed_objects, "DailyScheduledSpeed")
+    print("Complete")
