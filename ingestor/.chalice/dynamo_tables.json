@@ -1,0 +1,143 @@
+{
+  "Resources": {
+    "OverviewStats": {
+      "Type": "AWS::DynamoDB::Table",
+      "Properties": {
+        "TableName": "OverviewStats",
+        "KeySchema": [
+          {
+            "AttributeName": "line",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "stat",
+            "KeyType": "RANGE"
+          }
+        ],
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "line",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "stat",
+            "AttributeType": "S"
+          }
+        ],
+        "BillingMode": "PAY_PER_REQUEST"
+      }
+    },
+    "DailySpeedDB": {
+      "Type": "AWS::DynamoDB::Table",
+      "Properties": {
+        "TableName": "DailySpeed",
+        "KeySchema": [
+          {
+            "AttributeName": "line",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "date",
+            "KeyType": "RANGE"
+          }
+        ],
+
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "line",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "date",
+            "AttributeType": "S"
+          }
+        ],
+        "BillingMode": "PAY_PER_REQUEST"
+      }
+    },
+    "WeeklySpeedDB": {
+      "Type": "AWS::DynamoDB::Table",
+      "Properties": {
+        "TableName": "WeeklySpeed",
+        "KeySchema": [
+          {
+            "AttributeName": "line",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "date",
+            "KeyType": "RANGE"
+          }
+        ],
+
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "line",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "date",
+            "AttributeType": "S"
+          }
+        ],
+        "BillingMode": "PAY_PER_REQUEST"
+      }
+    },
+    "MonthlySpeedDB": {
+      "Type": "AWS::DynamoDB::Table",
+      "Properties": {
+        "TableName": "MonthlySpeed",
+        "KeySchema": [
+          {
+            "AttributeName": "line",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "date",
+            "KeyType": "RANGE"
+          }
+        ],
+
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "line",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "date",
+            "AttributeType": "S"
+          }
+        ],
+        "BillingMode": "PAY_PER_REQUEST"
+      }
+    },
+    "ScheduledSpeedDB": {
+      "Type": "AWS::DynamoDB::Table",
+      "Properties": {
+        "TableName": "DailyScheduledSpeed",
+        "KeySchema": [
+          {
+            "AttributeName": "line",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "date",
+            "KeyType": "RANGE"
+          }
+        ],
+
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "line",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "date",
+            "AttributeType": "S"
+          }
+        ],
+        "BillingMode": "PAY_PER_REQUEST"
+      }
+    }
+  }
+}

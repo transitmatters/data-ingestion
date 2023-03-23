@@ -5,9 +5,11 @@ from chalicelib import (
     new_trains,
     bluebikes,
     line_traversal,
-    schedule_adherence,
+    scheduled_speed,
     dynamo,
-    update_agg_tables
+    update_agg_tables,
+    constants,
+    populate_tables
 )
 
 app = Chalice(app_name='ingestor')
@@ -54,22 +56,41 @@ def bb_calc_daily_stats(event):
 
 
 # Runs every 5 minutes from either 4 AM -> 1:55AM or 5 AM -> 2:55 AM depending on DST
-@app.schedule('*/5 0-6,9-23 * * *')
-def update_daily_table(event):
+@app.schedule(Cron('0/5', '0-6,9-23', '*', '*', '?', '*'))
+def update_daily_speed_table(event):
     today = datetime.now()
-    ''' Update yesterdays entry until 4 am'''
-    if today.hour < 4:
-        today = datetime - timedelta(days=1)
+    ''' Update yesterdays entry until 4/5 am (9 AM UTC)'''
+    if today.hour < 9:
+        today = today - timedelta(days=1)
     line_traversal.update_daily_table(today)
 
 
+
 # Runs every 5 minutes from either 4 AM -> 1:55AM or 5 AM -> 2:55 AM depending on DST
-@app.schedule('*/10 0-6,9-23 * * *')
-def update_sched_adherence(event):
-    schedule_adherence.update_current_schedule_adherence()
+@app.schedule(Cron('0/5', '0-6,9-23', '*', '*', '?', '*'))
+def update_scheduled_speed(event):
+    today = datetime.now()
+    ''' Update yesterdays entry until 4/5 am (9 AM UTC)'''
+    if today.hour < 9:
+        today = today - timedelta(days=1)
+    scheduled_speed.update_scheduled_speed_entry(today)
 
 
+
+# 7am UTC -> 2/3am EDT
 @app.schedule(Cron(0, 7, '*', '*', '?', '*'))
 def update_weekly_and_monthly_tables():
-    dynamo.update_weekly_tables()
-    dynamo.update_monthly_tables()
+    update_agg_tables.update_tables("weekly")
+    update_agg_tables.update_tables("monthly")
+
+
+@app.lambda_function()
+def populate_weekly_or_monthly_tables(params, context):
+    populate_tables.populate_table(params["line"], params["range"]) # monthly or weekly range
+
+@app.lambda_function()
+def populate_daily(params, context):
+    start_date = datetime.strptime("2016-01-15", constants.DATE_FORMAT_BACKEND)
+    end_date = datetime.now()
+    line_traversal.populate_daily_table(start_date, end_date, params["line"])
+

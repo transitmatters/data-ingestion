@@ -1,7 +1,4 @@
-from datetime import datetime, timedelta
-import numpy as np
 import boto3
-from chalicelib import update_agg_tables
 client = boto3.client('dynamodb')
 dynamodb = boto3.resource('dynamodb')  # Should I not create a client and a "regular" dynamo object in the same file?
 
@@ -10,30 +7,18 @@ DATE_FORMAT = "%Y-%m-%dT%H:%M:%S"
 DATE_FORMAT_BACKEND = "%Y-%m-%d"
 
 
-def write_to_traversal_table(tt_objects, line, table_name):
-    batch_items = []
+def write_to_traversal_table(tt_objects, table_name):
+    table = dynamodb.Table(table_name)
     if len(tt_objects) == 0:
         return
-
-    for date, metrics in tt_objects:
-        item = {'date': {}, 'value': {}, 'count': {}, 'line': {}}
-        item['date']['S'] = date
-        item['value']['N'] =str(metrics['median'])
-        item['count']['N'] = str(metrics['count'])
-        item['line']['S'] = line
-        batch_items.append({'PutRequest': {'Item': item}})
-
-    client.batch_write_item(RequestItems={table_name: batch_items})
+    with table.batch_writer() as batch:
+        for item in tt_objects:
+            batch.put_item(Item=item)
 
 
 def query_line_travel_times(params):
-    # Create a DynamoDB resource
-    dynamodb = boto3.resource('dynamodb')
+    table = dynamodb.Table('DailySpeed')
 
-    # Get a reference to the LineTraversalTime table
-    table = dynamodb.Table('LineTraversalTime')
-
-    # Define the query parameters
     query_params = {
         'KeyConditionExpression': '#pk = :pk and #date BETWEEN :start_date and :end_date',
         'ExpressionAttributeNames': {
@@ -47,23 +32,20 @@ def query_line_travel_times(params):
         }
     }
 
-    # Execute the query and return the results
     response = table.query(**query_params)
     return response['Items']
 
 
 
 def update_speed_adherence(line, now, value):
-    table = dynamodb.Table("OverviewStats")
+    table = dynamodb.Table("DailyScheduledSpeed")
     table.update_item(
-        Key={"line": line, "stat": "SpeedAdherence"},
-        UpdateExpression='SET #last_updated = :last_updated, #value = :value',
+        Key={"line": line, "date": now},
+        UpdateExpression='SET #value = :value',
         ExpressionAttributeNames={
-            '#last_updated': 'last_updated',
             '#value': 'value',
         },
         ExpressionAttributeValues={
-            ':last_updated': f'{now.strftime("%Y-%m-%dT%H:%M:%S")}',
             ':value': value,
         },
     )

@@ -1,3 +1,4 @@
+from decimal import Decimal
 import numpy as np
 from chalicelib import update_agg_tables, constants, dynamo
 from datetime import datetime, timedelta
@@ -8,8 +9,7 @@ def populate_table(line, table_type):
     current_date = table["start_date"]
     today = datetime.now()
     delta = table["delta"]
-    current_batch_of_tt_objects = {}
-    num_entries = 0
+    tt_objects = []
     while current_date <= today:
         print(current_date)
         params = {
@@ -23,15 +23,12 @@ def populate_table(line, table_type):
             continue
         tt = np.percentile(np.array([float(entry["value"]) for entry in data]), 50)
         count = np.percentile(np.array([int(entry["count"]) for entry in data]), 50)
-        current_batch_of_tt_objects[datetime.strftime(current_date, constants.DATE_FORMAT_BACKEND)] = {
-            "median": tt,
-            "count": count,
-        }
-        if num_entries > 23 or current_date + delta > today:
-            print('uploading...')
-            dynamo.write_to_traversal_table(list(current_batch_of_tt_objects.items()), line, table["table_name"])
-            num_entries = 0
-            current_batch_of_tt_objects = {}
+        tt_objects.append({
+            "line": line,
+            "date": datetime.strftime(current_date, constants.DATE_FORMAT_BACKEND),
+            "value": Decimal(tt),
+            "count": Decimal(count),
+        })
         current_date += delta
-        num_entries += 1
+    dynamo.write_to_traversal_table(tt_objects, table["table_name"])
     print("Done")

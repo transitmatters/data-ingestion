@@ -1,9 +1,8 @@
-import datetime
 from decimal import Decimal
 import json
 from urllib.parse import urlencode
 import boto3
-from datetime import datetime
+from datetime import datetime, timedelta
 import requests
 
 from chalicelib import dynamo, constants
@@ -11,8 +10,6 @@ from chalicelib import dynamo, constants
 
 dyn_resource = boto3.resource("dynamodb")
 table = dyn_resource.Table("OverviewStats")
-
-
 
 
 def get_tt_api_requests(stops, current_date):
@@ -27,17 +24,10 @@ def get_tt_api_requests(stops, current_date):
     return api_requests
 
 
-
-# TODO: Maybe this should be a x hour rolling average of the past x hours of active service (?) or maybe last x trips
-def update_current_schedule_adherence():
+def update_scheduled_speed_entry(date):
     for line in constants.LINES:
-        total_time = 0
         benchmark = 0
-        now = datetime.datetime.now()
-        today = now
-        if now.hour < 6:  # get yesterday's speeds until 6 am.
-            today = today.replace(hour=0, minute=0, second=0, microsecond=0) - datetime.timedelta(days=1) + datetime.timedelta(hours=23, minutes=59)
-        api_requests = get_tt_api_requests(constants.TERMINI[line], now)
+        api_requests = get_tt_api_requests(constants.TERMINI[line], date)
         for request in api_requests:
             response = requests.get(request)
             try:
@@ -49,7 +39,5 @@ def update_current_schedule_adherence():
             if len(data) == 0:
                 print("No data")
                 return
-            total_time += sum(tt["travel_time_sec"] for tt in data if "travel_time_sec" in tt)
-            benchmark += sum(tt["benchmark_travel_time_sec"] for tt in data if "benchmark_travel_time_sec" in tt)
-        percentage = int(100 * benchmark / total_time) if total_time > 0 else 0
-        dynamo.update_speed_adherence(line, now, percentage)
+            benchmark += sum(tt["benchmark_travel_time_sec"] for tt in data if "benchmark_travel_time_sec" in tt) / len(data)
+        dynamo.update_speed_adherence(line, datetime.strftime(date, constants.DATE_FORMAT_BACKEND), benchmark)
