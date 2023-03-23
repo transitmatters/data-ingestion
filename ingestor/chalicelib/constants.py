@@ -21,21 +21,21 @@ DD_URL_AGG_TT = "https://dashboard-api2.transitmatters.org/aggregate/traveltimes
 DD_URL_SINGLE_TT = "https://dashboard-api2.transitmatters.org/traveltimes/{date}?{parameters}"
 
 
-
-
 def get_monthly_table_update_start():
+    ''' Get 1st of current month '''
     yesterday = datetime.today() - timedelta(days=1)
     first_of_month = datetime(yesterday.year, yesterday.month, 1)
     return first_of_month
 
 
 def get_weekly_table_update_start():
+    ''' Get Sunday of current week. '''
     yesterday = datetime.now() - timedelta(days=1)
     days_since_sunday = (yesterday.weekday() + 1) % 7
     most_recent_sunday = yesterday - timedelta(days=days_since_sunday)
     return most_recent_sunday
 
-
+# Configuration for aggregate speed table functions
 TABLE_MAP = {
     "weekly": {
         "table_name": "WeeklySpeed",

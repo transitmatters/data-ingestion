@@ -25,21 +25,21 @@
           "lambda_memory_size": 256
         },
         "update_daily_speed_table": {
-          "iam_policy_file": "policy-dynamo-batch-write.json"
+          "iam_policy_file": "policy-daily-table.json"
         },
         "populate_daily": {
-          "iam_policy_file": "policy-dynamo-batch-write.json",
+          "iam_policy_file": "policy-daily-table.json",
           "lambda_timeout": 600
         },
         "update_weekly_and_monthly_tables": {
-          "iam_policy_file": "policy-batch-write-weekly-monthly.json"
+          "iam_policy_file": "policy-agg-tables.json"
         },
         "populate_weekly_or_monthly_tables": {
-          "iam_policy_file": "policy-batch-write-weekly-monthly.json",
+          "iam_policy_file": "policy-agg-tables.json",
           "lambda_timeout": 60
         },
         "update_scheduled_speed": {
-          "iam_policy_file": "policy-update-scheduled-speed.json"
+          "iam_policy_file": "policy-scheduled-speed.json"
         }
       }
     }

@@ -12,6 +12,7 @@ from chalicelib import (
 
 app = Chalice(app_name='ingestor')
 
+
 ################
 # STORE ALERTS
 # Every day at 10am UTC: store alerts from the past
@@ -20,6 +21,7 @@ app = Chalice(app_name='ingestor')
 def store_yesterday_alerts(event):
     two_days_ago = date.today() - timedelta(days=2)
     s3_alerts.store_alerts(two_days_ago)
+
 
 #################
 # STORE NEW TRAIN TRIPS
@@ -39,6 +41,7 @@ def store_new_train_runs(event):
 @app.schedule(Cron('0/5', '*', '*', '*', '?', '*'))
 def bb_store_station_status(event):
     bluebikes.store_station_status()
+
 
 # 10am UTC -> 6am EST
 @app.schedule(Cron(0, 10, '*', '*', '?', '*'))
@@ -80,14 +83,14 @@ def update_weekly_and_monthly_tables(event):
     agg_speed_tables.update_tables("monthly")
 
 
-# Manually triggered lambda for populating monthly or weekly tables. Only needs to be ran once. 
+# Manually triggered lambda for populating monthly or weekly tables. Only needs to be ran once.
 @app.lambda_function()
 def populate_weekly_or_monthly_tables(params, context):
     '''
     line options: RL | OL | BL
     range options: weekly | monthly
     '''
-    agg_speed_tables.populate_table(params["line"], params["range"]) # monthly or weekly range
+    agg_speed_tables.populate_table(params["line"], params["range"])
 
 
 # Manually triggered lambda for populating daily tables. Should only be ran once. Takes line key as input (RL | OL | BL)

@@ -3,6 +3,7 @@ import numpy as np
 from chalicelib import constants, dynamo
 from datetime import datetime, timedelta
 
+
 def populate_table(line, table_type):
     ''' Populate weekly or monthly aggregate speed table for a given line. Ran manually as a lambda in AWS console'''
     print(f"Populating {table_type} table")
@@ -72,7 +73,7 @@ def update_tables(table_type):
             return
         # Calculate p50 speed and number of trips.
         median_speed = np.percentile(np.array([float(entry["value"]) for entry in data]), 50)
-        count = np.percentile(np.array([int(entry["count"]) for entry in data]), 50) 
+        count = np.percentile(np.array([int(entry["count"]) for entry in data]), 50)
         table_input = {
                 "line": line,
                 "date": datetime.strftime(start, constants.DATE_FORMAT_BACKEND),

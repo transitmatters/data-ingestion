@@ -6,15 +6,16 @@ from chalicelib import dynamo, constants
 import requests
 
 
-''' Function to remove traversal time entries which do not have data for each leg of the trip.'''
 def remove_invalid_entries(item, expected_entries, date):
+    ''' Function to remove traversal time entries which do not have data for each leg of the trip.'''
     if item["entries"] < expected_entries:
-        print(f"Removing invalid entry for ({date}): Insufficient data - 1 or more leg of trip has no data.")
+        print(f"Removing invalid entry for ({date}): Insufficient data.")
         return False
     return True
 
 
 def get_agg_tt_api_requests(stops, current_date, delta):
+    ''' Create API requests from parameters '''
     api_requests = []
     for stop_pair in stops:
         params = {
@@ -29,6 +30,7 @@ def get_agg_tt_api_requests(stops, current_date, delta):
 
 
 def send_requests(api_requests):
+    ''' Send API requests to Datadashboard backend. '''
     speed_object = {}
     for request in api_requests:
         response = requests.get(request)
@@ -51,8 +53,9 @@ def send_requests(api_requests):
                 }
     return speed_object
 
+
 def format_tt_objects(speed_objects, line, expected_num_entries):
-    # Remove entries which are missing a leg of the trip.
+    ''' Remove invalid entries and format for Dynamo. '''
     filtered_speed_objects = filter(lambda item: remove_invalid_entries(item[1], expected_num_entries, item[0]), list(speed_objects.items()))
     formatted_speed_objects = []
     for (curr_date, metrics) in filtered_speed_objects:

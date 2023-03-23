@@ -5,7 +5,9 @@ from datetime import datetime
 import requests
 from chalicelib import dynamo, constants
 
+
 def get_tt_api_requests(stops, current_date):
+    ''' Format API requests to data dashboard backend. '''
     api_requests = []
     for stop_pair in stops:
         params = {
@@ -18,6 +20,7 @@ def get_tt_api_requests(stops, current_date):
 
 
 def update_scheduled_speed_entry(date):
+    ''' Update DailyScheduledSpeed table entries'''
     print(f"Updating DailyScheduledSpeed for {date}")
     scheduled_speed_objects = []
     for line in constants.LINES:
