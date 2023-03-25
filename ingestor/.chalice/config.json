@@ -37,9 +37,6 @@
         "populate_weekly_or_monthly_tables": {
           "iam_policy_file": "policy-agg-tables.json",
           "lambda_timeout": 60
-        },
-        "update_scheduled_speed": {
-          "iam_policy_file": "policy-scheduled-speed.json"
         }
       }
     }

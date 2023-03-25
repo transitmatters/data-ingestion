@@ -5,7 +5,6 @@ from chalicelib import (
     new_trains,
     bluebikes,
     daily_speeds,
-    scheduled_speed,
     constants,
     agg_speed_tables
 )
@@ -64,16 +63,6 @@ def update_daily_speed_table(event):
     if today.hour < 9:
         today = today - timedelta(days=1)
     daily_speeds.update_daily_table(today)
-
-
-# Runs every 5 minutes from either 4 AM -> 1:55AM or 5 AM -> 2:55 AM depending on DST
-@app.schedule(Cron('0/5', '0-6,9-23', '*', '*', '?', '*'))
-def update_scheduled_speed(event):
-    today = datetime.now()
-    ''' Update yesterdays entry until 4/5 am (9 AM UTC)'''
-    if today.hour < 9:
-        today = today - timedelta(days=1)
-    scheduled_speed.update_scheduled_speed_entry(today)
 
 
 # 7am UTC -> 2/3am ET

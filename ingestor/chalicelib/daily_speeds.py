@@ -101,7 +101,7 @@ def update_daily_table(date):
         formatted_speed_objects = format_tt_objects(tt_object, line, len(API_requests))
         if len(formatted_speed_objects) == 0:
             print("No data for date {date_string}")
-            return
+            continue
         speed_objects.extend(formatted_speed_objects)
     print(f"Writing values: {speed_objects}")
     dynamo.dynamo_batch_write(speed_objects, "DailySpeed")

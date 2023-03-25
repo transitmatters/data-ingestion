@@ -70,7 +70,7 @@ def update_tables(table_type):
         data = get_daily_speeds(params)
         if len(data) == 0:
             print("No data.")
-            return
+            continue
         # Calculate p50 speed and number of trips.
         median_speed = np.percentile(np.array([float(entry["value"]) for entry in data]), 50)
         count = np.percentile(np.array([int(entry["count"]) for entry in data]), 50)

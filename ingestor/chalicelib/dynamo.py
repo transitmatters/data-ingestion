@@ -2,10 +2,6 @@ import boto3
 dynamodb = boto3.resource('dynamodb')
 
 
-DATE_FORMAT = "%Y-%m-%dT%H:%M:%S"
-DATE_FORMAT_BACKEND = "%Y-%m-%d"
-
-
 def dynamo_batch_write(speed_objects, table_name):
     ''' Write objects to dynamo tables. Splitting up oversize batches is configured automatically. '''
     table = dynamodb.Table(table_name)
