@@ -76,13 +76,14 @@ def update_weekly_and_monthly_tables(event):
 @app.lambda_function()
 def populate_weekly_or_monthly_tables(params, context):
     '''
-    line options: RL | OL | BL
+    line options: line-red | line-orange | line-blue
     range options: weekly | monthly
     '''
     agg_speed_tables.populate_table(params["line"], params["range"])
 
 
-# Manually triggered lambda for populating daily tables. Should only be ran once. Takes line key as input (RL | OL | BL)
+# Manually triggered lambda for populating daily tables. Should only be ran once.
+# Takes line key as input (line-red | line-orange | line-blue)
 @app.lambda_function()
 def populate_daily(params, context):
     start_date = datetime.strptime("2016-01-15", constants.DATE_FORMAT_BACKEND)
