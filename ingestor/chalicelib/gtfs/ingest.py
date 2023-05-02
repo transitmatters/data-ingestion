@@ -88,21 +88,21 @@ def ingest_feed_to_dynamo(
 def ingest_feeds(dynamodb, archive: MbtaGtfsArchive, start_date: date, end_date: date):
     for feed in archive.get_feeds_for_dates(start_date=start_date, end_date=end_date):
         try:
-            feed.use_compact_only()
             exists_locally = feed.exists_locally()
             exists_remotely = feed.exists_remotely()
             if exists_locally:
                 print(f"[{feed.key}] Exists locally")
             elif exists_remotely:
                 print(f"[{feed.key}] Downloading from S3")
+                feed.use_compact_only()
                 feed.download_from_s3()
             else:
                 print(f"[{feed.key}] Building locally")
                 feed.build_locally()
-            if not exists_locally:
+            if not exists_remotely:
                 print(f"[{feed.key}] Uploading to S3")
                 feed.upload_to_s3()
-            session = feed.create_sqlite_session()
+            session = feed.create_sqlite_session(compact=True)
             ingest_feed_to_dynamo(
                 dynamodb,
                 session,
