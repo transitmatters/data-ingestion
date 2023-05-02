@@ -1,8 +1,6 @@
-import boto3
 from datetime import date
-from tempfile import TemporaryDirectory
 from sqlalchemy.orm import Session
-from mbta_gtfs_sqlite import MbtaGtfsArchive, GtfsFeed
+from mbta_gtfs_sqlite import MbtaGtfsArchive
 from mbta_gtfs_sqlite.models import (
     CalendarService,
     CalendarAttribute,
