@@ -1,4 +1,4 @@
-from chalice import Chalice, Cron 
+from chalice import Chalice, Cron
 from datetime import date, timedelta, datetime
 from chalicelib import (
     s3_alerts,
