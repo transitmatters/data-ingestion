@@ -22,7 +22,7 @@ jobs:
           poetry install
       - name: Lint code with Flake8
         run: |
-          poetry run flake8 server
+          poetry run flake8 ingestor
       - name: Check code Format with Black
         run: |
-          poetry run black server
+          poetry run black ingestor
