@@ -1,4 +1,6 @@
 from chalice import Chalice, Cron
+from tempfile import TemporaryDirectory
+import boto3
 from datetime import date, timedelta, datetime
 from chalicelib import (
     s3_alerts,
@@ -6,17 +8,18 @@ from chalicelib import (
     bluebikes,
     daily_speeds,
     constants,
-    agg_speed_tables
+    agg_speed_tables,
+    gtfs,
 )
 
-app = Chalice(app_name='ingestor')
+app = Chalice(app_name="ingestor")
 
 
 ################
 # STORE ALERTS
 # Every day at 10am UTC: store alerts from the past
 # It's called yesterday for now but it's really two days ago!!
-@app.schedule(Cron(0, 10, '*', '*', '?', '*'))
+@app.schedule(Cron(0, 10, "*", "*", "?", "*"))
 def store_yesterday_alerts(event):
     two_days_ago = date.today() - timedelta(days=2)
     s3_alerts.store_alerts(two_days_ago)
@@ -25,10 +28,11 @@ def store_yesterday_alerts(event):
 #################
 # STORE NEW TRAIN TRIPS
 # Ever day at 10:05am UTC: store new train runs from the previous day
-@app.schedule(Cron(5, 10, '*', '*', '?', '*'))
+@app.schedule(Cron(5, 10, "*", "*", "?", "*"))
 def store_new_train_runs(event):
     yesterday = date.today() - timedelta(days=1)
     new_trains.update_all(yesterday)
+
 
 #################
 # PROCESS & STORE SLOWZONES
@@ -37,48 +41,60 @@ def store_new_train_runs(event):
 
 #################
 # STORE BLUEBIKES FEED
-@app.schedule(Cron('0/5', '*', '*', '*', '?', '*'))
+@app.schedule(Cron("0/5", "*", "*", "*", "?", "*"))
 def bb_store_station_status(event):
     bluebikes.store_station_status()
 
 
 # 10am UTC -> 6am EST
-@app.schedule(Cron(0, 10, '*', '*', '?', '*'))
+@app.schedule(Cron(0, 10, "*", "*", "?", "*"))
 def bb_store_station_info(event):
     bluebikes.store_station_info()
 
 
 # 6am UTC -> 2am EDT
-@app.schedule(Cron(0, 6, '*', '*', '?', '*'))
+@app.schedule(Cron(0, 6, "*", "*", "?", "*"))
 def bb_calc_daily_stats(event):
     yesterday = date.today() - timedelta(days=1)
     bluebikes.calc_daily_stats(yesterday)
 
 
 # Runs every 5 minutes from either 4 AM -> 1:55AM or 5 AM -> 2:55 AM depending on DST
-@app.schedule(Cron('0/5', '0-6,9-23', '*', '*', '?', '*'))
+@app.schedule(Cron("0/5", "0-6,9-23", "*", "*", "?", "*"))
 def update_daily_speed_table(event):
     today = datetime.now()
-    ''' Update yesterdays entry until 4/5 am (9 AM UTC)'''
+    """ Update yesterdays entry until 4/5 am (9 AM UTC)"""
     if today.hour < 9:
         today = today - timedelta(days=1)
     daily_speeds.update_daily_table(today)
 
 
 # 7am UTC -> 2/3am ET
-@app.schedule(Cron(0, 7, '*', '*', '?', '*'))
+@app.schedule(Cron(0, 7, "*", "*", "?", "*"))
 def update_weekly_and_monthly_tables(event):
     agg_speed_tables.update_tables("weekly")
     agg_speed_tables.update_tables("monthly")
 
 
+# 7am UTC -> 2/3am ET
+@app.schedule(Cron(0, 7, "*", "*", "?", "*"))
+def update_gtfs(event):
+    today = date.today()
+    gtfs.ingest_gtfs_feeds_to_dynamo_and_s3(
+        start_date=today,
+        end_date=today,
+        local_archive_path=TemporaryDirectory().name,
+        boto3_session=boto3.Session(),
+    )
+
+
 # Manually triggered lambda for populating monthly or weekly tables. Only needs to be ran once.
 @app.lambda_function()
 def populate_weekly_or_monthly_tables(params, context):
-    '''
+    """
     line options: line-red | line-orange | line-blue
     range options: weekly | monthly
-    '''
+    """
     agg_speed_tables.populate_table(params["line"], params["range"])
 
 
