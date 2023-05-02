@@ -10,7 +10,7 @@ python-versions = "*"
 name = "attrs"
 version = "21.4.0"
 description = "Classes Without Boilerplate"
-category = "dev"
+category = "main"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
 
@@ -64,6 +64,28 @@ urllib3 = ">=1.25.4,<1.27"
 
 [package.extras]
 crt = ["awscrt (==0.13.8)"]
+
+[[package]]
+name = "boxsdk"
+version = "3.7.1"
+description = "Official Box Python SDK"
+category = "main"
+optional = false
+python-versions = "*"
+
+[package.dependencies]
+attrs = ">=17.3.0"
+python-dateutil = "*"
+requests = ">=2.4.3"
+requests-toolbelt = ">=0.4.0,<1.0.0"
+
+[package.extras]
+coveralls = ["coveralls", "tox"]
+dev = ["tox"]
+gh = ["tox-gh-actions", "tox"]
+jwt = ["pyjwt (>=1.7.0)", "cryptography (>=3)"]
+redis = ["redis (>=2.10.3)"]
+test = ["bottle", "jsonpatch (>1.14)", "sqlalchemy (<1.4.0)", "pytest", "pytest-timeout", "pytest-cov", "pytest-lazy-fixture", "pytz"]
 
 [[package]]
 name = "certifi"
@@ -125,6 +147,14 @@ description = "Cross-platform colored terminal text."
 category = "dev"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
+
+[[package]]
+name = "et-xmlfile"
+version = "1.1.0"
+description = "An implementation of lxml.xmlfile for the standard library"
+category = "main"
+optional = false
+python-versions = ">=3.6"
 
 [[package]]
 name = "flake8"
@@ -264,6 +294,17 @@ optional = false
 python-versions = ">=3.8"
 
 [[package]]
+name = "openpyxl"
+version = "3.1.2"
+description = "A Python library to read/write Excel 2010 xlsx/xlsm files"
+category = "main"
+optional = false
+python-versions = ">=3.6"
+
+[package.dependencies]
+et-xmlfile = "*"
+
+[[package]]
 name = "pandas"
 version = "1.4.3"
 description = "Powerful data structures for data analysis, time series, and statistics"
@@ -373,6 +414,17 @@ socks = ["PySocks (>=1.5.6,!=1.5.7)"]
 use_chardet_on_py3 = ["chardet (>=3.0.2,<6)"]
 
 [[package]]
+name = "requests-toolbelt"
+version = "0.10.1"
+description = "A utility belt for advanced users of python-requests"
+category = "main"
+optional = false
+python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
+
+[package.dependencies]
+requests = ">=2.0.1,<3.0.0"
+
+[[package]]
 name = "s3transfer"
 version = "0.6.0"
 description = "An Amazon S3 Transfer Manager"
@@ -461,7 +513,7 @@ python-versions = "*"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.9"
-content-hash = "632f8e419a8fc5a075c9244b84ab8f76d0dea46a44106d5822b1483fa7f6cf1e"
+content-hash = "f9411ff1cc36628c234584a9cad86a07b578dc27de8b864c82861b5cfe81611d"
 
 [metadata.files]
 ansicon = []
@@ -469,11 +521,13 @@ attrs = []
 blessed = []
 boto3 = []
 botocore = []
+boxsdk = []
 certifi = []
 chalice = []
 charset-normalizer = []
 click = []
 colorama = []
+et-xmlfile = []
 flake8 = []
 geographiclib = []
 geopy = []
@@ -487,6 +541,7 @@ mbta-gtfs-sqlite = []
 mccabe = []
 mypy-extensions = []
 numpy = []
+openpyxl = []
 pandas = []
 pycodestyle = []
 pyflakes = []
@@ -497,6 +552,7 @@ pytz = []
 pyyaml = []
 readchar = []
 requests = []
+requests-toolbelt = []
 s3transfer = []
 six = []
 sqlalchemy = []
