@@ -19,7 +19,6 @@ from .utils import (
     is_valid_route_id,
     get_services_for_date,
 )
-from .lines import get_lines_index, LinesIndex
 from .models import SessionModels, RouteDateTotals
 
 
@@ -41,14 +40,10 @@ def load_session_models(session: Session):
     )
 
 
-def create_route_date_totals(
-    today: date,
-    models: SessionModels,
-    lines: LinesIndex,
-):
+def create_route_date_totals(today: date, models: SessionModels):
     all_totals = []
     services_for_today = get_services_for_date(models, today)
-    for route_id in models.routes.keys():
+    for route_id, route in models.routes.items():
         if not is_valid_route_id(route_id):
             continue
         trips = [
@@ -58,7 +53,7 @@ def create_route_date_totals(
         ]
         totals = RouteDateTotals(
             route_id=route_id,
-            line_id=lines.get(route_id, ""),
+            line_id=route.line_id,
             date=today,
             count=len(trips),
             by_hour=bucket_trips_by_hour(trips),
@@ -70,14 +65,13 @@ def create_route_date_totals(
 def ingest_feed_to_dynamo(
     dynamodb,
     session: Session,
-    lines: LinesIndex,
     start_date: date,
     end_date: date,
 ):
     TripCounts = dynamodb.Table("TripCounts")
     models = load_session_models(session)
     for today in date_range(start_date, end_date):
-        totals = create_route_date_totals(today, models, lines)
+        totals = create_route_date_totals(today, models)
         with TripCounts.batch_writer() as batch:
             for total in totals:
                 item = {
@@ -92,7 +86,6 @@ def ingest_feed_to_dynamo(
 
 
 def ingest_feeds(dynamodb, archive: MbtaGtfsArchive, start_date: date, end_date: date):
-    lines = get_lines_index(archive)
     for feed in archive.get_feeds_for_dates(start_date=start_date, end_date=end_date):
         try:
             feed.use_compact_only()
@@ -113,7 +106,6 @@ def ingest_feeds(dynamodb, archive: MbtaGtfsArchive, start_date: date, end_date:
             ingest_feed_to_dynamo(
                 dynamodb,
                 session,
-                lines,
                 max(feed.start_date, start_date),
                 min(feed.end_date, end_date, date.today()),
             )
