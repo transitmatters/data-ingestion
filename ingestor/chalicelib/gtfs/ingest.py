@@ -1,3 +1,5 @@
+import boto3
+from tempfile import TemporaryDirectory
 from datetime import date
 from sqlalchemy.orm import Session
 from mbta_gtfs_sqlite import MbtaGtfsArchive
@@ -123,9 +125,13 @@ def ingest_feeds(dynamodb, archive: MbtaGtfsArchive, start_date: date, end_date:
 def ingest_gtfs_feeds_to_dynamo_and_s3(
     start_date: date,
     end_date: date,
-    local_archive_path: str,
-    boto3_session,
+    local_archive_path: str = None,
+    boto3_session=None,
 ):
+    if not boto3_session:
+        boto3_session = boto3.Session()
+    if not local_archive_path:
+        local_archive_path = TemporaryDirectory().name
     ingest_feeds(
         dynamodb=boto3_session.resource("dynamodb"),
         archive=MbtaGtfsArchive(

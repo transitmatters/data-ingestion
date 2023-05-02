@@ -1,6 +1,4 @@
-from chalice import Chalice, Cron
-from tempfile import TemporaryDirectory
-import boto3
+from chalice import Chalice, Cron 
 from datetime import date, timedelta, datetime
 from chalicelib import (
     s3_alerts,
@@ -83,8 +81,6 @@ def update_gtfs(event):
     gtfs.ingest_gtfs_feeds_to_dynamo_and_s3(
         start_date=today,
         end_date=today,
-        local_archive_path=TemporaryDirectory().name,
-        boto3_session=boto3.Session(),
     )
 
 
