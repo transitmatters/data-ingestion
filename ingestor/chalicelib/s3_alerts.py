@@ -4,8 +4,10 @@ from chalicelib import MbtaPerformanceAPI, s3
 
 BUCKET = "tm-mbta-performance"
 
+
 def key(day):
     return f"Alerts/{str(day)}.json.gz"
+
 
 def store_alerts(day):
     api_data = MbtaPerformanceAPI.get_api_data("pastalerts", {}, day)
