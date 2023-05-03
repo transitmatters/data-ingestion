@@ -105,7 +105,8 @@ def populate_daily_table(start_date, end_date, line):
         print(f"Calculating daily values for 300 day chunk starting at: {current_date}")
         API_requests = get_agg_tt_api_requests(stops, current_date, delta)
         curr_speed_object = send_requests(API_requests)
-        date_range = get_date_range_strings(start_date, end_date)
+        date_range = get_date_range_strings(current_date, current_date + delta - timedelta(days=1))
+        print(date_range)
         formatted_speed_object = format_tt_objects(curr_speed_object, line, len(API_requests), date_range)
         speed_objects.extend(formatted_speed_object)
         current_date += delta

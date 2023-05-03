@@ -115,6 +115,11 @@ def populate_daily():
 def pop_month():
     agg_speed_tables.populate_table("line-red", "weekly")
 
+
+@app.route("/popmonthly")
+def pop_month():
+    agg_speed_tables.populate_table("line-red", "monthly")
+
 @app.route("/update/today")
 def update_today():
     today = datetime.now()
