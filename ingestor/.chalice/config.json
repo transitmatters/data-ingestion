@@ -47,7 +47,7 @@
         "update_ridership": {
           "iam_policy_file": "policy-ridership.json",
           "lambda_timeout": 900,
-          "lambda_memory_size": 4096,
+          "lambda_memory_size": 512,
           "max_ebs_size_gb": 2
         }
       }
