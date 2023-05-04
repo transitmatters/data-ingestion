@@ -81,8 +81,6 @@ def update_daily_next_day(event):
     daily_speeds.update_daily_table(today - timedelta(days=2))
 
 
-
-
 # Manually triggered lambda for populating monthly or weekly tables. Only needs to be ran once.
 @app.lambda_function()
 def populate_weekly_or_monthly_tables(params, context):

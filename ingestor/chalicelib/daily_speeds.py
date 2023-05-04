@@ -58,32 +58,19 @@ def format_tt_objects(speed_objects, line, expected_num_entries, date_range):
     formatted_speed_objects = []
     for current_date in date_range:
         metrics = speed_objects.get(current_date)
-        if metrics is None:
-            formatted_speed_objects.append({
-                "line": line,
-                "date": current_date,
-                "value": None,
-                "count": None,
-            })
+        new_speed_object = {
+            "line": line,
+            "date": current_date,
+            "value": None,
+            "count": None,
+        }
 
-            continue
-        if  is_valid_entry(metrics, expected_num_entries, current_date):
-            formatted_speed_objects.append({
-                "line": line,
-                "date": current_date,
-                "value": metrics["median"],
-                "count": metrics["count"]
-            })
-            continue
-        else:
-            formatted_speed_objects.append({
-                "line": line,
-                "date": current_date,
-                "value": None,
-                "count": metrics["count"],
-            })
-            continue
+        if metrics:
+            new_speed_object["count"] = metrics["count"]
+        if metrics and is_valid_entry(metrics, expected_num_entries, current_date):
+            new_speed_object["value"] = metrics["median"]
 
+        formatted_speed_objects.append(new_speed_object)
     return formatted_speed_objects
 
 def get_date_range_strings(start_date, end_date):
