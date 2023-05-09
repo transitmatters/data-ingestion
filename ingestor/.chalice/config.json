@@ -25,7 +25,8 @@
           "lambda_memory_size": 256
         },
         "update_daily_speed_table": {
-          "iam_policy_file": "policy-daily-table.json"
+          "iam_policy_file": "policy-daily-table.json",
+          "lambda_timeout": 20
         },
         "populate_daily": {
           "iam_policy_file": "policy-daily-table.json",
