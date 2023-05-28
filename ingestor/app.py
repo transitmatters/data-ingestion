@@ -69,14 +69,15 @@ def update_daily_speed_table(event):
 
 # 7am UTC -> 2/3am ET
 # Update weekly and monthly tables. At 2/3 AM EST and also after we have updated yesterday's data.
-@app.schedule(Cron(10, "7,12", '*', '*', '?', '*'))
+@app.schedule(Cron(10, "7,12", "*", "*", "?", "*"))
 def update_weekly_and_monthly_tables(event):
     agg_speed_tables.update_tables("weekly")
     agg_speed_tables.update_tables("monthly")
 
+
 # 12 UTC -> 7/8am ET
 # The MBTA cleans up their data the next day (we suspect sometime after 4 AM). Update yesterday's data after this (and 2 days ago to be safe).
-@app.schedule(Cron(0, 12, '*', '*', '?', '*'))
+@app.schedule(Cron(0, 12, "*", "*", "?", "*"))
 def update_yesterday_speeds(event):
     today = datetime.now()
     daily_speeds.update_daily_table(today - timedelta(days=1))
@@ -87,10 +88,7 @@ def update_yesterday_speeds(event):
 @app.schedule(Cron(0, 7, "*", "*", "?", "*"))
 def update_gtfs(event):
     today = date.today()
-    gtfs.ingest_gtfs_feeds_to_dynamo_and_s3(
-        start_date=today,
-        end_date=today,
-    )
+    gtfs.ingest_gtfs_feeds_to_dynamo_and_s3(date_range=(today, today))
 
 
 # Manually triggered lambda for populating monthly or weekly tables. Only needs to be ran once.

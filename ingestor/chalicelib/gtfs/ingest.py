@@ -1,8 +1,9 @@
 import boto3
 from tempfile import TemporaryDirectory
 from datetime import date
+from typing import List, Tuple, Union
 from sqlalchemy.orm import Session
-from mbta_gtfs_sqlite import MbtaGtfsArchive
+from mbta_gtfs_sqlite import MbtaGtfsArchive, GtfsFeed
 from mbta_gtfs_sqlite.models import (
     CalendarService,
     CalendarAttribute,
@@ -85,23 +86,35 @@ def ingest_feed_to_dynamo(
                 batch.put_item(Item=item)
 
 
-def ingest_feeds(dynamodb, archive: MbtaGtfsArchive, start_date: date, end_date: date):
-    for feed in archive.get_feeds_for_dates(start_date=start_date, end_date=end_date):
+def ingest_feeds(
+    dynamodb,
+    feeds: List[GtfsFeed],
+    start_date: date,
+    end_date: date,
+    force_rebuild_feeds: bool = False,
+):
+    for feed in feeds:
         try:
-            exists_locally = feed.exists_locally()
-            exists_remotely = feed.exists_remotely()
-            if exists_locally:
-                print(f"[{feed.key}] Exists locally")
-            elif exists_remotely:
-                print(f"[{feed.key}] Downloading from S3")
-                feed.use_compact_only()
-                feed.download_from_s3()
-            else:
-                print(f"[{feed.key}] Building locally")
+            if force_rebuild_feeds:
+                print(f"[{feed.key}] Forcing rebuild locally")
                 feed.build_locally()
-            if not exists_remotely:
                 print(f"[{feed.key}] Uploading to S3")
                 feed.upload_to_s3()
+            else:
+                exists_locally = feed.exists_locally()
+                exists_remotely = feed.exists_remotely()
+                if exists_locally:
+                    print(f"[{feed.key}] Exists locally")
+                elif exists_remotely:
+                    print(f"[{feed.key}] Downloading from S3")
+                    feed.use_compact_only()
+                    feed.download_from_s3()
+                else:
+                    print(f"[{feed.key}] Building locally")
+                    feed.build_locally()
+                if not exists_remotely:
+                    print(f"[{feed.key}] Uploading to S3")
+                    feed.upload_to_s3()
             session = feed.create_sqlite_session(compact=True)
             ingest_feed_to_dynamo(
                 dynamodb,
@@ -115,21 +128,40 @@ def ingest_feeds(dynamodb, archive: MbtaGtfsArchive, start_date: date, end_date:
 
 
 def ingest_gtfs_feeds_to_dynamo_and_s3(
-    start_date: date,
-    end_date: date,
+    date_range: Union[None, Tuple[date, date]] = None,
+    feed_key: Union[None, str] = None,
     local_archive_path: str = None,
     boto3_session=None,
+    force_rebuild_feeds: bool = False,
 ):
     if not boto3_session:
         boto3_session = boto3.Session()
     if not local_archive_path:
         local_archive_path = TemporaryDirectory().name
+    archive = MbtaGtfsArchive(
+        local_archive_path=local_archive_path,
+        s3_bucket=boto3_session.resource("s3").Bucket("tm-gtfs"),
+    )
+    if date_range:
+        start_date, end_date = date_range
+        feeds = archive.get_feeds_for_dates(start_date, end_date)
+    elif feed_key:
+        feed = archive.get_feed_by_key(feed_key)
+        start_date = feed.start_date
+        end_date = feed.end_date
+        feeds = [feed]
+    else:
+        raise Exception("Must provide either date_range or feed_key")
     ingest_feeds(
         dynamodb=boto3_session.resource("dynamodb"),
-        archive=MbtaGtfsArchive(
-            local_archive_path=local_archive_path,
-            s3_bucket=boto3_session.resource("s3").Bucket("tm-gtfs"),
-        ),
+        feeds=feeds,
         start_date=start_date,
         end_date=end_date,
+        force_rebuild_feeds=force_rebuild_feeds,
     )
+
+
+def get_feed_keys_for_date_range(start_date: date, end_date: date) -> List[str]:
+    archive = MbtaGtfsArchive(local_archive_path=TemporaryDirectory().name)
+    feeds = archive.get_feeds_for_dates(start_date, end_date)
+    return [feed.key for feed in feeds]
