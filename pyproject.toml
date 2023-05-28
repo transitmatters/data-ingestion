@@ -14,7 +14,7 @@ numpy = "^1.23.1"
 pandas = "^1.4.3"
 geopy = "^2.2.0"
 python-dotenv = "^1.0.0"
-mbta-gtfs-sqlite = "^0.9.8"
+mbta-gtfs-sqlite = "^0.9.9"
 
 [tool.poetry.dev-dependencies]
 chalice = "^1.27.1"

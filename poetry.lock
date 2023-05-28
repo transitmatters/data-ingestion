@@ -229,7 +229,7 @@ python-versions = "*"
 
 [[package]]
 name = "mbta-gtfs-sqlite"
-version = "0.9.8"
+version = "0.9.9"
 description = "Query the MBTA's static GTFS feeds using sqlite"
 category = "main"
 optional = false
@@ -461,7 +461,7 @@ python-versions = "*"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.9"
-content-hash = "e73858503e0a81f8940b35f24b4b7f36101edd19c3025d2952bd806dfda651c0"
+content-hash = "069ebb284492e30c637c875efc7bac574a038a1641f092c5ebfc72dd392a5875"
 
 [metadata.files]
 ansicon = []
