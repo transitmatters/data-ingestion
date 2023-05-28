@@ -134,7 +134,7 @@
             "AttributeType": "N"
           },
           {
-            "AttributeName": "count",
+            "AttributeName": "timestamp",
             "AttributeType": "N"
           }
         ],
