@@ -31,6 +31,9 @@
           "iam_policy_file": "policy-daily-table.json",
           "lambda_timeout": 600
         },
+        "update_yesterday_speeds": {
+          "iam_policy_file": "policy-daily-table.json"
+        },
         "update_weekly_and_monthly_tables": {
           "iam_policy_file": "policy-agg-tables.json"
         },

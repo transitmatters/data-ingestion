@@ -6,10 +6,10 @@ from chalicelib import dynamo, constants
 import requests
 
 
-def remove_invalid_entries(item, expected_entries, date):
+def is_valid_entry(item, expected_entries, date):
     ''' Function to remove traversal time entries which do not have data for each leg of the trip.'''
     if item["entries"] < expected_entries:
-        print(f"Removing invalid entry for ({date}): Insufficient data.")
+        print(f"No speed value for ({date}): Insufficient data.")
         return False
     return True
 
@@ -53,20 +53,33 @@ def send_requests(api_requests):
                 }
     return speed_object
 
-
-def format_tt_objects(speed_objects, line, expected_num_entries):
+def format_tt_objects(speed_objects, line, expected_num_entries, date_range):
     ''' Remove invalid entries and format for Dynamo. '''
-    filtered_speed_objects = filter(lambda item: remove_invalid_entries(item[1], expected_num_entries, item[0]), list(speed_objects.items()))
     formatted_speed_objects = []
-    for (curr_date, metrics) in filtered_speed_objects:
-            formatted_speed_objects.append({
-                "line": line,
-                "date": curr_date,
-                "value": metrics["median"],
-                "count": metrics["count"]
-            })
+    for current_date in date_range:
+        metrics = speed_objects.get(current_date)
+        new_speed_object = {
+            "line": line,
+            "date": current_date,
+            "value": None,
+            "count": None,
+        }
+
+        if metrics:
+            new_speed_object["count"] = metrics["count"]
+        if metrics and is_valid_entry(metrics, expected_num_entries, current_date):
+            new_speed_object["value"] = metrics["median"]
+
+        formatted_speed_objects.append(new_speed_object)
     return formatted_speed_objects
 
+def get_date_range_strings(start_date, end_date):
+    date_range = []
+    current_date = start_date
+    while current_date <= end_date:
+        date_range.append(current_date.strftime("%Y-%m-%d"))
+        current_date += timedelta(days=1)
+    return date_range
 
 def populate_daily_table(start_date, end_date, line):
     ''' Populate DailySpeed table. Calculates median TTs and trip counts for all days between start and end dates.'''
@@ -76,11 +89,11 @@ def populate_daily_table(start_date, end_date, line):
     delta = timedelta(days=300)
     speed_objects = []
     while current_date < end_date:
-        print(f"Calculating Daily values for 300 day chunk starting at: {current_date}")
+        print(f"Calculating daily values for 300 day chunk starting at: {current_date}")
         API_requests = get_agg_tt_api_requests(stops, current_date, delta)
         curr_speed_object = send_requests(API_requests)
-        # Remove entries which don't have values for all routes.
-        formatted_speed_object = format_tt_objects(curr_speed_object, line, len(API_requests))
+        date_range = get_date_range_strings(current_date, current_date + delta - timedelta(days=1))
+        formatted_speed_object = format_tt_objects(curr_speed_object, line, len(API_requests), date_range)
         speed_objects.extend(formatted_speed_object)
         current_date += delta
     print("Writing objects to DailySpeed table")
@@ -98,7 +111,7 @@ def update_daily_table(date):
         print(f"Calculating update on [{line}] for date: {date_string}")
         API_requests = get_agg_tt_api_requests(stops, date, delta)
         tt_object = send_requests(API_requests)
-        formatted_speed_objects = format_tt_objects(tt_object, line, len(API_requests))
+        formatted_speed_objects = format_tt_objects(tt_object, line, len(API_requests), [date_string])
         if len(formatted_speed_objects) == 0:
             print("No data for date {date_string}")
             continue
