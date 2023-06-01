@@ -22,7 +22,7 @@ black = "^23.3.0"
 
 [tool.black]
 line-length = 120
-target-version = ['py39', 'py10']
+target-version = ['py39', 'py310']
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
