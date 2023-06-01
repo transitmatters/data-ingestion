@@ -23,6 +23,6 @@ jobs:
       - name: Lint code with Flake8
         run: |
           poetry run flake8 ingestor
-      - name: Check code Format with Black
+      - name: Check code format with Black
         run: |
           poetry run black ingestor
