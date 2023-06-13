@@ -114,28 +114,12 @@
         "TableName": "TripCounts",
         "AttributeDefinitions": [
           {
-            "AttributeName": "date",
-            "AttributeType": "S"
-          },
-          {
             "AttributeName": "routeId",
             "AttributeType": "S"
           },
           {
-            "AttributeName": "lineId",
+            "AttributeName": "date",
             "AttributeType": "S"
-          },
-          {
-            "AttributeName": "byHour",
-            "AttributeType": "M"
-          },
-          {
-            "AttributeName": "count",
-            "AttributeType": "N"
-          },
-          {
-            "AttributeName": "timestamp",
-            "AttributeType": "N"
           }
         ],
         "KeySchema": [
@@ -147,7 +131,8 @@
             "AttributeName": "date",
             "KeyType": "RANGE"
           }
-        ]
+        ],
+        "BillingMode": "PAY_PER_REQUEST"
       }
     },
     "Ridership": {
@@ -156,20 +141,12 @@
         "TableName": "Ridership",
         "AttributeDefinitions": [
           {
-            "AttributeName": "date",
-            "AttributeType": "S"
-          },
-          {
             "AttributeName": "lineId",
             "AttributeType": "S"
           },
           {
-            "AttributeName": "count",
-            "AttributeType": "N"
-          },
-          {
-            "AttributeName": "timestamp",
-            "AttributeType": "N"
+            "AttributeName": "date",
+            "AttributeType": "S"
           }
         ],
         "KeySchema": [
@@ -181,7 +158,8 @@
             "AttributeName": "date",
             "KeyType": "RANGE"
           }
-        ]
+        ],
+        "BillingMode": "PAY_PER_REQUEST"
       }
     }
   }
