@@ -47,11 +47,7 @@ def create_route_date_totals(today: date, models: SessionModels):
     for route_id, route in models.routes.items():
         if not is_valid_route_id(route_id):
             continue
-        trips = [
-            trip
-            for trip in models.trips_by_route_id.get(route_id, [])
-            if trip.service_id in services_for_today
-        ]
+        trips = [trip for trip in models.trips_by_route_id.get(route_id, []) if trip.service_id in services_for_today]
         totals = RouteDateTotals(
             route_id=route_id,
             line_id=route.line_id,

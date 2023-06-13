@@ -149,6 +149,40 @@
           }
         ]
       }
+    },
+    "Ridership": {
+      "Type": "AWS::DynamoDB::Table",
+      "Properties": {
+        "TableName": "Ridership",
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "date",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "lineId",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "count",
+            "AttributeType": "N"
+          },
+          {
+            "AttributeName": "timestamp",
+            "AttributeType": "N"
+          }
+        ],
+        "KeySchema": [
+          {
+            "AttributeName": "lineId",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "date",
+            "KeyType": "RANGE"
+          }
+        ]
+      }
     }
   }
 }

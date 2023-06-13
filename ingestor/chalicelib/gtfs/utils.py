@@ -79,20 +79,13 @@ def get_services_for_date(models: "SessionModels", today: date):
         ][today.weekday()] == ServiceDayAvailability.AVAILABLE
         is_removed_by_exception = any(
             (
-                ex.date == today
-                and ex.exception_type == CalendarServiceExceptionType.REMOVED
+                ex.date == today and ex.exception_type == CalendarServiceExceptionType.REMOVED
                 for ex in service_exceptions
             )
         )
         is_added_by_exception = any(
-            (
-                ex.date == today
-                and ex.exception_type == CalendarServiceExceptionType.ADDED
-                for ex in service_exceptions
-            )
+            (ex.date == today and ex.exception_type == CalendarServiceExceptionType.ADDED for ex in service_exceptions)
         )
-        if is_added_by_exception or (
-            in_range and on_sevice_day and not is_removed_by_exception
-        ):
+        if is_added_by_exception or (in_range and on_sevice_day and not is_removed_by_exception):
             services_for_today.add(service_id)
     return services_for_today
