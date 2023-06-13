@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 
 
 def populate_table(line, table_type):
-    ''' Populate weekly or monthly aggregate speed table for a given line. Ran manually as a lambda in AWS console'''
+    """Populate weekly or monthly aggregate speed table for a given line. Ran manually as a lambda in AWS console"""
     print(f"Populating {table_type} table")
     table = constants.TABLE_MAP[table_type]
     current_date = table["start_date"]
@@ -22,48 +22,49 @@ def populate_table(line, table_type):
         }
         data = get_daily_speeds(params)
         if len(data) == 0:
-            speed_objects.append({
-                "line": line,
-                "date": datetime.strftime(current_date, constants.DATE_FORMAT_BACKEND),
-                "value": None,
-                "count": None,
-            })
+            speed_objects.append(
+                {
+                    "line": line,
+                    "date": datetime.strftime(current_date, constants.DATE_FORMAT_BACKEND),
+                    "value": None,
+                    "count": None,
+                }
+            )
             current_date += delta
             continue
         tt_array = np.array([float(entry["value"]) for entry in data if entry["value"] is not None])
         tt = np.percentile(tt_array, 50) if len(tt_array) > 0 else None
         count_array = np.array([int(entry["count"]) for entry in data if entry["value"] is not None])
         count = np.percentile(count_array, 50) if len(count_array) > 0 else None
-        speed_objects.append({
-            "line": line,
-            "date": datetime.strftime(current_date, constants.DATE_FORMAT_BACKEND),
-            "value": Decimal(tt) if tt else None,
-            "count": Decimal(count) if count else None,
-        })
+        speed_objects.append(
+            {
+                "line": line,
+                "date": datetime.strftime(current_date, constants.DATE_FORMAT_BACKEND),
+                "value": Decimal(tt) if tt else None,
+                "count": Decimal(count) if count else None,
+            }
+        )
         current_date += delta
     dynamo.dynamo_batch_write(speed_objects, table["table_name"])
     print("Done")
 
 
 def get_daily_speeds(params):
-    ''' Format and send query for DailySpeed table'''
+    """Format and send query for DailySpeed table"""
     query_params = {
-        'KeyConditionExpression': '#pk = :pk and #date BETWEEN :start_date and :end_date',
-        'ExpressionAttributeNames': {
-            '#pk': 'line',
-            '#date': 'date'
+        "KeyConditionExpression": "#pk = :pk and #date BETWEEN :start_date and :end_date",
+        "ExpressionAttributeNames": {"#pk": "line", "#date": "date"},
+        "ExpressionAttributeValues": {
+            ":pk": params["line"],
+            ":start_date": params["start_date"],
+            ":end_date": params["end_date"],
         },
-        'ExpressionAttributeValues': {
-            ':pk': params["line"],
-            ':start_date': params["start_date"],
-            ':end_date': params["end_date"]
-        }
     }
     return dynamo.query_dynamo(query_params, "DailySpeed")
 
 
 def update_tables(table_type):
-    ''' Update weekly and monthly speed tables '''
+    """Update weekly and monthly speed tables"""
     print(f"Updating {table_type} table")
     table = constants.TABLE_MAP[table_type]
     yesterday = datetime.now() - timedelta(days=1)
@@ -77,12 +78,14 @@ def update_tables(table_type):
         }
         data = get_daily_speeds(params)
         if len(data) == 0:
-            speed_objects.append({
-                "line": line,
-                "date": datetime.strftime(start, constants.DATE_FORMAT_BACKEND),
-                "value": None,
-                "count": None,
-            })
+            speed_objects.append(
+                {
+                    "line": line,
+                    "date": datetime.strftime(start, constants.DATE_FORMAT_BACKEND),
+                    "value": None,
+                    "count": None,
+                }
+            )
             continue
         # Calculate p50 speed and number of trips.
         tt_array = np.array([float(entry["value"]) for entry in data if entry["value"] is not None])
@@ -90,10 +93,10 @@ def update_tables(table_type):
         count_array = np.array([int(entry["count"]) for entry in data if entry["value"] is not None])
         count = np.percentile(count_array, 50) if len(count_array) > 0 else None
         table_input = {
-                "line": line,
-                "date": datetime.strftime(start, constants.DATE_FORMAT_BACKEND),
-                "value": Decimal(tt) if tt else None,
-                "count": Decimal(count) if count else None,
+            "line": line,
+            "date": datetime.strftime(start, constants.DATE_FORMAT_BACKEND),
+            "value": Decimal(tt) if tt else None,
+            "count": Decimal(count) if count else None,
         }
         speed_objects.append(table_input)
     dynamo.dynamo_batch_write(speed_objects, table["table_name"])

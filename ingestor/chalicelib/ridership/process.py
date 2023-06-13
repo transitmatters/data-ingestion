@@ -31,7 +31,7 @@ def format_subway_data(path_to_csv_file: str):
     df["weekday"] = df["servicedate"].dt.dayofweek
 
     # define peak, mark weekdays, convert service date back
-    conditions = [(df["holiday"] == False) & (df["weekday"] < 5)]
+    conditions = [(df["holiday"] == False) & (df["weekday"] < 5)]  # noqa: E712
     choices = ["peak"]
     df["peak"] = np.select(conditions, choices, default="offpeak")
     df["week"] = df["servicedate"].dt.isocalendar().week
@@ -44,12 +44,7 @@ def format_subway_data(path_to_csv_file: str):
 
     # limit data to just peak, merge back dates
     final = df[df["peak"] == "peak"]
-    final = (
-        final.groupby(["year", "week", "route_or_line"])["validations"]
-        .mean()
-        .round()
-        .reset_index()
-    )
+    final = final.groupby(["year", "week", "route_or_line"])["validations"].mean().round().reset_index()
 
     final = final.merge(dates, on=["week", "year"], how="left")
 
@@ -61,11 +56,7 @@ def format_subway_data(path_to_csv_file: str):
 
     # write out each set of routes to dict
     for route in routelist:
-        dftemp = (
-            final[final["route_or_line"] == route]
-            .fillna(0)
-            .astype({"validations": int})
-        )
+        dftemp = final[final["route_or_line"] == route].fillna(0).astype({"validations": int})
         dictdata = (
             dftemp[["servicedate", "validations"]]
             .rename(columns={"servicedate": "date", "validations": "count"})

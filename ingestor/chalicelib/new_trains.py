@@ -3,14 +3,8 @@ from chalicelib import MbtaPerformanceAPI, s3
 from botocore.exceptions import ClientError
 
 ROUTE_DEFINITIONS = {
-    "Red": {
-        "labels": range(1900, 2152),
-        "core_stations": [70077, 70078]  # Downtown Crossing
-    },
-    "Orange": {
-        "labels": range(1400, 1552),
-        "core_stations": [70014, 70015]  # Back Bay
-    }
+    "Red": {"labels": range(1900, 2152), "core_stations": [70077, 70078]},  # Downtown Crossing
+    "Orange": {"labels": range(1400, 1552), "core_stations": [70014, 70015]},  # Back Bay
 }
 
 EVENT_DEPARTURE = ["DEP", "PRD"]
@@ -41,15 +35,12 @@ def update_all(date):
 
 
 def update_statistics_file(route, date, count):
-    csv_row = "{formatted_date},{count}\n".format(
-        formatted_date=date.strftime("%Y-%m-%d"),
-        count=count
-    )
+    csv_row = "{formatted_date},{count}\n".format(formatted_date=date.strftime("%Y-%m-%d"), count=count)
     key = KEY.format(route)
     try:
         data = s3.download(BUCKET, key, compressed=False) + csv_row
     except ClientError as ex:
-        if ex.response['Error']['Code'] != 'NoSuchKey':
+        if ex.response["Error"]["Code"] != "NoSuchKey":
             raise
         data = "service_date,run_count\n" + csv_row
 
