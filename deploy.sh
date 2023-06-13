@@ -12,7 +12,7 @@ poetry export -f requirements.txt --output ingestor/requirements.txt --without-h
 
 pushd ingestor/
 
-poetry run chalice package --stage prod --merge-template .chalice/envvars.json cfn/
+poetry run chalice package --stage prod --merge-template .chalice/envvars.json --merge-template .chalice/dynamo_tables.json cfn/
 aws cloudformation package --template-file cfn/sam.json --s3-bucket $BUCKET --output-template-file cfn/packaged.yaml
 aws cloudformation deploy --template-file cfn/packaged.yaml --stack-name $STACK_NAME \
     --capabilities CAPABILITY_NAMED_IAM --no-fail-on-empty-changeset \

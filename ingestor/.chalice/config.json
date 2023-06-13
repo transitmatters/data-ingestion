@@ -23,6 +23,29 @@
           "iam_policy_file": "policy-bluebikes-calc.json",
           "lambda_timeout": 60,
           "lambda_memory_size": 256
+        },
+        "update_daily_speed_table": {
+          "iam_policy_file": "policy-daily-table.json"
+        },
+        "populate_daily": {
+          "iam_policy_file": "policy-daily-table.json",
+          "lambda_timeout": 600
+        },
+        "update_yesterday_speeds": {
+          "iam_policy_file": "policy-daily-table.json"
+        },
+        "update_weekly_and_monthly_tables": {
+          "iam_policy_file": "policy-agg-tables.json"
+        },
+        "populate_weekly_or_monthly_tables": {
+          "iam_policy_file": "policy-agg-tables.json",
+          "lambda_timeout": 60
+        },
+        "update_gtfs": {
+          "iam_policy_file": "policy-gtfs.json",
+          "lambda_timeout": 900,
+          "lambda_memory_size": 10240,
+          "max_ebs_size_gb": 10
         }
       }
     }

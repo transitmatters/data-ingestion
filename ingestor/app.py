@@ -1,9 +1,13 @@
 from chalice import Chalice, Cron
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 from chalicelib import (
     s3_alerts,
     new_trains,
     bluebikes,
+    daily_speeds,
+    constants,
+    agg_speed_tables,
+    gtfs,
 )
 
 app = Chalice(app_name="ingestor")
@@ -46,8 +50,61 @@ def bb_store_station_info(event):
     bluebikes.store_station_info()
 
 
-# 6am UTC -> 2am EST
+# 6am UTC -> 2am EDT
 @app.schedule(Cron(0, 6, "*", "*", "?", "*"))
 def bb_calc_daily_stats(event):
     yesterday = date.today() - timedelta(days=1)
     bluebikes.calc_daily_stats(yesterday)
+
+
+# Runs every 5 minutes from either 4 AM -> 1:55AM or 5 AM -> 2:55 AM depending on DST
+@app.schedule(Cron("0/5", "0-6,9-23", "*", "*", "?", "*"))
+def update_daily_speed_table(event):
+    today = datetime.now()
+    """ Update yesterdays entry until 4/5 am (9 AM UTC)"""
+    if today.hour < 9:
+        today = today - timedelta(days=1)
+    daily_speeds.update_daily_table(today)
+
+
+# 7am UTC -> 2/3am ET
+# Update weekly and monthly tables. At 2/3 AM EST and also after we have updated yesterday's data.
+@app.schedule(Cron(10, "7,12", "*", "*", "?", "*"))
+def update_weekly_and_monthly_tables(event):
+    agg_speed_tables.update_tables("weekly")
+    agg_speed_tables.update_tables("monthly")
+
+
+# 12 UTC -> 7/8am ET
+# The MBTA cleans up their data the next day (we suspect sometime after 4 AM). Update yesterday's data after this (and 2 days ago to be safe).
+@app.schedule(Cron(0, 12, "*", "*", "?", "*"))
+def update_yesterday_speeds(event):
+    today = datetime.now()
+    daily_speeds.update_daily_table(today - timedelta(days=1))
+    daily_speeds.update_daily_table(today - timedelta(days=2))
+
+
+# 7am UTC -> 2/3am ET
+@app.schedule(Cron(0, 7, "*", "*", "?", "*"))
+def update_gtfs(event):
+    today = date.today()
+    gtfs.ingest_gtfs_feeds_to_dynamo_and_s3(date_range=(today, today))
+
+
+# Manually triggered lambda for populating monthly or weekly tables. Only needs to be ran once.
+@app.lambda_function()
+def populate_weekly_or_monthly_tables(params, context):
+    """
+    line options: line-red | line-orange | line-blue
+    range options: weekly | monthly
+    """
+    agg_speed_tables.populate_table(params["line"], params["range"])
+
+
+# Manually triggered lambda for populating daily tables. Only needs to be ran once.
+# Takes line key as input (line-red | line-orange | line-blue)
+@app.lambda_function()
+def populate_daily(params, context):
+    start_date = datetime.strptime("2016-01-15", constants.DATE_FORMAT_BACKEND)
+    end_date = datetime.now()
+    daily_speeds.populate_daily_table(start_date, end_date, params["line"])

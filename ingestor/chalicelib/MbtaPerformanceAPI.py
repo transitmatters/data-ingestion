@@ -8,7 +8,7 @@ import itertools
 
 from chalicelib.parallel import make_parallel
 
-from .secrets import MBTA_V2_API_KEY
+from .keys import MBTA_V2_API_KEY
 
 
 def get_timestamps(day):
