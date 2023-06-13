@@ -7,7 +7,7 @@ import requests
 
 
 def is_valid_entry(item, expected_entries, date):
-    ''' Function to remove traversal time entries which do not have data for each leg of the trip.'''
+    """Function to remove traversal time entries which do not have data for each leg of the trip."""
     if item["entries"] < expected_entries:
         print(f"No speed value for ({date}): Insufficient data.")
         return False
@@ -15,7 +15,7 @@ def is_valid_entry(item, expected_entries, date):
 
 
 def get_agg_tt_api_requests(stops, current_date, delta):
-    ''' Create API requests from parameters '''
+    """Create API requests from parameters"""
     api_requests = []
     for stop_pair in stops:
         params = {
@@ -30,7 +30,7 @@ def get_agg_tt_api_requests(stops, current_date, delta):
 
 
 def send_requests(api_requests):
-    ''' Send API requests to Datadashboard backend. '''
+    """Send API requests to Datadashboard backend."""
     speed_object = {}
     for request in api_requests:
         response = requests.get(request)
@@ -42,19 +42,20 @@ def send_requests(api_requests):
         data = json.loads(response.content.decode("utf-8"), parse_float=Decimal, parse_int=Decimal)
         for item in data:
             if item["service_date"] in speed_object:
-                speed_object[item['service_date']]["median"] += item['50%']
-                speed_object[item['service_date']]["count"] += item['count']
-                speed_object[item['service_date']]["entries"] += 1
+                speed_object[item["service_date"]]["median"] += item["50%"]
+                speed_object[item["service_date"]]["count"] += item["count"]
+                speed_object[item["service_date"]]["entries"] += 1
             else:
                 speed_object[item["service_date"]] = {
-                    "median": item['50%'] if item['50%'] else 0,
-                    "count": item['count'] if item['count'] else 0,
+                    "median": item["50%"] if item["50%"] else 0,
+                    "count": item["count"] if item["count"] else 0,
                     "entries": 1,
                 }
     return speed_object
 
+
 def format_tt_objects(speed_objects, line, expected_num_entries, date_range):
-    ''' Remove invalid entries and format for Dynamo. '''
+    """Remove invalid entries and format for Dynamo."""
     formatted_speed_objects = []
     for current_date in date_range:
         metrics = speed_objects.get(current_date)
@@ -73,6 +74,7 @@ def format_tt_objects(speed_objects, line, expected_num_entries, date_range):
         formatted_speed_objects.append(new_speed_object)
     return formatted_speed_objects
 
+
 def get_date_range_strings(start_date, end_date):
     date_range = []
     current_date = start_date
@@ -81,8 +83,9 @@ def get_date_range_strings(start_date, end_date):
         current_date += timedelta(days=1)
     return date_range
 
+
 def populate_daily_table(start_date, end_date, line):
-    ''' Populate DailySpeed table. Calculates median TTs and trip counts for all days between start and end dates.'''
+    """Populate DailySpeed table. Calculates median TTs and trip counts for all days between start and end dates."""
     print(f"populating DailySpeed for line: {line}")
     stops = constants.TERMINI[line]
     current_date = start_date
@@ -97,12 +100,12 @@ def populate_daily_table(start_date, end_date, line):
         speed_objects.extend(formatted_speed_object)
         current_date += delta
     print("Writing objects to DailySpeed table")
-    dynamo.dynamo_batch_write(speed_objects, "DailySpeed") 
+    dynamo.dynamo_batch_write(speed_objects, "DailySpeed")
     print("Done")
 
 
 def update_daily_table(date):
-    ''' Update DailySpeed table'''
+    """Update DailySpeed table"""
     speed_objects = []
     for line in constants.LINES:
         stops = constants.TERMINI[line]
