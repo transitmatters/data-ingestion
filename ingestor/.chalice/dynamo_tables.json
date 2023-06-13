@@ -41,7 +41,6 @@
             "KeyType": "RANGE"
           }
         ],
-
         "AttributeDefinitions": [
           {
             "AttributeName": "line",
@@ -69,7 +68,6 @@
             "KeyType": "RANGE"
           }
         ],
-
         "AttributeDefinitions": [
           {
             "AttributeName": "line",
@@ -97,7 +95,6 @@
             "KeyType": "RANGE"
           }
         ],
-
         "AttributeDefinitions": [
           {
             "AttributeName": "line",
@@ -109,6 +106,48 @@
           }
         ],
         "BillingMode": "PAY_PER_REQUEST"
+      }
+    },
+    "TripCounts": {
+      "Type": "AWS::DynamoDB::Table",
+      "Properties": {
+        "TableName": "TripCounts",
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "date",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "routeId",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "lineId",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "byHour",
+            "AttributeType": "M"
+          },
+          {
+            "AttributeName": "count",
+            "AttributeType": "N"
+          },
+          {
+            "AttributeName": "timestamp",
+            "AttributeType": "N"
+          }
+        ],
+        "KeySchema": [
+          {
+            "AttributeName": "routeId",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "date",
+            "KeyType": "RANGE"
+          }
+        ]
       }
     }
   }
