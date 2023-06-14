@@ -59,14 +59,14 @@ wcwidth = ">=0.1.4"
 
 [[package]]
 name = "boto3"
-version = "1.26.152"
+version = "1.26.153"
 description = "The AWS SDK for Python"
 category = "main"
 optional = false
 python-versions = ">= 3.7"
 
 [package.dependencies]
-botocore = ">=1.29.152,<1.30.0"
+botocore = ">=1.29.153,<1.30.0"
 jmespath = ">=0.7.1,<2.0.0"
 s3transfer = ">=0.6.0,<0.7.0"
 
@@ -75,7 +75,7 @@ crt = ["botocore[crt] (>=1.21.0,<2.0a0)"]
 
 [[package]]
 name = "botocore"
-version = "1.29.152"
+version = "1.29.153"
 description = "Low-level, data-driven core of boto 3."
 category = "main"
 optional = false
@@ -280,7 +280,7 @@ python-versions = "*"
 
 [[package]]
 name = "mbta-gtfs-sqlite"
-version = "0.9.12"
+version = "0.9.13"
 description = "Query the MBTA's static GTFS feeds using sqlite"
 category = "main"
 optional = false
@@ -569,7 +569,7 @@ python-versions = "*"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.9, <3.11"
-content-hash = "d3e67aa26c97f8f7445de4a097f60ce11d822711a9ae2a72eef769a14f984aae"
+content-hash = "1eac8125f84c6c54f92bcc00232e0ffda7d1ddcdaafae651cf618c56d15e69da"
 
 [metadata.files]
 ansicon = []
