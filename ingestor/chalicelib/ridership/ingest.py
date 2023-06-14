@@ -14,11 +14,10 @@ def get_ridership_by_line_id(
 ):
     by_line_id = {}
     for line_id, routes in routes_by_line_id.items():
-        route_entries = [
-            entry
-            for route in routes
-            for entry in ridership_by_route_id.get(route.route_id, [])
-        ]
+        route_entries = [entry for route in routes for entry in ridership_by_route_id.get(route.route_id, [])]
+        if line_id == "line-Green":
+            # Fake this for the green line which is not actually split into branches in the ridership data
+            route_entries += ridership_by_route_id.get("Green", [])
         entries_by_date = bucket_by(route_entries, lambda entry: entry["date"])
         summed_entries = [
             {"date": date, "count": sum(entry["count"] for entry in entries)}
