@@ -6,10 +6,11 @@ from chalicelib import dynamo, constants
 import requests
 
 
+
 def is_valid_entry(item, expected_entries, date):
     ''' Function to remove traversal time entries which do not have data for each leg of the trip.'''
     if item["entries"] < expected_entries:
-        print(f"No speed value for ({date}): Insufficient data.")
+        print(f"No speed value for ({date}): Insufficient data. {item['entries']}/{expected_entries}")
         return False
     return True
 
@@ -84,20 +85,23 @@ def get_date_range_strings(start_date, end_date):
 def populate_daily_table(start_date, end_date, line):
     ''' Populate DailySpeed table. Calculates median TTs and trip counts for all days between start and end dates.'''
     print(f"populating DailySpeed for line: {line}")
-    stops = constants.TERMINI[line]
     current_date = start_date
-    delta = timedelta(days=300)
+    delta = timedelta(days=10)
     speed_objects = []
     while current_date < end_date:
+        stops = constants.get_stops(line, current_date)
         print(f"Calculating daily values for 300 day chunk starting at: {current_date}")
         API_requests = get_agg_tt_api_requests(stops, current_date, delta)
+        print(API_requests)
         curr_speed_object = send_requests(API_requests)
         date_range = get_date_range_strings(current_date, current_date + delta - timedelta(days=1))
-        formatted_speed_object = format_tt_objects(curr_speed_object, line, len(API_requests), date_range)
+        formatted_speed_object = format_tt_objects(curr_speed_object, 'line-green' if line == 'line-green-glx' else line, len(API_requests), date_range)
         speed_objects.extend(formatted_speed_object)
+        if(line == 'line-green' and current_date < constants.GLX_EXTENSION and current_date + delta >= constants.GLX_EXTENSION):
+            current_date = constants.GLX_EXTENSION
         current_date += delta
-    print("Writing objects to DailySpeed table")
     dynamo.dynamo_batch_write(speed_objects, "DailySpeed") 
+    print("Writing objects to DailySpeed table")
     print("Done")
 
 

@@ -10,12 +10,45 @@ TERMINI = {
     "line-orange": [[70034, 70002], [70003, 70035]],
     # BL: Revere Beach SB = 70057, Gov. Center SB = 70039, Revere Beach NB = 70058, Gov. Center NB 70040
     "line-blue": [[70057, 70039], [70040, 70058]],
+    # Medford/Tufts NB/SB = 70511/70512, Back of the Hill NB/SB = 70258/70257, Lechmere NB/SB = 70501/70502, Woodland NB/SB = 70162
+    "line-green-glx": [
+        #E - Medford/Tufts NB/SB = 70511/70512, Back of the Hill NB/SB = 70258/70257,
+        [70512,70257], [70258, 70511], 
+        #D - Lechmere NB/SB = 70501/70502, Woodland NB/SB = 70162/70163
+        [70162, 70501], [70502, 70163],
+        #C - Gov. Center NB/SB = 70201/70202,  Englewood NB/SB = 70236/70235
+        [70236, 70201],[70202,70235],
+        #B - Gov. Center NB/SB = 70201/70202,  South St. NB/SB = 70110/70111
+        [70110,70201],[70202,70111],
+        ],
+        "line-green-pre-glx": [
+        #E - Gov. Center NB/SB = 70201/70202, Back of the Hill NB/SB = 70258/70257,
+        [70258, 70201], [70202,70257],
+        #D - Gov. Center NB/SB = 70201/70202, Woodland NB/SB = 70162/70163
+        [70162, 70200], [70196, 70163],
+        #C - Gov. Center NB/SB = 70201/70202, Englewood NB/SB = 70236/70235
+        [70236, 70201],[70202,70235],
+        #B - Boylston NB/SB = 70158/70159, South St. NB/SB = 70116/70111
+        [70110, 70158],[70159, 70111],
+        ]
     }
+
+
+def get_stops(line, date):
+    if(line == 'line-green'):
+        pre_glx = date < GLX_EXTENSION
+        return TERMINI['line-green-pre-glx'] if(pre_glx) else TERMINI['line-green-glx']
+    return TERMINI[line]
+
+SUB_LINES = {
+    'line-green-glx': 'line-green',
+}
 
 LINES = ['line-red', 'line-orange', 'line-blue']
 
 DATE_FORMAT = "%Y-%m-%dT%H:%M:%S"
 DATE_FORMAT_BACKEND = "%Y-%m-%d"
+GLX_EXTENSION = datetime.strptime('2023-03-19',DATE_FORMAT_BACKEND)
 
 DD_URL_AGG_TT = "https://dashboard-api2.transitmatters.org/aggregate/traveltimes?{parameters}"
 DD_URL_SINGLE_TT = "https://dashboard-api2.transitmatters.org/traveltimes/{date}?{parameters}"

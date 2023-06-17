@@ -117,3 +117,10 @@ def populate_daily(params, context):
     start_date = datetime.strptime("2016-01-15", constants.DATE_FORMAT_BACKEND)
     end_date = datetime.now()
     daily_speeds.populate_daily_table(start_date, end_date, params["line"])
+
+
+@app.route("/test")
+def test__glx():
+    start_date = datetime.strptime("2016-10-01", constants.DATE_FORMAT_BACKEND)
+    end_date = datetime.now()
+    daily_speeds.populate_daily_table(start_date, end_date, "line-green")
