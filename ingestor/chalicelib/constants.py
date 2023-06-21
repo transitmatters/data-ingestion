@@ -17,8 +17,8 @@ LINES = ["line-red", "line-orange", "line-blue"]
 DATE_FORMAT = "%Y-%m-%dT%H:%M:%S"
 DATE_FORMAT_BACKEND = "%Y-%m-%d"
 
-DD_URL_AGG_TT = "https://dashboard-api2.transitmatters.org/aggregate/traveltimes?{parameters}"
-DD_URL_SINGLE_TT = "https://dashboard-api2.transitmatters.org/traveltimes/{date}?{parameters}"
+DD_URL_AGG_TT = "https://dashboard-api.labs.transitmatters.org/aggregate/traveltimes?{parameters}"
+DD_URL_SINGLE_TT = "https://dashboard-api.labs.transitmatters.org/traveltimes/{date}?{parameters}"
 
 
 def get_monthly_table_update_start():
