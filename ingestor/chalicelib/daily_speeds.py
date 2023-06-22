@@ -25,7 +25,7 @@ def get_agg_tt_api_requests(stops, current_date, delta):
             "start_date": datetime.strftime(current_date, constants.DATE_FORMAT_BACKEND),
             "end_date": datetime.strftime(current_date + delta - timedelta(days=1), constants.DATE_FORMAT_BACKEND),
         }
-        url = constants.DD_URL_AGG_TT.format(parameters=urlencode(params))
+        url = constants.DD_URL_AGG_TT.format(parameters=urlencode(params, doseq=True))
         api_requests.append(url)
     return api_requests
 
@@ -86,23 +86,25 @@ def populate_daily_table(start_date, end_date, line):
     ''' Populate DailySpeed table. Calculates median TTs and trip counts for all days between start and end dates.'''
     print(f"populating DailySpeed for line: {line}")
     current_date = start_date
-    delta = timedelta(days=10)
+    delta = timedelta(days=300)
     speed_objects = []
     while current_date < end_date:
         stops = constants.get_stops(line, current_date)
         print(f"Calculating daily values for 300 day chunk starting at: {current_date}")
         API_requests = get_agg_tt_api_requests(stops, current_date, delta)
-        print(API_requests)
         curr_speed_object = send_requests(API_requests)
         date_range = get_date_range_strings(current_date, current_date + delta - timedelta(days=1))
         formatted_speed_object = format_tt_objects(curr_speed_object, 'line-green' if line == 'line-green-glx' else line, len(API_requests), date_range)
         speed_objects.extend(formatted_speed_object)
+        print(current_date, constants.GLX_EXTENSION, current_date < constants.GLX_EXTENSION, current_date+delta)
         if(line == 'line-green' and current_date < constants.GLX_EXTENSION and current_date + delta >= constants.GLX_EXTENSION):
             current_date = constants.GLX_EXTENSION
-        current_date += delta
-    dynamo.dynamo_batch_write(speed_objects, "DailySpeed") 
-    print("Writing objects to DailySpeed table")
-    print("Done")
+        else:
+            current_date += delta
+        dynamo.dynamo_batch_write(speed_objects, "DailySpeed") 
+        speed_objects=[]
+        print("Writing objects to DailySpeed table")
+        print("Done")
 
 
 def update_daily_table(date):
