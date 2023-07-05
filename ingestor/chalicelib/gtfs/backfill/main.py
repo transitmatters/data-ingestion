@@ -11,10 +11,7 @@ env_start_date = datetime.strptime(os.environ["BACKFILL_START_DATE"], "%Y-%m-%d"
 env_end_date = datetime.strptime(os.environ["BACKFILL_END_DATE"], "%Y-%m-%d").date()
 env_local_archive_path = os.environ.get("LOCAL_ARCHIVE_PATH", "./feeds")
 
-session = boto3.Session(
-    aws_access_key_id=os.environ["AWS_ACCESS_KEY_ID"],
-    aws_secret_access_key=os.environ["AWS_SECRET_ACCESS_KEY"],
-)
+session = boto3.Session()
 
 ingest_gtfs_feeds_to_dynamo_and_s3(
     date_range=(env_start_date, env_end_date),

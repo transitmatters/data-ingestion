@@ -41,6 +41,22 @@ def load_session_models(session: Session):
     )
 
 
+def create_gl_route_date_totals(totals: List[RouteDateTotals]):
+    gl_totals = [t for t in totals if t.route_id.startswith("Green-")]
+    total_by_hour = [0] * 24
+    for total in gl_totals:
+        for i in range(24):
+            total_by_hour[i] += total.by_hour[i]
+    total_count = sum(t.count for t in gl_totals)
+    return RouteDateTotals(
+        route_id="Green",
+        line_id="Green",
+        date=totals[0].date,
+        count=total_count,
+        by_hour=total_by_hour,
+    )
+
+
 def create_route_date_totals(today: date, models: SessionModels):
     all_totals = []
     services_for_today = get_services_for_date(models, today)
@@ -56,6 +72,7 @@ def create_route_date_totals(today: date, models: SessionModels):
             by_hour=bucket_trips_by_hour(trips),
         )
         all_totals.append(totals)
+    all_totals.append(create_gl_route_date_totals(all_totals))
     return all_totals
 
 
