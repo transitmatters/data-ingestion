@@ -161,6 +161,33 @@
         ],
         "BillingMode": "PAY_PER_REQUEST"
       }
+    },
+    "SpeedRestrictions": {
+      "Type": "AWS::DynamoDB::Table",
+      "Properties": {
+        "TableName": "SpeedRestrictions",
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "lineId",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "date",
+            "AttributeType": "S"
+          }
+        ],
+        "KeySchema": [
+          {
+            "AttributeName": "lineId",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "date",
+            "KeyType": "RANGE"
+          }
+        ],
+        "BillingMode": "PAY_PER_REQUEST"
+      }
     }
   }
 }

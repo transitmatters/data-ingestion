@@ -9,6 +9,7 @@ from chalicelib import (
     agg_speed_tables,
     gtfs,
     ridership,
+    speed_restrictions,
 )
 
 app = Chalice(app_name="ingestor")
@@ -96,6 +97,12 @@ def update_gtfs(event):
 @app.schedule(Cron(10, 7, "*", "*", "?", "*"))
 def update_ridership(event):
     ridership.ingest_ridership_data()
+
+
+# 7:20am UTC -> 2:20/3:20am ET
+@app.schedule(Cron(20, 7, "*", "*", "?", "*"))
+def update_speed_restrictions(event):
+    speed_restrictions.update_speed_restrictions()
 
 
 # Manually triggered lambda for populating monthly or weekly tables. Only needs to be ran once.

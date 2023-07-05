@@ -17,8 +17,7 @@ session = boto3.Session(
 )
 
 ingest_gtfs_feeds_to_dynamo_and_s3(
-    start_date=env_start_date,
-    end_date=env_end_date,
+    date_range=(env_start_date, env_end_date),
     local_archive_path=env_local_archive_path,
     boto3_session=session,
 )
