@@ -52,6 +52,10 @@
           "lambda_timeout": 900,
           "lambda_memory_size": 512,
           "max_ebs_size_gb": 2
+        },
+        "update_speed_restrictions": {
+          "iam_policy_file": "policy-speed-restrictions.json",
+          "lambda_timeout": 300
         }
       }
     }
