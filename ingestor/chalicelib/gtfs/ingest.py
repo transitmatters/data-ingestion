@@ -19,6 +19,7 @@ from .utils import (
     index_by,
     is_valid_route_id,
     get_services_for_date,
+    get_total_service_minutes,
 )
 from .models import SessionModels, RouteDateTotals
 
@@ -48,11 +49,13 @@ def create_gl_route_date_totals(totals: List[RouteDateTotals]):
         for i in range(24):
             total_by_hour[i] += total.by_hour[i]
     total_count = sum(t.count for t in gl_totals)
+    total_service_minutes = sum(t.service_minutes for t in gl_totals)
     return RouteDateTotals(
         route_id="Green",
         line_id="Green",
         date=totals[0].date,
         count=total_count,
+        service_minutes=total_service_minutes,
         by_hour=total_by_hour,
     )
 
@@ -70,6 +73,7 @@ def create_route_date_totals(today: date, models: SessionModels):
             date=today,
             count=len(trips),
             by_hour=bucket_trips_by_hour(trips),
+            service_minutes=get_total_service_minutes(trips),
         )
         all_totals.append(totals)
     all_totals.append(create_gl_route_date_totals(all_totals))
@@ -94,6 +98,7 @@ def ingest_feed_to_dynamo(
                     "routeId": total.route_id,
                     "lineId": total.line_id,
                     "count": total.count,
+                    "serviceMinutes": total.service_minutes,
                     "byHour": {"totals": total.by_hour},
                 }
                 batch.put_item(Item=item)
