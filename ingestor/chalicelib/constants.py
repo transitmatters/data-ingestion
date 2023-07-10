@@ -3,7 +3,6 @@ from decimal import Decimal
 from chalicelib import stations
 
 ALL_ROUTES = [["line-red", "a"], ["line-red", "b"], ["line-orange", None], ["line-blue", None], ["line-green", "b"], ["line-green", "c"], ["line-green", "d"], ["line-green", "e"]]
-ALL_ROUTES = [["line-green", "e"]]
 STATIONS = stations.STATIONS
 
 TERMINI_NEW = {
