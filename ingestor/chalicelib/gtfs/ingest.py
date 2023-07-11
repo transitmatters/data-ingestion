@@ -86,11 +86,11 @@ def ingest_feed_to_dynamo(
     start_date: date,
     end_date: date,
 ):
-    TripCounts = dynamodb.Table("TripCounts")
+    ScheduledServiceDaily = dynamodb.Table("ScheduledServiceDaily")
     models = load_session_models(session)
     for today in date_range(start_date, end_date):
         totals = create_route_date_totals(today, models)
-        with TripCounts.batch_writer() as batch:
+        with ScheduledServiceDaily.batch_writer() as batch:
             for total in totals:
                 item = {
                     "date": total.date.isoformat(),

@@ -135,6 +135,33 @@
         "BillingMode": "PAY_PER_REQUEST"
       }
     },
+    "ScheduledServiceDaily": {
+      "Type": "AWS::DynamoDB::Table",
+      "Properties": {
+        "TableName": "ScheduledServiceDaily",
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "routeId",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "date",
+            "AttributeType": "S"
+          }
+        ],
+        "KeySchema": [
+          {
+            "AttributeName": "routeId",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "date",
+            "KeyType": "RANGE"
+          }
+        ],
+        "BillingMode": "PAY_PER_REQUEST"
+      }
+    },
     "Ridership": {
       "Type": "AWS::DynamoDB::Table",
       "Properties": {
