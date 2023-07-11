@@ -25,6 +25,7 @@ class RouteDateTotals:
     line_id: str
     date: date
     count: int
+    service_minutes: int
     by_hour: List[int]
 
     @property

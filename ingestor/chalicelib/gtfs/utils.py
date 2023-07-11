@@ -18,6 +18,10 @@ def bucket_trips_by_hour(trips: List[Trip]):
     return by_time_of_day
 
 
+def get_total_service_minutes(trips: List[Trip]):
+    return sum(trip.end_time - trip.start_time for trip in trips) // 60
+
+
 def is_valid_route_id(route_id: str):
     return (
         not route_id.startswith("Shuttle")
