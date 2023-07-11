@@ -102,7 +102,7 @@ def aggregate_actual_trips(actual_trips, agg: Range, start_date: str):
     if agg == 'weekly':
         return group_weekly_data(df_grouped, start_date)
     if agg == 'monthly':
-        return group_monthly_data(df_grouped)
+        return group_monthly_data(df_grouped, start_date)
     return_data = df_grouped.reset_index()
     return return_data.to_dict(orient='records')
 
