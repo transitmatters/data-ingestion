@@ -27,6 +27,91 @@
         "BillingMode": "PAY_PER_REQUEST"
       }
     },
+    "DeliveredTripMetricsDB": {
+      "Type": "AWS::DynamoDB::Table",
+      "Properties": {
+        "TableName": "DeliveredTripMetrics",
+        "KeySchema": [
+          {
+            "AttributeName": "route",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "date",
+            "KeyType": "RANGE"
+          }
+        ],
+
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "route",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "date",
+            "AttributeType": "S"
+          }
+        ],
+        "BillingMode": "PAY_PER_REQUEST"
+      }
+    },
+    "DeliveredTripMetricsWeeklyDB": {
+      "Type": "AWS::DynamoDB::Table",
+      "Properties": {
+        "TableName": "DeliveredTripMetricsWeekly",
+        "KeySchema": [
+          {
+            "AttributeName": "line",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "date",
+            "KeyType": "RANGE"
+          }
+        ],
+
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "line",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "date",
+            "AttributeType": "S"
+          }
+        ],
+        "BillingMode": "PAY_PER_REQUEST"
+      }
+    },
+    "DeliveredTripMetricsMonthlyDB": {
+      "Type": "AWS::DynamoDB::Table",
+      "Properties": {
+        "TableName": "DeliveredTripMetricsMonthly",
+        "KeySchema": [
+          {
+            "AttributeName": "line",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "date",
+            "KeyType": "RANGE"
+          }
+        ],
+
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "line",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "date",
+            "AttributeType": "S"
+          }
+        ],
+        "BillingMode": "PAY_PER_REQUEST"
+      }
+    },
+
     "DailySpeedDB": {
       "Type": "AWS::DynamoDB::Table",
       "Properties": {
