@@ -25,14 +25,28 @@
           "lambda_memory_size": 256
         },
         "update_daily_speed_table": {
-          "iam_policy_file": "policy-daily-table.json"
+          "iam_policy_file": "policy-daily-table.json",
+          "lambda_timeout": 20
         },
         "populate_daily": {
           "iam_policy_file": "policy-daily-table.json",
           "lambda_timeout": 600
         },
-        "update_yesterday_speeds": {
-          "iam_policy_file": "policy-daily-table.json"
+        "populate_delivered_trip_metrics": {
+          "iam_policy_file": "policy-delivered-trip-metrics-daily.json",
+          "lambda_timeout": 600
+        },
+        "update_delivered_trip_metrics": {
+          "iam_policy_file": "policy-delivered-trip-metrics-daily.json"
+        },
+        "update_delivered_trip_metrics_yesterday": {
+          "iam_policy_file": "policy-delivered-trip-metrics-daily.json"
+        },
+        "update_agg_trip_metrics": {
+          "iam_policy_file": "policy-agg-trip-metric-tables.json"
+        },
+        "populate_agg_delivered_trip_metrics": {
+          "iam_policy_file": "policy-agg-trip-metric-tables.json"
         },
         "update_weekly_and_monthly_tables": {
           "iam_policy_file": "policy-agg-tables.json"

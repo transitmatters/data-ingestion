@@ -24,7 +24,7 @@ def get_agg_tt_api_requests(stops, current_date, delta):
             "start_date": datetime.strftime(current_date, constants.DATE_FORMAT_BACKEND),
             "end_date": datetime.strftime(current_date + delta - timedelta(days=1), constants.DATE_FORMAT_BACKEND),
         }
-        url = constants.DD_URL_AGG_TT.format(parameters=urlencode(params))
+        url = constants.DD_URL_AGG_TT.format(parameters=urlencode(params, doseq=True))
         api_requests.append(url)
     return api_requests
 
@@ -43,33 +43,39 @@ def send_requests(api_requests):
         for item in data:
             if item["service_date"] in speed_object:
                 speed_object[item["service_date"]]["median"] += item["50%"]
-                speed_object[item["service_date"]]["count"] += item["count"]
+                speed_object[item["service_date"]]["mean"] += item["mean"]
+                speed_object[item["service_date"]]["count"] += (item["count"] / 2)
                 speed_object[item["service_date"]]["entries"] += 1
             else:
                 speed_object[item["service_date"]] = {
                     "median": item["50%"] if item["50%"] else 0,
-                    "count": item["count"] if item["count"] else 0,
+                    "count": item["count"] / 2 if item["count"] else 0,
+                    "mean": item["mean"] if item["mean"] else 0,
                     "entries": 1,
                 }
     return speed_object
 
 
-def format_tt_objects(speed_objects, line, expected_num_entries, date_range):
-    """Remove invalid entries and format for Dynamo."""
+def format_tt_objects(speed_objects, route_metadata, expected_num_entries, date_range):
+    """ Remove invalid entries and format for Dynamo. """
     formatted_speed_objects = []
+    route_name = f"{route_metadata['line']}-{route_metadata['route']}" if route_metadata["route"] else route_metadata["line"]
     for current_date in date_range:
         metrics = speed_objects.get(current_date)
         new_speed_object = {
-            "line": line,
+            "route": route_name,
+            "line": route_metadata["line"],
             "date": current_date,
-            "value": None,
             "count": None,
         }
-
         if metrics:
             new_speed_object["count"] = metrics["count"]
         if metrics and is_valid_entry(metrics, expected_num_entries, current_date):
-            new_speed_object["value"] = metrics["median"]
+            new_speed_object["median"] = metrics["median"]
+            new_speed_object["mean"] = round(metrics["mean"], 1)
+            new_speed_object["miles_covered"] = metrics["count"] * Decimal(route_metadata["length"])
+            new_speed_object["track_mileage"] = Decimal(route_metadata["length"])
+            new_speed_object["total_time"] = round(metrics["mean"], 1) * metrics["count"]
 
         formatted_speed_objects.append(new_speed_object)
     return formatted_speed_objects
@@ -84,41 +90,45 @@ def get_date_range_strings(start_date, end_date):
     return date_range
 
 
-def populate_daily_table(start_date, end_date, line):
-    """Populate DailySpeed table. Calculates median TTs and trip counts for all days between start and end dates."""
-    print(f"populating DailySpeed for line: {line}")
-    stops = constants.TERMINI[line]
+def populate_daily_table(start_date, end_date, line, route):
+    """ Populate DeliveredTripMetrics table. Calculates median TTs and trip counts for all days between start and end dates."""
+    print(f"populating DeliveredTripMetrics for Line/Route: {line}/{route if route else '(no-route)'}")
     current_date = start_date
-    delta = timedelta(days=300)
+    delta = timedelta(days=180)
     speed_objects = []
     while current_date < end_date:
-        print(f"Calculating daily values for 300 day chunk starting at: {current_date}")
-        API_requests = get_agg_tt_api_requests(stops, current_date, delta)
+        route_metadata = constants.get_route_metadata(line, current_date, route)
+        print(f"Calculating daily values for 180 day chunk starting at: {current_date}")
+        API_requests = get_agg_tt_api_requests(route_metadata["stops"], current_date, delta)
         curr_speed_object = send_requests(API_requests)
         date_range = get_date_range_strings(current_date, current_date + delta - timedelta(days=1))
-        formatted_speed_object = format_tt_objects(curr_speed_object, line, len(API_requests), date_range)
+        formatted_speed_object = format_tt_objects(curr_speed_object, route_metadata, len(API_requests), date_range)
         speed_objects.extend(formatted_speed_object)
-        current_date += delta
-    print("Writing objects to DailySpeed table")
-    dynamo.dynamo_batch_write(speed_objects, "DailySpeed")
-    print("Done")
+        if (line == "line-green" and current_date < constants.GLX_EXTENSION_DATE and current_date + delta >= constants.GLX_EXTENSION_DATE):
+            current_date = constants.GLX_EXTENSION_DATE
+        else:
+            current_date += delta
+        dynamo.dynamo_batch_write(speed_objects, "DeliveredTripMetrics")
+        speed_objects = []
+        print("Writing objects to DeliveredTripMetrics table")
+        print("Done")
 
 
 def update_daily_table(date):
-    """Update DailySpeed table"""
+    """ Update DailySpeed table"""
     speed_objects = []
-    for line in constants.LINES:
-        stops = constants.TERMINI[line]
+    for route in constants.ALL_ROUTES:
+        route_metadata = constants.get_route_metadata(route[0], date, route[1])
         delta = timedelta(days=1)
         date_string = datetime.strftime(date, constants.DATE_FORMAT_BACKEND)
-        print(f"Calculating update on [{line}] for date: {date_string}")
-        API_requests = get_agg_tt_api_requests(stops, date, delta)
-        tt_object = send_requests(API_requests)
-        formatted_speed_objects = format_tt_objects(tt_object, line, len(API_requests), [date_string])
-        if len(formatted_speed_objects) == 0:
+        print(f"Calculating update on [{route[0]}/{route[1] if route[1] else '(no-route)'}] for date: {date_string}")
+        API_requests = get_agg_tt_api_requests(route_metadata["stops"], date, delta)
+        speed_object = send_requests(API_requests)
+        formatted_speed_object = format_tt_objects(speed_object, route_metadata, len(API_requests), [date_string])
+        if len(formatted_speed_object) == 0:
             print("No data for date {date_string}")
             continue
-        speed_objects.extend(formatted_speed_objects)
+        speed_objects.extend(formatted_speed_object)
     print(f"Writing values: {speed_objects}")
-    dynamo.dynamo_batch_write(speed_objects, "DailySpeed")
+    dynamo.dynamo_batch_write(speed_objects, "DeliveredTripMetrics")
     print("Complete.")

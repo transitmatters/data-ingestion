@@ -1,21 +1,107 @@
 from datetime import datetime, timedelta
-from dateutil.relativedelta import relativedelta
+from decimal import Decimal
+from chalicelib import stations
 
+ALL_ROUTES = [["line-red", "a"], ["line-red", "b"], ["line-orange", None], ["line-blue", None], ["line-green", "b"], ["line-green", "c"], ["line-green", "d"], ["line-green", "e"]]
+STATIONS = stations.STATIONS
 
-"""array of stop pairs which encompass entire system. Not actually termini - one before the terminal stop."""
-TERMINI = {
-    # RL: Davis SB = 70063, Shawmut SB = 70091, Quincy Adams SB = 70103, Quincy Adams NB = 70104, Davis NB = 70064, Shawmut NB = 70092
-    "line-red": [[70063, 70091], [70092, 70064], [70063, 70103], [70104, 70064]],
-    # OL: Malden Center SB = 70034, Green Street SB = 70002, Green Street NB = 70003, Malden Center NB 70035
-    "line-orange": [[70034, 70002], [70003, 70035]],
-    # BL: Revere Beach SB = 70057, Gov. Center SB = 70039, Revere Beach NB = 70058, Gov. Center NB 70040
-    "line-blue": [[70057, 70039], [70040, 70058]],
+TERMINI_NEW = {
+    "line-red": {
+        "a": {
+            "line": "line-red",
+            "route": "a",
+            "stops": [[STATIONS["SHAWMUT"]["NB"], STATIONS["DAVIS"]["NB"]], [STATIONS["DAVIS"]["SB"], STATIONS["SHAWMUT"]["SB"]]],
+            "length": Decimal("20.26"),
+        },
+        "b": {
+            "line": "line-red",
+            "route": "b",
+            "stops": [[STATIONS["QUINCY_ADAMS"]["NB"], STATIONS["DAVIS"]["NB"]], [STATIONS["DAVIS"]["SB"], STATIONS["QUINCY_ADAMS"]["SB"]]],
+            "length": Decimal("29.64"),
+        }
+    },
+    "line-orange": {
+        "line": "line-orange",
+        "route": None,
+        "stops": [[STATIONS["GREEN_STREET"]["NB"], STATIONS["MALDEN_CENTER"]["NB"]], [STATIONS["MALDEN_CENTER"]["SB"], STATIONS["GREEN_STREET"]["SB"]]],
+        "length": Decimal("19.22"),
+    },
+    "line-blue": {
+        "line": "line-blue",
+        "route": None,
+        "stops": [[STATIONS["GOV_CENTER_BLUE"]["NB"], STATIONS["REVERE_BEACH"]["NB"]], [STATIONS["REVERE_BEACH"]["SB"], STATIONS["GOV_CENTER_BLUE"]["SB"]]],
+        "length": Decimal("10.75"),
+    },
+    "line-green-post-glx":
+        {
+            "b": {
+                "line": "line-green",
+                "route": "b",
+                "stops": [[STATIONS["SOUTH_ST"]["NB"], STATIONS["BOYLSTON"]["NB"]], [STATIONS["BOYLSTON"]["SB"], STATIONS["SOUTH_ST"]["SB"]]],
+                "length": Decimal("5.39") * 2,
+            },
+            "c": {
+                "line": "line-green",
+                "route": "c",
+                "stops": [[STATIONS["ENGLEWOOD"]["NB"], STATIONS["GOV_CENTER_GREEN"]["NB"]], [STATIONS["GOV_CENTER_GREEN"]["SB"], STATIONS["ENGLEWOOD"]["SB"]]],
+                "length": Decimal("4.91") * 2,
+            },
+            "d": {
+                "line": "line-green",
+                "route": "d",
+                "stops": [[STATIONS["WOODLAND"]["NB"], STATIONS["LECHMERE"]["NB"]], [STATIONS["LECHMERE"]["SB"], STATIONS["WOODLAND"]["SB"]]],
+                "length": Decimal("12.81") * 2,
+            },
+            "e": {
+                "line": "line-green",
+                "route": "e",
+                "stops": [[STATIONS["BACK_OF_THE_HILL"]["NB"], STATIONS["BALL_SQ"]["NB"]], [STATIONS["BALL_SQ"]["SB"], STATIONS["BACK_OF_THE_HILL"]["SB"]]],
+                "length": Decimal("7.88") * 2,
+            }
+    },
+        "line-green-pre-glx": {
+        "b": {
+            "line": "line-green",
+            "route": "b",
+            "stops": [[STATIONS["SOUTH_ST"]["NB"], STATIONS["BOYLSTON"]["NB"]], [STATIONS["BOYLSTON"]["SB"], STATIONS["SOUTH_ST"]["SB"]]],
+            "length": Decimal("5.39") * 2,
+        },
+        "c": {
+            "line": "line-green",
+            "route": "c",
+            "stops": [[STATIONS["ENGLEWOOD"]["NB"], STATIONS["GOV_CENTER_GREEN"]["NB"]], [STATIONS["GOV_CENTER_GREEN"]["SB"], STATIONS["ENGLEWOOD"]["SB"]]],
+            "length": Decimal("4.91") * 2,
+        },
+        "d": {
+            "line": "line-green",
+            "route": "d",
+            "stops": [[STATIONS["WOODLAND"]["NB"], STATIONS["PARK_ST"]["NB"]], [STATIONS["PARK_ST"]["SB"], STATIONS["WOODLAND"]["SB"]]],
+            "length": Decimal("11.06") * 2,
+        },
+        "e": {
+            "line": "line-green",
+            "route": "e",
+            "stops": [[STATIONS["BACK_OF_THE_HILL"]["NB"], STATIONS["GOV_CENTER_GREEN"]["NB"]], [STATIONS["GOV_CENTER_GREEN"]["SB"], STATIONS["BACK_OF_THE_HILL"]["SB"]]],
+            "length": Decimal("3.73") * 2,
+        }
+    }
 }
 
-LINES = ["line-red", "line-orange", "line-blue"]
 
+def get_route_metadata(line, date, route=None):
+    if line == 'line-green':
+        if date < GLX_EXTENSION_DATE:
+            return TERMINI_NEW[f'{line}-pre-glx'][route]
+        return TERMINI_NEW[f'{line}-post-glx'][route]
+    if route:
+        return TERMINI_NEW[line][route]
+    return TERMINI_NEW[line]
+
+
+LINES = ["line-red", "line-orange", "line-blue", "line-green"]
 DATE_FORMAT = "%Y-%m-%dT%H:%M:%S"
 DATE_FORMAT_BACKEND = "%Y-%m-%d"
+GLX_EXTENSION_DATE = datetime.strptime("2023-03-19", DATE_FORMAT_BACKEND)
 
 DD_URL_AGG_TT = "https://dashboard-api.labs.transitmatters.org/aggregate/traveltimes?{parameters}"
 DD_URL_SINGLE_TT = "https://dashboard-api.labs.transitmatters.org/traveltimes/{date}?{parameters}"
@@ -31,23 +117,29 @@ def get_monthly_table_update_start():
 def get_weekly_table_update_start():
     """Get Sunday of current week."""
     yesterday = datetime.now() - timedelta(days=1)
-    days_since_sunday = (yesterday.weekday() + 1) % 7
-    most_recent_sunday = yesterday - timedelta(days=days_since_sunday)
-    return most_recent_sunday
+    days_since_monday = yesterday.weekday() % 7
+    most_recent_monday = yesterday - timedelta(days=days_since_monday)
+    return most_recent_monday
 
 
 # Configuration for aggregate speed table functions
 TABLE_MAP = {
     "weekly": {
-        "table_name": "WeeklySpeed",
-        "delta": timedelta(days=7),
-        "start_date": datetime.strptime("2016-01-10T08:00:00", DATE_FORMAT),  # Start on first Sunday with data.
+        "table_name": "DeliveredTripMetricsWeekly",
+        "start_date": datetime.strptime("2016-01-11T08:00:00", DATE_FORMAT),  # Start on first Monday with data.
         "update_start": get_weekly_table_update_start(),
     },
     "monthly": {
-        "table_name": "MonthlySpeed",
-        "delta": relativedelta(months=1),
+        "table_name": "DeliveredTripMetricsMonthly",
         "start_date": datetime.strptime("2016-01-01T08:00:00", DATE_FORMAT),  # Start on 1st of first month with data.
         "update_start": get_monthly_table_update_start(),
     },
+}
+
+
+LINE_TO_ROUTE_MAP = {
+    "line-red": ["line-red-a", "line-red-b"],
+    "line-green": ["line-green-b", "line-green-c", "line-green-d", "line-green-e"],
+    "line-blue": ["line-blue"],
+    "line-orange": ["line-orange"]
 }
