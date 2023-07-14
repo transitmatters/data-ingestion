@@ -1,4 +1,5 @@
 from chalice import Chalice, Cron
+import json
 from datetime import date, timedelta, datetime
 from chalicelib import (
     s3_alerts,
@@ -10,6 +11,7 @@ from chalicelib import (
     gtfs,
     ridership,
     speed_restrictions,
+    landing
 )
 
 app = Chalice(app_name="ingestor")
@@ -121,3 +123,13 @@ def populate_agg_delivered_trip_metrics(params, context):
         print(line)
         agg_speed_tables.populate_table(line, "monthly")
         agg_speed_tables.populate_table(line, "weekly")
+
+
+# 9:00 UTC -> 4:00/5:00am ET every monday.
+@app.schedule(Cron(0, 9, "?", "*", "MON", "*"))
+def store_landing_data(event):
+    print(f"Uploading ridership and trip metric data for landing page from {constants.NINETY_DAYS_AGO_STRING} to {constants.ONE_WEEK_AGO_STRING}")
+    trip_metrics_data = landing.get_trip_metrics_data()
+    ridership_data = landing.get_ridership_data()
+    landing.upload_to_s3(json.dumps(trip_metrics_data), json.dumps(ridership_data))
+    landing.clear_cache()

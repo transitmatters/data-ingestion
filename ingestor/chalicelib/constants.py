@@ -99,9 +99,15 @@ def get_route_metadata(line, date, route=None):
 
 
 LINES = ["line-red", "line-orange", "line-blue", "line-green"]
+RIDERSHIP_KEYS = {"line-red": "line-Red", "line-orange": "line-Orange", "line-blue": "line-Blue", "line-green": "line-Green"}
 DATE_FORMAT = "%Y-%m-%dT%H:%M:%S"
 DATE_FORMAT_BACKEND = "%Y-%m-%d"
 GLX_EXTENSION_DATE = datetime.strptime("2023-03-19", DATE_FORMAT_BACKEND)
+TODAY = datetime.now().date()
+
+ONE_WEEK_AGO_STRING = (TODAY - timedelta(weeks=1)).strftime(DATE_FORMAT_BACKEND)
+NINETY_DAYS_AGO_STRING = (TODAY - timedelta(days=90)).strftime(DATE_FORMAT_BACKEND)
+
 
 DD_URL_AGG_TT = "https://dashboard-api.labs.transitmatters.org/aggregate/traveltimes?{parameters}"
 DD_URL_SINGLE_TT = "https://dashboard-api.labs.transitmatters.org/traveltimes/{date}?{parameters}"

@@ -24,6 +24,12 @@
           "lambda_timeout": 60,
           "lambda_memory_size": 256
         },
+        "store_landing_data": {
+          "iam_policy_file": "policy-landing-data.json"
+        },
+        "store_landing_data_manual_delete_this": {
+          "iam_policy_file": "policy-landing-data.json"
+        },
         "update_daily_speed_table": {
           "iam_policy_file": "policy-daily-table.json",
           "lambda_timeout": 20
