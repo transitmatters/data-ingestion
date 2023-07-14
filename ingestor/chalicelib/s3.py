@@ -2,8 +2,10 @@ import boto3
 import io
 import pandas as pd
 import zlib
+import time
 
 s3 = boto3.client("s3")
+cloudfront = boto3.client("cloudfront")
 
 
 # General downloading/uploading
@@ -51,3 +53,13 @@ def ls(bucket, prefix):
         all_keys.extend(keys)
 
     return all_keys
+
+
+def clear_cf_cache(distribution, keys):
+    cloudfront.create_invalidation(
+        DistributionId=distribution,
+        InvalidationBatch={
+            "Paths": {"Quantity": len(keys), "Items": keys},
+            "CallerReference": str(time.time()).replace(".", ""),
+        },
+    )
