@@ -16,4 +16,4 @@ poetry run chalice package --stage prod --merge-template .chalice/envvars.json -
 aws cloudformation package --template-file cfn/sam.json --s3-bucket $BUCKET --output-template-file cfn/packaged.yaml
 aws cloudformation deploy --template-file cfn/packaged.yaml --stack-name $STACK_NAME \
     --capabilities CAPABILITY_NAMED_IAM --no-fail-on-empty-changeset \
-    --parameter-overrides MbtaV2ApiKey=$MBTA_V2_API_KEY
+    --parameter-overrides MbtaV2ApiKey=$MBTA_V2_API_KEY DDApiKey=$DD_API_KEY

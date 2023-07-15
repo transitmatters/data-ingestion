@@ -3,6 +3,10 @@
     "MbtaV2ApiKey": {
       "Type": "String",
       "Description": "MBTA Performance API Key"
+    },
+    "DDApiKey": {
+      "Type": "String",
+      "Description": "Datadog API key."
     }
   },
   "Resources": {
@@ -10,7 +14,8 @@
       "Properties": {
         "Environment": {
           "Variables": {
-            "MBTA_V2_API_KEY": { "Ref": "MbtaV2ApiKey" }
+            "MBTA_V2_API_KEY": { "Ref": "MbtaV2ApiKey" },
+            "DD_API_KEY": { "Ref": "DDApiKey" }
           }
         }
       }
@@ -19,7 +24,8 @@
       "Properties": {
         "Environment": {
           "Variables": {
-            "MBTA_V2_API_KEY": { "Ref": "MbtaV2ApiKey" }
+            "MBTA_V2_API_KEY": { "Ref": "MbtaV2ApiKey" },
+            "DD_API_KEY": { "Ref": "DDApiKey" }
           }
         }
       }
