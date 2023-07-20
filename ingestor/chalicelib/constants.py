@@ -109,8 +109,8 @@ ONE_WEEK_AGO_STRING = (TODAY - timedelta(weeks=1)).strftime(DATE_FORMAT_BACKEND)
 NINETY_DAYS_AGO_STRING = (TODAY - timedelta(days=90)).strftime(DATE_FORMAT_BACKEND)
 
 
-DD_URL_AGG_TT = "https://dashboard-api.labs.transitmatters.org/aggregate/traveltimes?{parameters}"
-DD_URL_SINGLE_TT = "https://dashboard-api.labs.transitmatters.org/traveltimes/{date}?{parameters}"
+DD_URL_AGG_TT = "https://dashboard-api.labs.transitmatters.org/api/aggregate/traveltimes?{parameters}"
+DD_URL_SINGLE_TT = "https://dashboard-api.labs.transitmatters.org/api/traveltimes/{date}?{parameters}"
 
 
 def get_monthly_table_update_start():
