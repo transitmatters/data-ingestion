@@ -1,3 +1,4 @@
+import os
 from chalice import Chalice, Cron, ConvertToMiddleware
 import json
 from datetime import date, timedelta, datetime
@@ -17,7 +18,10 @@ from chalicelib import (
 
 app = Chalice(app_name="ingestor")
 
-app.register_middleware(ConvertToMiddleware(datadog_lambda_wrapper))
+DD_API_KEY = os.environ.get("DD_API_KEY", None)
+
+if DD_API_KEY is not None:
+    app.register_middleware(ConvertToMiddleware(datadog_lambda_wrapper))
 
 
 ################
