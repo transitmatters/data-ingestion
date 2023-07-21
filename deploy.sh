@@ -22,7 +22,7 @@ pushd ingestor/
 
 poetry run chalice package --stage prod --merge-template .chalice/envvars.json --merge-template .chalice/dynamo_tables.json cfn/
 
-# Shrink size of layer deployment
+# Shrink size of layer deployment (boto is always in lambda runtime)
 zip -d cfn/layer-deployment.zip "python/lib/python3.10/site-packages/botocore/*"
 zip -d cfn/layer-deployment.zip "python/lib/python3.10/site-packages/boto3/*"
 
