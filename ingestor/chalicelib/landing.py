@@ -9,14 +9,12 @@ dynamodb = boto3.resource('dynamodb')
 BUCKETS = [
     "dashboard.transitmatters.org",
     "dashboard-beta.labs.transitmatters.org",
-    "dashboard-v4-beta.labs.transitmatters.org",
 ]
 
 DISTRIBUTIONS = [
-    "E1O9ZYKT6F0GTP",
-    "EDGW55M9UX5K1",
-    "E33JFCV4SGVK24",
-]  # dashboard  # dashboard-beta  # dashboard-v4-beta
+    "EH3F0Z8TUZVCQ",
+    "ENTCATGUNQIQ",
+]  # dashboard  # dashboard-beta
 
 
 TRIP_METRICS_KEY_JSON = "static/landing/trip_metrics.json"
