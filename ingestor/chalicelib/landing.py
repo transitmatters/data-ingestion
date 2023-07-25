@@ -14,7 +14,7 @@ BUCKETS = [
 
 DISTRIBUTIONS = [
     "E1O9ZYKT6F0GTP",
-    "EDGW55M9UX5K1",
+    "E1D87I0XCJ9AOQ",
     "E33JFCV4SGVK24",
 ]  # dashboard  # dashboard-beta  # dashboard-v4-beta
 
