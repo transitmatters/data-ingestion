@@ -5,6 +5,7 @@ from botocore.exceptions import ClientError
 ROUTE_DEFINITIONS = {
     "Red": {"labels": range(1900, 2152), "core_stations": [70077, 70078]},  # Downtown Crossing
     "Orange": {"labels": range(1400, 1552), "core_stations": [70014, 70015]},  # Back Bay
+    "Green": {"labels": range(3900, 3923), "core_stations": [70200, 70196]},  # Park Street
 }
 
 EVENT_DEPARTURE = ["DEP", "PRD"]
