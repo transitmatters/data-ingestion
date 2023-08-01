@@ -1,9 +1,10 @@
 import boto3
-dynamodb = boto3.resource('dynamodb')
+
+dynamodb = boto3.resource("dynamodb")
 
 
 def dynamo_batch_write(speed_objects, table_name):
-    ''' Write objects to dynamo tables. Splitting up oversize batches is configured automatically. '''
+    """Write objects to dynamo tables. Splitting up oversize batches is configured automatically."""
     table = dynamodb.Table(table_name)
     if len(speed_objects) == 0:
         return
@@ -13,7 +14,7 @@ def dynamo_batch_write(speed_objects, table_name):
 
 
 def query_dynamo(params, table):
-    ''' Send query to dynamo. '''
+    """Send query to dynamo."""
     table = dynamodb.Table(table)
     response = table.query(**params)
-    return response['Items']
+    return response["Items"]

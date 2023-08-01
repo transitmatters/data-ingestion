@@ -4,7 +4,7 @@ from chalicelib import s3
 from dynamodb_json import json_util as ddb_json
 from chalicelib import constants
 
-dynamodb = boto3.resource('dynamodb')
+dynamodb = boto3.resource("dynamodb")
 
 BUCKETS = [
     "dashboard.transitmatters.org",
@@ -23,7 +23,10 @@ RIDERSHIP_KEY_JSON = "static/landing/ridership.json"
 
 def query_landing_trip_metrics_data(line: str):
     table = dynamodb.Table("DeliveredTripMetricsWeekly")
-    response = table.query(KeyConditionExpression=Key("line").eq(line) & Key("date").between(constants.NINETY_DAYS_AGO_STRING, constants.ONE_WEEK_AGO_STRING))
+    response = table.query(
+        KeyConditionExpression=Key("line").eq(line)
+        & Key("date").between(constants.NINETY_DAYS_AGO_STRING, constants.ONE_WEEK_AGO_STRING)
+    )
     return ddb_json.loads(response["Items"])
 
 
@@ -45,7 +48,10 @@ def get_ridership_data():
 
 def query_landing_ridership_data(line: str):
     table = dynamodb.Table("Ridership")
-    response = table.query(KeyConditionExpression=Key("lineId").eq(line) & Key("date").between(constants.NINETY_DAYS_AGO_STRING, constants.ONE_WEEK_AGO_STRING))
+    response = table.query(
+        KeyConditionExpression=Key("lineId").eq(line)
+        & Key("date").between(constants.NINETY_DAYS_AGO_STRING, constants.ONE_WEEK_AGO_STRING)
+    )
     return ddb_json.loads(response["Items"])
 
 
