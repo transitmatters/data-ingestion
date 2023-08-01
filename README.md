@@ -3,6 +3,7 @@ This is an app that can host all our data crunching jobs, especially those that 
 It uses Chalice, which makes it easy to add new functions that can be triggered on an interval or via rest API endpoint.
 
 So far we have:
+
 - Store MBTA Alerts data daily.
 - Store number of trips with new trains on Orange and Red line daily.
 - Store Bluebikes station status data every 5 min.
@@ -10,6 +11,6 @@ So far we have:
 To add a new lambda function, put the methods you need in a new file in chalicelib/.
 Then add your trigger in app.py.
 Then, add a policy.json file for any permissions you might need in .chalice/, updating .chalice/config.json accordingly.
-Lastly, if you need secret environment variables, update envvars.json and make sure they are passed 
+Lastly, if you need secret environment variables, update resources.json and make sure they are passed
 with --parameter-override in the cloudformation deploy step of deploy.sh.
 (Non-secret envvars can be added to config.json directly.)
