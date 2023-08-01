@@ -71,8 +71,10 @@
     "BbStoreStationStatus": {
       "Type": "AWS::Serverless::Function",
       "Properties": {
+        "Handler": "datadog_lambda.handler.handler",
         "Environment": {
           "Variables": {
+            "DD_LAMBDA_HANDLER": "app.bb_store_station_status",
             "DD_API_KEY": { "Ref": "DDApiKey" },
             "DD_VERSION": { "Ref": "GitVersion" },
             "DD_TAGS": { "Ref": "DDTags" }
@@ -107,8 +109,10 @@
     "UpdateDeliveredTripMetrics": {
       "Type": "AWS::Serverless::Function",
       "Properties": {
+        "Handler": "datadog_lambda.handler.handler",
         "Environment": {
           "Variables": {
+            "DD_LAMBDA_HANDLER": "app.update_delivered_trip_metrics",
             "DD_API_KEY": { "Ref": "DDApiKey" },
             "DD_VERSION": { "Ref": "GitVersion" },
             "DD_TAGS": { "Ref": "DDTags" }
