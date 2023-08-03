@@ -21,11 +21,6 @@ poetry export -f requirements.txt --output ingestor/requirements.txt --without-h
 pushd ingestor/
 
 poetry run chalice package --stage prod --merge-template .chalice/resources.json cfn/
-
-# Shrink size of layer deployment (boto is always in lambda runtime)
-zip -d cfn/layer-deployment.zip "python/lib/python3.10/site-packages/botocore/*"
-zip -d cfn/layer-deployment.zip "python/lib/python3.10/site-packages/boto3/*"
-
 aws cloudformation package --template-file cfn/sam.json --s3-bucket $BUCKET --output-template-file cfn/packaged.yaml
 aws cloudformation deploy --template-file cfn/packaged.yaml --stack-name $STACK_NAME \
     --capabilities CAPABILITY_NAMED_IAM --no-fail-on-empty-changeset \
