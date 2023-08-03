@@ -18,10 +18,7 @@ from chalicelib import (
 
 app = Chalice(app_name="ingestor")
 
-DD_API_KEY = os.environ.get("DD_API_KEY", None)
-
-if DD_API_KEY is not None:
-    app.register_middleware(ConvertToMiddleware(datadog_lambda_wrapper))
+app.register_middleware(ConvertToMiddleware(datadog_lambda_wrapper))
 
 
 ################
