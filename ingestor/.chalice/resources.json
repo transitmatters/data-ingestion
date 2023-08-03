@@ -1,5 +1,157 @@
 {
+  "Parameters": {
+    "MbtaV2ApiKey": {
+      "Type": "String",
+      "Description": "MBTA Performance API Key"
+    },
+    "DDApiKey": {
+      "Type": "String",
+      "Description": "Datadog API key."
+    }
+  },
   "Resources": {
+    "PopulateDeliveredTripMetrics": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "Environment": {
+          "Variables": {
+            "DD_API_KEY": { "Ref": "DDApiKey" }
+          }
+        }
+      }
+    },
+    "PopulateAggDeliveredTripMetrics": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "Environment": {
+          "Variables": {
+            "DD_API_KEY": { "Ref": "DDApiKey" }
+          }
+        }
+      }
+    },
+    "StoreYesterdayAlerts": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "Environment": {
+          "Variables": {
+            "MBTA_V2_API_KEY": { "Ref": "MbtaV2ApiKey" },
+            "DD_API_KEY": { "Ref": "DDApiKey" }
+          }
+        }
+      }
+    },
+    "StoreNewTrainRuns": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "Environment": {
+          "Variables": {
+            "MBTA_V2_API_KEY": { "Ref": "MbtaV2ApiKey" },
+            "DD_API_KEY": { "Ref": "DDApiKey" }
+          }
+        }
+      }
+    },
+    "BbStoreStationStatus": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "Environment": {
+          "Variables": {
+            "DD_API_KEY": { "Ref": "DDApiKey" }
+          }
+        }
+      }
+    },
+    "BbStoreStationInfo": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "Environment": {
+          "Variables": {
+            "DD_API_KEY": { "Ref": "DDApiKey" }
+          }
+        }
+      }
+    },
+    "BbCalcDailyStats": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "Environment": {
+          "Variables": {
+            "DD_API_KEY": { "Ref": "DDApiKey" }
+          }
+        }
+      }
+    },
+    "UpdateDeliveredTripMetrics": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "Environment": {
+          "Variables": {
+            "DD_API_KEY": { "Ref": "DDApiKey" }
+          }
+        }
+      }
+    },
+    "UpdateAggTripMetrics": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "Environment": {
+          "Variables": {
+            "DD_API_KEY": { "Ref": "DDApiKey" }
+          }
+        }
+      }
+    },
+    "UpdateDeliveredTripMetricsYesterday": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "Environment": {
+          "Variables": {
+            "DD_API_KEY": { "Ref": "DDApiKey" }
+          }
+        }
+      }
+    },
+    "UpdateGtfs": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "Environment": {
+          "Variables": {
+            "DD_API_KEY": { "Ref": "DDApiKey" }
+          }
+        }
+      }
+    },
+    "UpdateRidership": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "Environment": {
+          "Variables": {
+            "DD_API_KEY": { "Ref": "DDApiKey" }
+          }
+        }
+      }
+    },
+    "UpdateSpeedRestrictions": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "Environment": {
+          "Variables": {
+            "DD_API_KEY": { "Ref": "DDApiKey" }
+          }
+        }
+      }
+    },
+    "StoreLandingData": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "Environment": {
+          "Variables": {
+            "DD_API_KEY": { "Ref": "DDApiKey" }
+          }
+        }
+      }
+    },
     "OverviewStats": {
       "Type": "AWS::DynamoDB::Table",
       "Properties": {
