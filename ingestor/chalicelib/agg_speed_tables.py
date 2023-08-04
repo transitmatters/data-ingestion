@@ -11,6 +11,7 @@ import boto3
 from dynamodb_json import json_util as ddb_json
 import pandas as pd
 import concurrent.futures
+
 dynamodb = boto3.resource("dynamodb")
 
 
@@ -37,12 +38,14 @@ def populate_table(line: Line, range: Range):
     print(f"Populating {range} table")
     table = constants.TABLE_MAP[range]
     today = datetime.now().strftime(constants.DATE_FORMAT_BACKEND)
-    trips = actual_trips_by_line({
-        "start_date": "2016-01-01",
-        "end_date": today,
-        "line": line,
-        "agg": range,
-    })
+    trips = actual_trips_by_line(
+        {
+            "start_date": "2016-01-01",
+            "end_date": today,
+            "line": line,
+            "agg": range,
+        }
+    )
     dynamo.dynamo_batch_write(json.loads(json.dumps(trips), parse_float=Decimal), table["table_name"])
     print("Done")
 
@@ -54,12 +57,14 @@ def update_tables(range: Range):
     for line in constants.LINES:
         print(f"Updating {line} for {range}")
         start = table["update_start"]
-        trips = actual_trips_by_line({
-            "start_date": datetime.strftime(start, constants.DATE_FORMAT_BACKEND),
-            "end_date": datetime.strftime(yesterday, constants.DATE_FORMAT_BACKEND),
-            "line": line,
-            "agg": range,
-        })
+        trips = actual_trips_by_line(
+            {
+                "start_date": datetime.strftime(start, constants.DATE_FORMAT_BACKEND),
+                "end_date": datetime.strftime(yesterday, constants.DATE_FORMAT_BACKEND),
+                "line": line,
+                "agg": range,
+            }
+        )
         dynamo.dynamo_batch_write(json.loads(json.dumps(trips), parse_float=Decimal), table["table_name"])
         print("Done")
 
@@ -73,7 +78,10 @@ def query_daily_trips_on_route(table_name: str, route: str, start_date: str, end
 def query_daily_trips_on_line(table_name: str, line: Line, start_date: str, end_date: str):
     route_keys = constants.LINE_TO_ROUTE_MAP[line]
     with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
-        futures = [executor.submit(query_daily_trips_on_route, table_name, route_key, start_date, end_date) for route_key in route_keys]
+        futures = [
+            executor.submit(query_daily_trips_on_route, table_name, route_key, start_date, end_date)
+            for route_key in route_keys
+        ]
         results = []
         for future in concurrent.futures.as_completed(futures):
             result = future.result()
@@ -99,28 +107,32 @@ def aggregate_actual_trips(actual_trips, agg: Range, start_date: str):
     flat_data = [entry for sublist in actual_trips for entry in sublist]
     df = pd.DataFrame(flat_data)
     df_grouped = group_data_by_date_and_branch(df)
-    if agg == 'weekly':
+    if agg == "weekly":
         return group_weekly_data(df_grouped, start_date)
-    if agg == 'monthly':
+    if agg == "monthly":
         return group_monthly_data(df_grouped, start_date)
     return_data = df_grouped.reset_index()
-    return return_data.to_dict(orient='records')
+    return return_data.to_dict(orient="records")
 
 
 def group_monthly_data(df: pd.DataFrame, start_date: str):
-    df_monthly = df.resample('M').agg({'miles_covered': np.sum, 'count': np.nanmedian, 'total_time': np.sum, 'line': 'min'})
+    df_monthly = df.resample("M").agg(
+        {"miles_covered": np.sum, "count": np.nanmedian, "total_time": np.sum, "line": "min"}
+    )
     df_monthly = df_monthly.fillna(0)
     df_monthly.index = [datetime(x.year, x.month, 1) for x in df_monthly.index.tolist()]
     # Drop the first month if it is incomplete
     if datetime.fromisoformat(start_date).day != 1:
         df_monthly = df_monthly.tail(-1)
-    df_monthly['date'] = df_monthly.index.strftime('%Y-%m-%d')
-    return df_monthly.to_dict(orient='records')
+    df_monthly["date"] = df_monthly.index.strftime("%Y-%m-%d")
+    return df_monthly.to_dict(orient="records")
 
 
 def group_weekly_data(df: pd.DataFrame, start_date: str):
     # Group from Monday - Sunday
-    df_weekly = df.resample('W-SUN').agg({'miles_covered': np.sum, 'count': np.nanmedian, 'total_time': np.sum, 'line': 'min'})
+    df_weekly = df.resample("W-SUN").agg(
+        {"miles_covered": np.sum, "count": np.nanmedian, "total_time": np.sum, "line": "min"}
+    )
     df_weekly = df_weekly.fillna(0)
     # Pandas resample uses the end date of the range as the index. So we subtract 6 days to convert to first date of the range.
     df_weekly.index = df_weekly.index - pd.Timedelta(days=6)
@@ -128,18 +140,32 @@ def group_weekly_data(df: pd.DataFrame, start_date: str):
     if datetime.fromisoformat(start_date).weekday() != 0:
         df_weekly = df_weekly.tail(-1)
     # Convert date back to string.
-    df_weekly['date'] = df_weekly.index.strftime('%Y-%m-%d')
-    return df_weekly.to_dict(orient='records')
+    df_weekly["date"] = df_weekly.index.strftime("%Y-%m-%d")
+    return df_weekly.to_dict(orient="records")
 
 
 def group_data_by_date_and_branch(df: pd.DataFrame):
-    """ Convert data from objects with specific route/date/direction to data by date. """
+    """Convert data from objects with specific route/date/direction to data by date."""
     # Set values for date to NaN when any entry for a different branch/direction has miles_covered as nan.
-    df.loc[df.groupby('date')['miles_covered'].transform(lambda x: (np.isnan(x)).any()), ['count', 'total_time', 'miles_covered']] = np.nan
+    df.loc[
+        df.groupby("date")["miles_covered"].transform(lambda x: (np.isnan(x)).any()),
+        ["count", "total_time", "miles_covered"],
+    ] = np.nan
     # Aggregate valuues.
-    df_grouped = df.groupby('date').agg({'miles_covered': lambda x: np.nan if all(np.isnan(i) for i in x) else np.nansum(x), 'total_time': lambda x: np.nan if all(np.isnan(i) for i in x) else np.nansum(x), 'count': lambda x: np.nan if all(np.isnan(i) for i in x) else np.nansum(x), 'line': 'first'}).reset_index()
+    df_grouped = (
+        df.groupby("date")
+        .agg(
+            {
+                "miles_covered": lambda x: np.nan if all(np.isnan(i) for i in x) else np.nansum(x),
+                "total_time": lambda x: np.nan if all(np.isnan(i) for i in x) else np.nansum(x),
+                "count": lambda x: np.nan if all(np.isnan(i) for i in x) else np.nansum(x),
+                "line": "first",
+            }
+        )
+        .reset_index()
+    )
     # use datetime for index rather than string.
-    df_grouped.set_index(pd.to_datetime(df_grouped['date']), inplace=True)
+    df_grouped.set_index(pd.to_datetime(df_grouped["date"]), inplace=True)
     # Remove date column (it is the index.)
-    df_grouped.drop('date', axis=1, inplace=True)
+    df_grouped.drop("date", axis=1, inplace=True)
     return df_grouped
