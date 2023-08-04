@@ -44,7 +44,7 @@ def send_requests(api_requests):
             if item["service_date"] in speed_object:
                 speed_object[item["service_date"]]["median"] += item["50%"]
                 speed_object[item["service_date"]]["mean"] += item["mean"]
-                speed_object[item["service_date"]]["count"] += (item["count"] / 2)
+                speed_object[item["service_date"]]["count"] += item["count"] / 2
                 speed_object[item["service_date"]]["entries"] += 1
             else:
                 speed_object[item["service_date"]] = {
@@ -57,9 +57,11 @@ def send_requests(api_requests):
 
 
 def format_tt_objects(speed_objects, route_metadata, expected_num_entries, date_range):
-    """ Remove invalid entries and format for Dynamo. """
+    """Remove invalid entries and format for Dynamo."""
     formatted_speed_objects = []
-    route_name = f"{route_metadata['line']}-{route_metadata['route']}" if route_metadata["route"] else route_metadata["line"]
+    route_name = (
+        f"{route_metadata['line']}-{route_metadata['route']}" if route_metadata["route"] else route_metadata["line"]
+    )
     for current_date in date_range:
         metrics = speed_objects.get(current_date)
         new_speed_object = {
@@ -91,7 +93,7 @@ def get_date_range_strings(start_date, end_date):
 
 
 def populate_daily_table(start_date, end_date, line, route):
-    """ Populate DeliveredTripMetrics table. Calculates median TTs and trip counts for all days between start and end dates."""
+    """Populate DeliveredTripMetrics table. Calculates median TTs and trip counts for all days between start and end dates."""
     print(f"populating DeliveredTripMetrics for Line/Route: {line}/{route if route else '(no-route)'}")
     current_date = start_date
     delta = timedelta(days=180)
@@ -104,7 +106,11 @@ def populate_daily_table(start_date, end_date, line, route):
         date_range = get_date_range_strings(current_date, current_date + delta - timedelta(days=1))
         formatted_speed_object = format_tt_objects(curr_speed_object, route_metadata, len(API_requests), date_range)
         speed_objects.extend(formatted_speed_object)
-        if (line == "line-green" and current_date < constants.GLX_EXTENSION_DATE and current_date + delta >= constants.GLX_EXTENSION_DATE):
+        if (
+            line == "line-green"
+            and current_date < constants.GLX_EXTENSION_DATE
+            and current_date + delta >= constants.GLX_EXTENSION_DATE
+        ):
             current_date = constants.GLX_EXTENSION_DATE
         else:
             current_date += delta
@@ -115,7 +121,7 @@ def populate_daily_table(start_date, end_date, line, route):
 
 
 def update_daily_table(date):
-    """ Update DailySpeed table"""
+    """Update DailySpeed table"""
     speed_objects = []
     for route in constants.ALL_ROUTES:
         route_metadata = constants.get_route_metadata(route[0], date, route[1])

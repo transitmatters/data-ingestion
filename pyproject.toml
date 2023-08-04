@@ -9,7 +9,7 @@ license = "MIT"
 python = "~3.10, <3.11"
 requests = "^2.31.0"
 pytz = "^2023.3"
-boto3 = "^1.26.163"
+boto3 = "^1.28.19"
 numpy = "^1.24.2"
 pandas = "^1.5.3"
 geopy = "^2.2.0"
@@ -23,8 +23,8 @@ ddtrace = "1.15.2"
 
 [tool.poetry.dev-dependencies]
 chalice = "^1.29.0"
-flake8 = "^6.0.0"
-black = "^23.3.0"
+flake8 = "^6.1.0"
+black = "^23.7.0"
 
 [tool.black]
 line-length = 120

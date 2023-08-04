@@ -1,4 +1,3 @@
-import os
 from chalice import Chalice, Cron, ConvertToMiddleware
 import json
 from datetime import date, timedelta, datetime
