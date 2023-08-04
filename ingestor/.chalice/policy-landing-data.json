@@ -23,17 +23,15 @@
       "Effect": "Allow",
       "Resource": [
         "arn:aws:s3:::dashboard.transitmatters.org/static/landing/*",
-        "arn:aws:s3:::dashboard-beta.labs.transitmatters.org/static/landing/*",
-        "arn:aws:s3:::dashboard-v4-beta.labs.transitmatters.org/static/landing/*"
+        "arn:aws:s3:::dashboard-beta.labs.transitmatters.org/static/landing/*"
       ]
     },
     {
       "Action": ["CloudFront:CreateInvalidation"],
       "Effect": "Allow",
       "Resource": [
-        "arn:aws:cloudfront::473352343756:distribution/E33JFCV4SGVK24",
-        "arn:aws:cloudfront::473352343756:distribution/EDGW55M9UX5K1",
-        "arn:aws:cloudfront::473352343756:distribution/E1O9ZYKT6F0GTP"
+        "arn:aws:cloudfront::473352343756:distribution/EH3F0Z8TUZVCQ",
+        "arn:aws:cloudfront::473352343756:distribution/ENTCATGUNQIQ"
       ]
     }
   ]
