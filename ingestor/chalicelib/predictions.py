@@ -1,10 +1,9 @@
 import requests
-import zipfile
 import csv
 import boto3
 from datetime import date, datetime
 from dataclasses import dataclass
-from io import BytesIO, TextIOWrapper
+from io import TextIOWrapper
 from typing import Union, Tuple, List, Dict, Iterator
 
 CSV_URL = "https://opendata.arcgis.com/api/v3/datasets/d126b4ce6d764493a8ddd7b30822fa8d_0/downloads/data?format=csv&spatialRefId=4326&where=1%3D1"
@@ -39,6 +38,16 @@ class PredictionAccuracyEntry:
         return (self.weekly, self.route_id)
 
 
+def bucket_entries_by_key(entries: Iterator[PredictionAccuracyEntry]) -> Dict[EntryKey, List[PredictionAccuracyEntry]]:
+    buckets = {}
+    for entry in entries:
+        key = entry.entry_key()
+        if key not in buckets:
+            buckets[key] = []
+        buckets[key].append(entry)
+    return buckets
+
+
 def parse_prediction_row_to_entry(row: Dict[str, str]) -> Union[None, PredictionAccuracyEntry]:
     weekly = datetime.strptime(row["weekly"], "%Y-%m-%d").date()
     arrival_departure = int(float(row["arrival_departure"]))
@@ -54,3 +63,28 @@ def parse_prediction_row_to_entry(row: Dict[str, str]) -> Union[None, Prediction
         num_predictions=num_predictions,
         num_accurate_predictions=num_accurate_predictions,
     )
+
+
+def load_prediction_entries() -> Iterator[PredictionAccuracyEntry]:
+    req = requests.get(CSV_URL)
+
+    rows = csv.DictReader(TextIOWrapper(req.text), delimiter=",")
+    for row in rows:
+        entry = parse_prediction_row_to_entry(row)
+        if entry:
+            yield entry
+
+
+def update_predictions():
+    entries = load_prediction_entries()
+    buckets = bucket_entries_by_key(entries)
+    dynamodb = boto3.resource("dynamodb")
+    TimePredictions = dynamodb.Table("TimePredictions")
+    with TimePredictions.batch_writer() as batch:
+        for (weekly, route_id), entries in buckets.items():
+            prediction = [entry.to_json() for entry in entries]
+            batch.put_item(Item={"routeId": route_id, "weekly": weekly.isoformat(), "prediction": prediction})
+
+
+if __name__ == "__main__":
+    update_predictions()
