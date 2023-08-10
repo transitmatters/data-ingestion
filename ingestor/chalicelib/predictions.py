@@ -1,9 +1,9 @@
+import io
 import requests
 import csv
 import boto3
 from datetime import date, datetime
 from dataclasses import dataclass
-from io import TextIOWrapper
 from typing import Union, Tuple, List, Dict, Iterator
 
 CSV_URL = "https://opendata.arcgis.com/api/v3/datasets/d126b4ce6d764493a8ddd7b30822fa8d_0/downloads/data?format=csv&spatialRefId=4326&where=1%3D1"
@@ -27,7 +27,6 @@ class PredictionAccuracyEntry:
             "weekly": self.weekly.isoformat(),
             "mode": self.mode,
             "route_id": self.route_id,
-            "direction": self.direction,
             "bin": self.bin,
             "arrival_departure": self.arrival_departure,
             "num_predictions": self.num_predictions,
@@ -49,17 +48,18 @@ def bucket_entries_by_key(entries: Iterator[PredictionAccuracyEntry]) -> Dict[En
 
 
 def parse_prediction_row_to_entry(row: Dict[str, str]) -> Union[None, PredictionAccuracyEntry]:
-    weekly = datetime.strptime(row["weekly"], "%Y-%m-%d").date()
-    arrival_departure = int(float(row["arrival_departure"]))
-    num_predictions = int(float(row["num_predictions"]))
-    num_accurate_predictions = int(float(row["num_accurate_predictions"]))
+    weekly = datetime.strptime(row["weekly"][:10], "%Y/%m/%d").date()
+    num_predictions = int(row["num_predictions"])
+    num_accurate_predictions = int(row["num_accurate_predictions"])
+    # Bus routeId is "", use mode when routeId isn't present
+    route_id = row["route_id"] if row["route_id"] != "" else row["mode"]
+
     return PredictionAccuracyEntry(
         weekly=weekly,
         mode=row["mode"],
-        route_id=row["route_id"],
-        direction=row["direction"],
+        route_id=route_id,
         bin=row["bin"],
-        arrival_departure=arrival_departure,
+        arrival_departure=row["arrival_departure"],
         num_predictions=num_predictions,
         num_accurate_predictions=num_accurate_predictions,
     )
@@ -68,7 +68,9 @@ def parse_prediction_row_to_entry(row: Dict[str, str]) -> Union[None, Prediction
 def load_prediction_entries() -> Iterator[PredictionAccuracyEntry]:
     req = requests.get(CSV_URL)
 
-    rows = csv.DictReader(TextIOWrapper(req.text), delimiter=",")
+    # Weirdly the csv starts with 3 strange chars
+    rows = csv.DictReader(io.StringIO(req.text[3:]), delimiter=",")
+
     for row in rows:
         entry = parse_prediction_row_to_entry(row)
         if entry:
