@@ -112,7 +112,7 @@ def update_speed_restrictions(event):
 
 
 # 7:20am UTC -> 2:20/3:20am ET every Sunday
-@app.schedule(Cron(20, 7, "*", "*", "SUN", "*"))
+@app.schedule(Cron(20, 7, "?", "*", "SUN", "*"))
 def update_time_predictions(event):
     predictions.update_predictions()
 
