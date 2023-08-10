@@ -12,6 +12,7 @@ from chalicelib import (
     gtfs,
     ridership,
     speed_restrictions,
+    predictions,
     landing,
 )
 
@@ -108,6 +109,12 @@ def update_ridership(event):
 @app.schedule(Cron(20, 7, "*", "*", "?", "*"))
 def update_speed_restrictions(event):
     speed_restrictions.update_speed_restrictions()
+
+
+# 7:20am UTC -> 2:20/3:20am ET every Sunday
+@app.schedule(Cron(20, 7, "*", "*", "SUN", "*"))
+def update_time_predictions(event):
+    predictions.update_predictions()
 
 
 # Manually triggered lambda for populating daily trip metric tables. Only needs to be ran once.

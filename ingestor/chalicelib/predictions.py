@@ -83,7 +83,7 @@ def update_predictions():
     with TimePredictions.batch_writer() as batch:
         for (weekly, route_id), entries in buckets.items():
             prediction = [entry.to_json() for entry in entries]
-            batch.put_item(Item={"routeId": route_id, "weekly": weekly.isoformat(), "prediction": prediction})
+            batch.put_item(Item={"routeId": route_id, "week": weekly.isoformat(), "prediction": prediction})
 
 
 if __name__ == "__main__":
