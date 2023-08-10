@@ -9,7 +9,7 @@ from typing import Union, Tuple, List, Dict, Iterator
 CSV_URL = "https://opendata.arcgis.com/api/v3/datasets/d126b4ce6d764493a8ddd7b30822fa8d_0/downloads/data?format=csv&spatialRefId=4326&where=1%3D1"
 
 
-EntryKey = Tuple[str, date]
+EntryKey = Tuple[date, str]
 
 
 @dataclass
