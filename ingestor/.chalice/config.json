@@ -89,6 +89,10 @@
         "update_speed_restrictions": {
           "iam_policy_file": "policy-speed-restrictions.json",
           "lambda_timeout": 300
+        },
+        "update_time_predictions": {
+          "iam_policy_file": "policy-time-predictions.json",
+          "lambda_timeout": 300
         }
       }
     }

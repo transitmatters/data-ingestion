@@ -490,6 +490,33 @@
         ],
         "BillingMode": "PAY_PER_REQUEST"
       }
+    },
+    "TimePredictions": {
+      "Type": "AWS::DynamoDB::Table",
+      "Properties": {
+        "TableName": "TimePredictions",
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "routeId",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "week",
+            "AttributeType": "S"
+          }
+        ],
+        "KeySchema": [
+          {
+            "AttributeName": "routeId",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "week",
+            "KeyType": "RANGE"
+          }
+        ],
+        "BillingMode": "PAY_PER_REQUEST"
+      }
     }
   }
 }
