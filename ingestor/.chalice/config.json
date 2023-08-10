@@ -10,7 +10,7 @@
         "DD_SITE": "datadoghq.com",
         "DD_ENV": "prod",
         "DD_SERVICE": "ingestor",
-        "DD_TRACE_ENABLED": "false"
+        "DD_TRACE_ENABLED": "true"
       },
       "lambda_functions": {
         "store_yesterday_alerts": {
