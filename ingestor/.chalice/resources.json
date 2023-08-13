@@ -178,6 +178,16 @@
         }
       }
     },
+    "UpdateTimePredictions": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "Environment": {
+          "Variables": {
+            "DD_API_KEY": { "Ref": "DDApiKey" }
+          }
+        }
+      }
+    },
     "StoreLandingData": {
       "Type": "AWS::Serverless::Function",
       "Properties": {
