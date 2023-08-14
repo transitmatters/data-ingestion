@@ -99,20 +99,20 @@ def update_gtfs(event):
     gtfs.ingest_gtfs_feeds_to_dynamo_and_s3(date_range=(today, today))
 
 
-# 7:10am UTC -> 2:10/3:10am ET
+# 7:10am UTC -> 2:10/3:10am ET every day
 @app.schedule(Cron(10, 7, "*", "*", "?", "*"))
 def update_ridership(event):
     ridership.ingest_ridership_data()
 
 
-# 7:20am UTC -> 2:20/3:20am ET
+# 7:20am UTC -> 2:20/3:20am ET every day
 @app.schedule(Cron(20, 7, "*", "*", "?", "*"))
 def update_speed_restrictions(event):
     speed_restrictions.update_speed_restrictions()
 
 
 # 7:30am UTC -> 2:30/3:30am ET every day
-@app.schedule(Cron(30, 7, "?", "*", "?", "*"))
+@app.schedule(Cron(30, 7, "*", "*", "?", "*"))
 def update_time_predictions(event):
     predictions.update_predictions()
 
@@ -135,8 +135,8 @@ def populate_agg_delivered_trip_metrics(params, context):
         agg_speed_tables.populate_table(line, "weekly")
 
 
-# 9:00 UTC -> 4:00/5:00am ET every monday.
-@app.schedule(Cron(0, 9, "?", "*", "MON", "*"))
+# 9:00 UTC -> 4:00/5:00am ET every day.
+@app.schedule(Cron(0, 9, "*", "*", "?", "*"))
 def store_landing_data(event):
     print(
         f"Uploading ridership and trip metric data for landing page from {constants.NINETY_DAYS_AGO_STRING} to {constants.ONE_WEEK_AGO_STRING}"
