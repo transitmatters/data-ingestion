@@ -14,6 +14,7 @@ from chalicelib import (
     speed_restrictions,
     predictions,
     landing,
+    parking,
 )
 
 app = Chalice(app_name="ingestor")
@@ -145,3 +146,9 @@ def store_landing_data(event):
     ridership_data = landing.get_ridership_data()
     landing.upload_to_s3(json.dumps(trip_metrics_data), json.dumps(ridership_data))
     landing.clear_cache()
+
+
+# 8:00 UTC -> 3:00/4:00am ET every day.
+@app.schedule(Cron(0, 8, "*", "*", "?", "*"))
+def store_parking_data(event):
+    parking.ingest_parking_data()
