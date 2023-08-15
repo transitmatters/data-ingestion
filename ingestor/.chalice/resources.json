@@ -202,6 +202,18 @@
         }
       }
     },
+    "StoreParkingData": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "Environment": {
+          "Variables": {
+            "DD_API_KEY": { "Ref": "DDApiKey" },
+            "DD_VERSION": { "Ref": "GitVersion" },
+            "DD_TAGS": { "Ref": "DDTags" }
+          }
+        }
+      }
+    },
     "DeliveredTripMetricsDB": {
       "Type": "AWS::DynamoDB::Table",
       "Properties": {
