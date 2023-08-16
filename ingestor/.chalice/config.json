@@ -40,7 +40,7 @@
         },
         "store_parking_data": {
           "iam_policy_file": "policy-store-parking-data.json",
-          "lambda_timeout": 300
+          "lambda_timeout": 500
         },
         "update_daily_speed_table": {
           "iam_policy_file": "policy-daily-table.json",

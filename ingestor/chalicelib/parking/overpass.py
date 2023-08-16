@@ -36,7 +36,7 @@ def query_overpass(query):
 
 def query_all_parking():
     all_parking_query = """
-    [timeout:60][out:json];
+    [timeout:90][out:json];
     area[admin_level=4][boundary=administrative][name="Massachusetts"];
     rel(area)[admin_level=8][boundary=administrative];
     map_to_area -> .areas;
@@ -54,7 +54,7 @@ def query_all_parking():
 
 def query_surface_parking():
     surface_parking_query = """
-    [timeout:60][out:json];
+    [timeout:90][out:json];
     area[admin_level=4][boundary=administrative][name="Massachusetts"];
     rel(area)[admin_level=8][boundary=administrative];
     map_to_area -> .areas;
