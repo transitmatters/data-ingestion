@@ -1,4 +1,3 @@
-from decimal import Decimal
 from urllib.error import HTTPError
 from urllib.request import urlopen
 import osm2geojson
