@@ -1,5 +1,8 @@
+from decimal import Decimal
 from urllib.error import HTTPError
 from urllib.request import urlopen
+import osm2geojson
+import json
 
 
 OVERPASS_URL = "http://overpass-api.de/api/interpreter"
@@ -25,7 +28,11 @@ def query_overpass(query):
     f.close()
 
     if f.code == 200:
-        return response
+        if isinstance(response, bytes):
+            response = response.decode("utf-8")
+        response = json.loads(response)
+        geojson = osm2geojson.json2geojson(response)
+        return json.dumps(geojson).encode("utf-8")
 
 
 def query_all_parking():

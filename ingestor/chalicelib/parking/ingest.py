@@ -2,7 +2,7 @@ from chalicelib.parking.overpass import query_all_parking, query_surface_parking
 from chalicelib import s3
 
 BUCKET = "tm-map-data"
-KEY = "openstreetmap/parking/{}.json"
+KEY = "openstreetmap/parking/{}.geojson"
 
 
 def ingest_parking_data():
