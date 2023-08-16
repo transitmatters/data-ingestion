@@ -69,3 +69,22 @@ def query_surface_parking():
     );
     """
     return query_overpass(surface_parking_query)
+
+
+def query_surface_parking_near_transit():
+    surface_parking_near_transit = """
+    [timeout:90][out:json];
+    area[admin_level=4][boundary=administrative][name="Massachusetts"];
+    rel(area)[admin_level=8][boundary=administrative];
+    map_to_area -> .areas;
+    foreach .areas -> .searchArea(
+      .searchArea out;
+      (
+        node[public_transport=stop_position][railway](area.searchArea);
+            way(around:1500)["amenity"="parking"]["parking"!~"garage"]["building"!~"yes"](area.searchArea);
+      );
+      (._;>;);
+      out;
+    );
+    """
+    return query_overpass(surface_parking_near_transit)

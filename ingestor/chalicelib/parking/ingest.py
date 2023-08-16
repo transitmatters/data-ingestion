@@ -1,4 +1,4 @@
-from chalicelib.parking.overpass import query_all_parking, query_surface_parking
+from chalicelib.parking.overpass import query_all_parking, query_surface_parking, query_surface_parking_near_transit
 from chalicelib import s3
 
 BUCKET = "tm-map-data"
@@ -13,3 +13,7 @@ def ingest_parking_data():
     surface_parking_data = query_surface_parking()
     key = KEY.format("surface_parking")
     s3.upload(BUCKET, key, surface_parking_data, compress=False)
+
+    surface_parking_near_transit = query_surface_parking_near_transit()
+    key = KEY.format("surface_parking_near_transit")
+    s3.upload(BUCKET, key, surface_parking_near_transit, compress=False)
