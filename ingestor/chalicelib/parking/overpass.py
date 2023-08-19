@@ -61,7 +61,7 @@ def query_surface_parking():
     foreach .areas -> .searchArea(
     .searchArea out;
     (
-        way["amenity"="parking"]["parking"!~"garage"]["building"!~"yes"](area.searchArea);
+        way["amenity"="parking"]["parking"!~"garage"]["parking"!~"multi-storey"]["parking"!~"street_side"]["building"!~"yes"](area.searchArea);
     );
     (._;>;);
     out body;
@@ -80,7 +80,7 @@ def query_surface_parking_near_transit():
       .searchArea out;
       (
         node[public_transport=stop_position][railway](area.searchArea);
-            way(around:1500)["amenity"="parking"]["parking"!~"garage"]["building"!~"yes"](area.searchArea);
+        way(around:1500)["amenity"="parking"]["parking"!~"garage"]["parking"!~"multi-storey"]["parking"!~"street_side"]["building"!~"yes"](area.searchArea);
       );
       (._;>;);
       out;
