@@ -99,7 +99,7 @@ def populate_daily_table(start_date, end_date, line, route):
     delta = timedelta(days=180)
     speed_objects = []
     while current_date < end_date:
-        route_metadata = constants.get_route_metadata(line, current_date, route)
+        route_metadata = constants.get_route_metadata(line, current_date, False, route)
         print(f"Calculating daily values for 180 day chunk starting at: {current_date}")
         API_requests = get_agg_tt_api_requests(route_metadata["stops"], current_date, delta)
         curr_speed_object = send_requests(API_requests)
@@ -124,7 +124,7 @@ def update_daily_table(date):
     """Update DailySpeed table"""
     speed_objects = []
     for route in constants.ALL_ROUTES:
-        route_metadata = constants.get_route_metadata(route[0], date, route[1])
+        route_metadata = constants.get_route_metadata(route[0], date, False, route[1])
         delta = timedelta(days=1)
         date_string = datetime.strftime(date, constants.DATE_FORMAT_BACKEND)
         print(f"Calculating update on [{route[0]}/{route[1] if route[1] else '(no-route)'}] for date: {date_string}")

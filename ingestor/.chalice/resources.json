@@ -23,9 +23,15 @@
       "Properties": {
         "Environment": {
           "Variables": {
-            "DD_API_KEY": { "Ref": "DDApiKey" },
-            "DD_VERSION": { "Ref": "GitVersion" },
-            "DD_TAGS": { "Ref": "DDTags" }
+            "DD_API_KEY": {
+              "Ref": "DDApiKey"
+            },
+            "DD_VERSION": {
+              "Ref": "GitVersion"
+            },
+            "DD_TAGS": {
+              "Ref": "DDTags"
+            }
           }
         }
       }
@@ -35,9 +41,15 @@
       "Properties": {
         "Environment": {
           "Variables": {
-            "DD_API_KEY": { "Ref": "DDApiKey" },
-            "DD_VERSION": { "Ref": "GitVersion" },
-            "DD_TAGS": { "Ref": "DDTags" }
+            "DD_API_KEY": {
+              "Ref": "DDApiKey"
+            },
+            "DD_VERSION": {
+              "Ref": "GitVersion"
+            },
+            "DD_TAGS": {
+              "Ref": "DDTags"
+            }
           }
         }
       }
@@ -47,10 +59,18 @@
       "Properties": {
         "Environment": {
           "Variables": {
-            "MBTA_V2_API_KEY": { "Ref": "MbtaV2ApiKey" },
-            "DD_API_KEY": { "Ref": "DDApiKey" },
-            "DD_VERSION": { "Ref": "GitVersion" },
-            "DD_TAGS": { "Ref": "DDTags" }
+            "MBTA_V2_API_KEY": {
+              "Ref": "MbtaV2ApiKey"
+            },
+            "DD_API_KEY": {
+              "Ref": "DDApiKey"
+            },
+            "DD_VERSION": {
+              "Ref": "GitVersion"
+            },
+            "DD_TAGS": {
+              "Ref": "DDTags"
+            }
           }
         }
       }
@@ -60,10 +80,18 @@
       "Properties": {
         "Environment": {
           "Variables": {
-            "MBTA_V2_API_KEY": { "Ref": "MbtaV2ApiKey" },
-            "DD_API_KEY": { "Ref": "DDApiKey" },
-            "DD_VERSION": { "Ref": "GitVersion" },
-            "DD_TAGS": { "Ref": "DDTags" }
+            "MBTA_V2_API_KEY": {
+              "Ref": "MbtaV2ApiKey"
+            },
+            "DD_API_KEY": {
+              "Ref": "DDApiKey"
+            },
+            "DD_VERSION": {
+              "Ref": "GitVersion"
+            },
+            "DD_TAGS": {
+              "Ref": "DDTags"
+            }
           }
         }
       }
@@ -74,9 +102,15 @@
         "Environment": {
           "Variables": {
             "DD_LAMBDA_HANDLER": "app.bb_store_station_status",
-            "DD_API_KEY": { "Ref": "DDApiKey" },
-            "DD_VERSION": { "Ref": "GitVersion" },
-            "DD_TAGS": { "Ref": "DDTags" }
+            "DD_API_KEY": {
+              "Ref": "DDApiKey"
+            },
+            "DD_VERSION": {
+              "Ref": "GitVersion"
+            },
+            "DD_TAGS": {
+              "Ref": "DDTags"
+            }
           }
         }
       }
@@ -86,9 +120,15 @@
       "Properties": {
         "Environment": {
           "Variables": {
-            "DD_API_KEY": { "Ref": "DDApiKey" },
-            "DD_VERSION": { "Ref": "GitVersion" },
-            "DD_TAGS": { "Ref": "DDTags" }
+            "DD_API_KEY": {
+              "Ref": "DDApiKey"
+            },
+            "DD_VERSION": {
+              "Ref": "GitVersion"
+            },
+            "DD_TAGS": {
+              "Ref": "DDTags"
+            }
           }
         }
       }
@@ -98,9 +138,15 @@
       "Properties": {
         "Environment": {
           "Variables": {
-            "DD_API_KEY": { "Ref": "DDApiKey" },
-            "DD_VERSION": { "Ref": "GitVersion" },
-            "DD_TAGS": { "Ref": "DDTags" }
+            "DD_API_KEY": {
+              "Ref": "DDApiKey"
+            },
+            "DD_VERSION": {
+              "Ref": "GitVersion"
+            },
+            "DD_TAGS": {
+              "Ref": "DDTags"
+            }
           }
         }
       }
@@ -111,9 +157,15 @@
         "Environment": {
           "Variables": {
             "DD_LAMBDA_HANDLER": "app.update_delivered_trip_metrics",
-            "DD_API_KEY": { "Ref": "DDApiKey" },
-            "DD_VERSION": { "Ref": "GitVersion" },
-            "DD_TAGS": { "Ref": "DDTags" }
+            "DD_API_KEY": {
+              "Ref": "DDApiKey"
+            },
+            "DD_VERSION": {
+              "Ref": "GitVersion"
+            },
+            "DD_TAGS": {
+              "Ref": "DDTags"
+            }
           }
         }
       }
@@ -123,9 +175,15 @@
       "Properties": {
         "Environment": {
           "Variables": {
-            "DD_API_KEY": { "Ref": "DDApiKey" },
-            "DD_VERSION": { "Ref": "GitVersion" },
-            "DD_TAGS": { "Ref": "DDTags" }
+            "DD_API_KEY": {
+              "Ref": "DDApiKey"
+            },
+            "DD_VERSION": {
+              "Ref": "GitVersion"
+            },
+            "DD_TAGS": {
+              "Ref": "DDTags"
+            }
           }
         }
       }
@@ -135,9 +193,15 @@
       "Properties": {
         "Environment": {
           "Variables": {
-            "DD_API_KEY": { "Ref": "DDApiKey" },
-            "DD_VERSION": { "Ref": "GitVersion" },
-            "DD_TAGS": { "Ref": "DDTags" }
+            "DD_API_KEY": {
+              "Ref": "DDApiKey"
+            },
+            "DD_VERSION": {
+              "Ref": "GitVersion"
+            },
+            "DD_TAGS": {
+              "Ref": "DDTags"
+            }
           }
         }
       }
@@ -147,9 +211,15 @@
       "Properties": {
         "Environment": {
           "Variables": {
-            "DD_API_KEY": { "Ref": "DDApiKey" },
-            "DD_VERSION": { "Ref": "GitVersion" },
-            "DD_TAGS": { "Ref": "DDTags" }
+            "DD_API_KEY": {
+              "Ref": "DDApiKey"
+            },
+            "DD_VERSION": {
+              "Ref": "GitVersion"
+            },
+            "DD_TAGS": {
+              "Ref": "DDTags"
+            }
           }
         }
       }
@@ -159,9 +229,15 @@
       "Properties": {
         "Environment": {
           "Variables": {
-            "DD_API_KEY": { "Ref": "DDApiKey" },
-            "DD_VERSION": { "Ref": "GitVersion" },
-            "DD_TAGS": { "Ref": "DDTags" }
+            "DD_API_KEY": {
+              "Ref": "DDApiKey"
+            },
+            "DD_VERSION": {
+              "Ref": "GitVersion"
+            },
+            "DD_TAGS": {
+              "Ref": "DDTags"
+            }
           }
         }
       }
@@ -171,9 +247,15 @@
       "Properties": {
         "Environment": {
           "Variables": {
-            "DD_API_KEY": { "Ref": "DDApiKey" },
-            "DD_VERSION": { "Ref": "GitVersion" },
-            "DD_TAGS": { "Ref": "DDTags" }
+            "DD_API_KEY": {
+              "Ref": "DDApiKey"
+            },
+            "DD_VERSION": {
+              "Ref": "GitVersion"
+            },
+            "DD_TAGS": {
+              "Ref": "DDTags"
+            }
           }
         }
       }
@@ -183,9 +265,15 @@
       "Properties": {
         "Environment": {
           "Variables": {
-            "DD_API_KEY": { "Ref": "DDApiKey" },
-            "DD_VERSION": { "Ref": "GitVersion" },
-            "DD_TAGS": { "Ref": "DDTags" }
+            "DD_API_KEY": {
+              "Ref": "DDApiKey"
+            },
+            "DD_VERSION": {
+              "Ref": "GitVersion"
+            },
+            "DD_TAGS": {
+              "Ref": "DDTags"
+            }
           }
         }
       }
@@ -195,9 +283,15 @@
       "Properties": {
         "Environment": {
           "Variables": {
-            "DD_API_KEY": { "Ref": "DDApiKey" },
-            "DD_VERSION": { "Ref": "GitVersion" },
-            "DD_TAGS": { "Ref": "DDTags" }
+            "DD_API_KEY": {
+              "Ref": "DDApiKey"
+            },
+            "DD_VERSION": {
+              "Ref": "GitVersion"
+            },
+            "DD_TAGS": {
+              "Ref": "DDTags"
+            }
           }
         }
       }
@@ -216,7 +310,33 @@
             "KeyType": "RANGE"
           }
         ],
-
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "route",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "date",
+            "AttributeType": "S"
+          }
+        ],
+        "BillingMode": "PAY_PER_REQUEST"
+      }
+    },
+    "DeliveredTripMetricsExtendedDB": {
+      "Type": "AWS::DynamoDB::Table",
+      "Properties": {
+        "TableName": "DeliveredTripMetricsExtended",
+        "KeySchema": [
+          {
+            "AttributeName": "route",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "date",
+            "KeyType": "RANGE"
+          }
+        ],
         "AttributeDefinitions": [
           {
             "AttributeName": "route",
@@ -244,7 +364,6 @@
             "KeyType": "RANGE"
           }
         ],
-
         "AttributeDefinitions": [
           {
             "AttributeName": "line",
@@ -272,7 +391,6 @@
             "KeyType": "RANGE"
           }
         ],
-
         "AttributeDefinitions": [
           {
             "AttributeName": "line",
