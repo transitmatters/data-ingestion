@@ -1,7 +1,7 @@
 import requests
 import json
 import pandas as pd
-from datetime import timedelta, date, datetime
+from datetime import timedelta, date
 from decimal import Decimal
 from urllib.parse import urlencode
 from typing import List
