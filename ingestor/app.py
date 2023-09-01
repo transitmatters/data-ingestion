@@ -108,7 +108,7 @@ def update_ridership(event):
 # 7:20am UTC -> 2:20/3:20am ET every day
 @app.schedule(Cron(20, 7, "*", "*", "?", "*"))
 def update_speed_restrictions(event):
-    speed_restrictions.update_speed_restrictions()
+    speed_restrictions.update_speed_restrictions(max_lookback_months=2)
 
 
 # 7:30am UTC -> 2:30/3:30am ET every day
