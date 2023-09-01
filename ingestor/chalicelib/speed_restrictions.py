@@ -84,12 +84,12 @@ def bucket_entries_by_key(entries: Iterator[SpeedRestrictionEntry]) -> Dict[Entr
     return buckets
 
 
-def csv_is_too_old(csv_file_name: str, max_lookback_days: Union[None, int]) -> bool:
-    if not max_lookback_days:
+def csv_is_too_old(csv_file_name: str, max_lookback_months: Union[None, int]) -> bool:
+    if not max_lookback_months:
         return False
     csv_date = datetime.strptime(csv_file_name[:7], "%Y-%m").date()
     print(csv_date)
-    return (date.today() - csv_date).days > max_lookback_days
+    return (date.today() - csv_date).days > (1 + max_lookback_months) * 30
 
 
 def load_speed_restriction_entries(max_lookback_days: Union[None, int]) -> Iterator[SpeedRestrictionEntry]:
@@ -107,8 +107,8 @@ def load_speed_restriction_entries(max_lookback_days: Union[None, int]) -> Itera
                 yield entry
 
 
-def update_speed_restrictions(max_lookback_days: Union[None, int] = 30):
-    entries = load_speed_restriction_entries(max_lookback_days)
+def update_speed_restrictions(max_lookback_months: Union[None, int]):
+    entries = load_speed_restriction_entries(max_lookback_months)
     buckets = bucket_entries_by_key(entries)
     dynamodb = boto3.resource("dynamodb")
     SpeedRestrictions = dynamodb.Table("SpeedRestrictions")
@@ -125,4 +125,4 @@ def update_speed_restrictions(max_lookback_days: Union[None, int] = 30):
 
 
 if __name__ == "__main__":
-    update_speed_restrictions()
+    update_speed_restrictions(max_lookback_months=None)
