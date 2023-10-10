@@ -14,29 +14,47 @@ BUCKET = "tm-mbta-performance"
 KEY = "NewTrains/run_counts/{}.csv"
 
 
+# Handle dual green line cars, we don't need to care about both, just grab the first
+def parse_vehicle_label(label):
+    if "-" in label:
+        return label.split("-")[0]
+    return label
+
+
 def train_runs(route, date):
     spec = ROUTE_DEFINITIONS[route]
     api_data = MbtaPerformanceAPI.get_api_data("events", {"stop": spec["core_stations"]}, date)
     events = sum([stop["events"] for stop in api_data], [])
     departures = filter(lambda event: event["event_type"] in EVENT_DEPARTURE, events)
     by_trip_id = {event["trip_id"]: event for event in departures}  # Just in case a single trip gets a DEP and a PRD
-    return list(filter(lambda event: int(event["vehicle_label"]) in spec["labels"], by_trip_id.values()))
+    return list(
+        filter(lambda event: int(parse_vehicle_label(event["vehicle_label"])) in spec["labels"], by_trip_id.values())
+    )
+
+
+def unique_trains(train_events):
+    # Using | as a delimeter as to not create an undefined amount of columns in a csv
+    return "|".join(list(set([event["vehicle_label"] for event in train_events])))
 
 
 def update_all(date):
     for route in ROUTE_DEFINITIONS.keys():
         print(f"Storing new train runs for {route}...")
         try:
-            run_count = len(train_runs(route, date))
-            update_statistics_file(route, date, run_count)
+            train_events = train_runs(route, date)
+            run_count = len(train_events)
+            unique_train_runs = unique_trains(train_events)
+            update_statistics_file(route, date, run_count, unique_train_runs)
         except Exception:
             print(f"Unable to store new train run count for route={route}", file=sys.stderr)
             print(sys.exc_info()[2], file=sys.stderr)
             continue
 
 
-def update_statistics_file(route, date, count):
-    csv_row = "{formatted_date},{count}\n".format(formatted_date=date.strftime("%Y-%m-%d"), count=count)
+def update_statistics_file(route, date, count, unique_train_runs):
+    csv_row = "{formatted_date},{count},{unique_train_runs}\n".format(
+        formatted_date=date.strftime("%Y-%m-%d"), count=count, unique_train_runs=unique_train_runs
+    )
     key = KEY.format(route)
     try:
         data = s3.download(BUCKET, key, compressed=False) + csv_row
