@@ -7,6 +7,14 @@
     "DDApiKey": {
       "Type": "String",
       "Description": "Datadog API key."
+    },
+    "DDTags": {
+      "Type": "String",
+      "Description": "Additional Datadog Tags"
+    },
+    "GitVersion": {
+      "Type": "String",
+      "Description": "Current Git Id"
     }
   },
   "Resources": {
@@ -15,7 +23,9 @@
       "Properties": {
         "Environment": {
           "Variables": {
-            "DD_API_KEY": { "Ref": "DDApiKey" }
+            "DD_API_KEY": { "Ref": "DDApiKey" },
+            "DD_VERSION": { "Ref": "GitVersion" },
+            "DD_TAGS": { "Ref": "DDTags" }
           }
         }
       }
@@ -25,7 +35,9 @@
       "Properties": {
         "Environment": {
           "Variables": {
-            "DD_API_KEY": { "Ref": "DDApiKey" }
+            "DD_API_KEY": { "Ref": "DDApiKey" },
+            "DD_VERSION": { "Ref": "GitVersion" },
+            "DD_TAGS": { "Ref": "DDTags" }
           }
         }
       }
@@ -36,7 +48,9 @@
         "Environment": {
           "Variables": {
             "MBTA_V2_API_KEY": { "Ref": "MbtaV2ApiKey" },
-            "DD_API_KEY": { "Ref": "DDApiKey" }
+            "DD_API_KEY": { "Ref": "DDApiKey" },
+            "DD_VERSION": { "Ref": "GitVersion" },
+            "DD_TAGS": { "Ref": "DDTags" }
           }
         }
       }
@@ -47,7 +61,9 @@
         "Environment": {
           "Variables": {
             "MBTA_V2_API_KEY": { "Ref": "MbtaV2ApiKey" },
-            "DD_API_KEY": { "Ref": "DDApiKey" }
+            "DD_API_KEY": { "Ref": "DDApiKey" },
+            "DD_VERSION": { "Ref": "GitVersion" },
+            "DD_TAGS": { "Ref": "DDTags" }
           }
         }
       }
@@ -57,7 +73,10 @@
       "Properties": {
         "Environment": {
           "Variables": {
-            "DD_API_KEY": { "Ref": "DDApiKey" }
+            "DD_LAMBDA_HANDLER": "app.bb_store_station_status",
+            "DD_API_KEY": { "Ref": "DDApiKey" },
+            "DD_VERSION": { "Ref": "GitVersion" },
+            "DD_TAGS": { "Ref": "DDTags" }
           }
         }
       }
@@ -67,7 +86,9 @@
       "Properties": {
         "Environment": {
           "Variables": {
-            "DD_API_KEY": { "Ref": "DDApiKey" }
+            "DD_API_KEY": { "Ref": "DDApiKey" },
+            "DD_VERSION": { "Ref": "GitVersion" },
+            "DD_TAGS": { "Ref": "DDTags" }
           }
         }
       }
@@ -77,7 +98,9 @@
       "Properties": {
         "Environment": {
           "Variables": {
-            "DD_API_KEY": { "Ref": "DDApiKey" }
+            "DD_API_KEY": { "Ref": "DDApiKey" },
+            "DD_VERSION": { "Ref": "GitVersion" },
+            "DD_TAGS": { "Ref": "DDTags" }
           }
         }
       }
@@ -87,7 +110,10 @@
       "Properties": {
         "Environment": {
           "Variables": {
-            "DD_API_KEY": { "Ref": "DDApiKey" }
+            "DD_LAMBDA_HANDLER": "app.update_delivered_trip_metrics",
+            "DD_API_KEY": { "Ref": "DDApiKey" },
+            "DD_VERSION": { "Ref": "GitVersion" },
+            "DD_TAGS": { "Ref": "DDTags" }
           }
         }
       }
@@ -97,7 +123,9 @@
       "Properties": {
         "Environment": {
           "Variables": {
-            "DD_API_KEY": { "Ref": "DDApiKey" }
+            "DD_API_KEY": { "Ref": "DDApiKey" },
+            "DD_VERSION": { "Ref": "GitVersion" },
+            "DD_TAGS": { "Ref": "DDTags" }
           }
         }
       }
@@ -107,7 +135,9 @@
       "Properties": {
         "Environment": {
           "Variables": {
-            "DD_API_KEY": { "Ref": "DDApiKey" }
+            "DD_API_KEY": { "Ref": "DDApiKey" },
+            "DD_VERSION": { "Ref": "GitVersion" },
+            "DD_TAGS": { "Ref": "DDTags" }
           }
         }
       }
@@ -117,7 +147,9 @@
       "Properties": {
         "Environment": {
           "Variables": {
-            "DD_API_KEY": { "Ref": "DDApiKey" }
+            "DD_API_KEY": { "Ref": "DDApiKey" },
+            "DD_VERSION": { "Ref": "GitVersion" },
+            "DD_TAGS": { "Ref": "DDTags" }
           }
         }
       }
@@ -127,7 +159,9 @@
       "Properties": {
         "Environment": {
           "Variables": {
-            "DD_API_KEY": { "Ref": "DDApiKey" }
+            "DD_API_KEY": { "Ref": "DDApiKey" },
+            "DD_VERSION": { "Ref": "GitVersion" },
+            "DD_TAGS": { "Ref": "DDTags" }
           }
         }
       }
@@ -137,7 +171,21 @@
       "Properties": {
         "Environment": {
           "Variables": {
-            "DD_API_KEY": { "Ref": "DDApiKey" }
+            "DD_API_KEY": { "Ref": "DDApiKey" },
+            "DD_VERSION": { "Ref": "GitVersion" },
+            "DD_TAGS": { "Ref": "DDTags" }
+          }
+        }
+      }
+    },
+    "UpdateTimePredictions": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "Environment": {
+          "Variables": {
+            "DD_API_KEY": { "Ref": "DDApiKey" },
+            "DD_VERSION": { "Ref": "GitVersion" },
+            "DD_TAGS": { "Ref": "DDTags" }
           }
         }
       }
@@ -147,36 +195,11 @@
       "Properties": {
         "Environment": {
           "Variables": {
-            "DD_API_KEY": { "Ref": "DDApiKey" }
+            "DD_API_KEY": { "Ref": "DDApiKey" },
+            "DD_VERSION": { "Ref": "GitVersion" },
+            "DD_TAGS": { "Ref": "DDTags" }
           }
         }
-      }
-    },
-    "OverviewStats": {
-      "Type": "AWS::DynamoDB::Table",
-      "Properties": {
-        "TableName": "OverviewStats",
-        "KeySchema": [
-          {
-            "AttributeName": "line",
-            "KeyType": "HASH"
-          },
-          {
-            "AttributeName": "stat",
-            "KeyType": "RANGE"
-          }
-        ],
-        "AttributeDefinitions": [
-          {
-            "AttributeName": "line",
-            "AttributeType": "S"
-          },
-          {
-            "AttributeName": "stat",
-            "AttributeType": "S"
-          }
-        ],
-        "BillingMode": "PAY_PER_REQUEST"
       }
     },
     "DeliveredTripMetricsDB": {
@@ -263,115 +286,6 @@
         "BillingMode": "PAY_PER_REQUEST"
       }
     },
-
-    "DailySpeedDB": {
-      "Type": "AWS::DynamoDB::Table",
-      "Properties": {
-        "TableName": "DailySpeed",
-        "KeySchema": [
-          {
-            "AttributeName": "line",
-            "KeyType": "HASH"
-          },
-          {
-            "AttributeName": "date",
-            "KeyType": "RANGE"
-          }
-        ],
-        "AttributeDefinitions": [
-          {
-            "AttributeName": "line",
-            "AttributeType": "S"
-          },
-          {
-            "AttributeName": "date",
-            "AttributeType": "S"
-          }
-        ],
-        "BillingMode": "PAY_PER_REQUEST"
-      }
-    },
-    "WeeklySpeedDB": {
-      "Type": "AWS::DynamoDB::Table",
-      "Properties": {
-        "TableName": "WeeklySpeed",
-        "KeySchema": [
-          {
-            "AttributeName": "line",
-            "KeyType": "HASH"
-          },
-          {
-            "AttributeName": "date",
-            "KeyType": "RANGE"
-          }
-        ],
-        "AttributeDefinitions": [
-          {
-            "AttributeName": "line",
-            "AttributeType": "S"
-          },
-          {
-            "AttributeName": "date",
-            "AttributeType": "S"
-          }
-        ],
-        "BillingMode": "PAY_PER_REQUEST"
-      }
-    },
-    "MonthlySpeedDB": {
-      "Type": "AWS::DynamoDB::Table",
-      "Properties": {
-        "TableName": "MonthlySpeed",
-        "KeySchema": [
-          {
-            "AttributeName": "line",
-            "KeyType": "HASH"
-          },
-          {
-            "AttributeName": "date",
-            "KeyType": "RANGE"
-          }
-        ],
-        "AttributeDefinitions": [
-          {
-            "AttributeName": "line",
-            "AttributeType": "S"
-          },
-          {
-            "AttributeName": "date",
-            "AttributeType": "S"
-          }
-        ],
-        "BillingMode": "PAY_PER_REQUEST"
-      }
-    },
-    "TripCounts": {
-      "Type": "AWS::DynamoDB::Table",
-      "Properties": {
-        "TableName": "TripCounts",
-        "AttributeDefinitions": [
-          {
-            "AttributeName": "routeId",
-            "AttributeType": "S"
-          },
-          {
-            "AttributeName": "date",
-            "AttributeType": "S"
-          }
-        ],
-        "KeySchema": [
-          {
-            "AttributeName": "routeId",
-            "KeyType": "HASH"
-          },
-          {
-            "AttributeName": "date",
-            "KeyType": "RANGE"
-          }
-        ],
-        "BillingMode": "PAY_PER_REQUEST"
-      }
-    },
     "ScheduledServiceDaily": {
       "Type": "AWS::DynamoDB::Table",
       "Properties": {
@@ -447,6 +361,33 @@
           },
           {
             "AttributeName": "date",
+            "KeyType": "RANGE"
+          }
+        ],
+        "BillingMode": "PAY_PER_REQUEST"
+      }
+    },
+    "TimePredictions": {
+      "Type": "AWS::DynamoDB::Table",
+      "Properties": {
+        "TableName": "TimePredictions",
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "routeId",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "week",
+            "AttributeType": "S"
+          }
+        ],
+        "KeySchema": [
+          {
+            "AttributeName": "routeId",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "week",
             "KeyType": "RANGE"
           }
         ],

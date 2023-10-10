@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.9', '3.10']
+        python-version: ["3.10"]
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
@@ -28,4 +28,4 @@ jobs:
           poetry run flake8 ingestor
       - name: Check code format with Black
         run: |
-          poetry run black ingestor
+          poetry run black --check ingestor

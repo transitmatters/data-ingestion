@@ -21,7 +21,6 @@ STATIONS = {
         "SB": 70002,
         "NB": 70003,
     },
-
     # BLUE LINE
     "REVERE_BEACH": {
         "SB": 70057,
@@ -31,7 +30,6 @@ STATIONS = {
         "SB": 70039,
         "NB": 70040,
     },
-
     # GREEN LINE
     "SOUTH_ST": {
         "SB": 70111,
@@ -69,6 +67,4 @@ STATIONS = {
         "SB": [70196, 70197, 70198, 70199],
         "NB": 70200,
     },
-
-
 }
