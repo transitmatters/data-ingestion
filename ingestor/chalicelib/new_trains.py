@@ -1,3 +1,4 @@
+from itertools import chain
 import sys
 from chalicelib import MbtaPerformanceAPI, s3
 from botocore.exceptions import ClientError
@@ -34,7 +35,8 @@ def train_runs(route, date):
 
 def unique_trains(train_events):
     # Using | as a delimeter as to not create an undefined amount of columns in a csv
-    return "|".join(list(set([event["vehicle_label"] for event in train_events])))
+    train_list = list(set(list(chain.from_iterable([event["vehicle_label"].split("-") for event in train_events]))))
+    return "|".join(train_list)
 
 
 def update_all(date):
