@@ -27,6 +27,8 @@ jobs:
         uses: actions/setup-python@v3
         with:
           python-version: ${{ matrix.python-version }}
+      - name: Install Poetry dependencies
+        run: poetry install
       - name: Generate AWS profile
         run: |
           mkdir ~/.aws
