@@ -14,6 +14,7 @@ from chalicelib import (
     speed_restrictions,
     predictions,
     landing,
+    trip_metrics,
 )
 
 app = Chalice(app_name="ingestor")
@@ -115,6 +116,12 @@ def update_speed_restrictions(event):
 @app.schedule(Cron(30, 7, "*", "*", "?", "*"))
 def update_time_predictions(event):
     predictions.update_predictions()
+
+
+# 4:40am UTC -> 2:40/3:40am ET every day
+@app.schedule(Cron(40, 7, "*", "*", "?", "*"))
+def update_trip_metrics(event):
+    trip_metrics.ingest_trip_metrics_yesterday()
 
 
 # Manually triggered lambda for populating daily trip metric tables. Only needs to be ran once.
