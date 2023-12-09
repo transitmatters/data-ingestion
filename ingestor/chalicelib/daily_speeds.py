@@ -65,7 +65,7 @@ def format_tt_objects(speed_objects, route_metadata, line, route, expected_num_e
         metrics = speed_objects.get(current_date)
         new_speed_object = {
             "route": route_name,
-            "line": route_metadata["line"],
+            "line": line, 
             "date": current_date,
             "count": None,
         }
