@@ -54,7 +54,7 @@ def format_ridership_csv(
     df["weekday"] = df[date_key].dt.dayofweek
 
     # define peak, mark weekdays, convert service date back
-    conditions = [(df["holiday"] == False) & (df["weekday"] < 5)]
+    conditions = [bool(not df["holiday"]) & (df["weekday"] < 5)]
     choices = ["peak"]
     df["peak"] = np.select(conditions, choices, default="offpeak")
     df["week"] = df[date_key].dt.isocalendar().week
