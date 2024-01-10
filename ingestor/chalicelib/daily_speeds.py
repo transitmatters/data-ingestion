@@ -56,17 +56,16 @@ def send_requests(api_requests):
     return speed_object
 
 
-def format_tt_objects(speed_objects, route_metadata, expected_num_entries, date_range):
+def format_tt_objects(speed_objects, route_metadata, line, route, expected_num_entries, date_range):
     """Remove invalid entries and format for Dynamo."""
     formatted_speed_objects = []
-    route_name = (
-        f"{route_metadata['line']}-{route_metadata['route']}" if route_metadata["route"] else route_metadata["line"]
-    )
+    route_name = f"{line}-{route}"
+
     for current_date in date_range:
         metrics = speed_objects.get(current_date)
         new_speed_object = {
             "route": route_name,
-            "line": route_metadata["line"],
+            "line": line,
             "date": current_date,
             "count": None,
         }
@@ -104,7 +103,9 @@ def populate_daily_table(start_date, end_date, line, route):
         API_requests = get_agg_tt_api_requests(route_metadata["stops"], current_date, delta)
         curr_speed_object = send_requests(API_requests)
         date_range = get_date_range_strings(current_date, current_date + delta - timedelta(days=1))
-        formatted_speed_object = format_tt_objects(curr_speed_object, route_metadata, len(API_requests), date_range)
+        formatted_speed_object = format_tt_objects(
+            curr_speed_object, route_metadata, line, route, len(API_requests), date_range
+        )
         speed_objects.extend(formatted_speed_object)
         if (
             line == "line-green"
