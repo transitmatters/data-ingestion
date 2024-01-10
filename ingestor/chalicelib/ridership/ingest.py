@@ -29,8 +29,8 @@ def get_ridership_by_line_id(
 
 def ingest_ridership_data():
     routes = get_routes_by_line_id()
-    subway_file, bus_file = download_latest_ridership_files()
-    ridership_by_route_id = get_ridership_by_route_id(subway_file, bus_file)
+    subway_file, bus_file, cr_file = download_latest_ridership_files()
+    ridership_by_route_id = get_ridership_by_route_id(subway_file, bus_file, cr_file)
     ridership_by_line_id = get_ridership_by_line_id(ridership_by_route_id, routes)
     ingest_ridership_to_dynamo(ridership_by_line_id)
 

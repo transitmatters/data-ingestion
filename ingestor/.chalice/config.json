@@ -71,6 +71,11 @@
           "iam_policy_file": "policy-agg-tables.json",
           "lambda_timeout": 60
         },
+        "update_trip_metrics": {
+          "iam_policy_file": "policy-trip-metrics.json",
+          "lambda_timeout": 900,
+          "lambda_memory_size": 1024
+        },
         "update_gtfs": {
           "iam_policy_file": "policy-gtfs.json",
           "lambda_timeout": 900,
@@ -85,7 +90,8 @@
         },
         "update_speed_restrictions": {
           "iam_policy_file": "policy-speed-restrictions.json",
-          "lambda_timeout": 300
+          "lambda_memory_size": 1024,
+          "lambda_timeout": 900
         },
         "update_time_predictions": {
           "iam_policy_file": "policy-time-predictions.json",

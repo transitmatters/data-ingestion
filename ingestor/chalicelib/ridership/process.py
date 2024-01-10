@@ -1,3 +1,4 @@
+from typing import Dict, Union
 import pandas as pd
 import numpy as np
 from pandas.tseries.holiday import USFederalHolidayCalendar
@@ -15,6 +16,76 @@ unofficial_labels_map = {
     "Green Line": "Green",
     "Blue Line": "Blue",
 }
+
+unofficial_cr_labels_map = {
+    # Commuter Rail
+    "Fitchburg": "CR-Fitchburg",
+    "Needham": "CR-Needham",
+    "Greenbush": "CR-Greenbush",
+    "Fairmount": "CR-Fairmount",
+    "Providence/Stoughton": "CR-Providence",
+    "Newburyport/Rockport": "CR-Newburyport",
+    "Framingham/Worcester": "CR-Worcester",
+    "Franklin/Foxboro": "CR-Franklin",
+    "Middleborough/Lakeville": "CR-Middleborough",
+    "Lowell": "CR-Lowell",
+    "Haverhill": "CR-Haverhill",
+    "Kingston": "CR-Kingston",
+}
+
+
+def format_ridership_csv(
+    path_to_csv_file: str,
+    date_key: str,
+    route_key: str,
+    count_key: str,
+    route_ids_map: Union[None, Dict[str, str]] = None,
+):
+    # read data, convert to datetime
+    df = pd.read_csv(path_to_csv_file)
+    df[date_key] = pd.to_datetime(df[date_key])
+
+    # add holidays
+    cal = USFederalHolidayCalendar()
+    holidays = cal.holidays(start=df[date_key].min(), end=df[date_key].max())
+
+    # mark as holiday and weekday
+    df["holiday"] = df[date_key].dt.date.astype("datetime64").isin(holidays.date)
+    df["weekday"] = df[date_key].dt.dayofweek
+
+    # define peak, mark weekdays, convert service date back
+    conditions = [bool(not df["holiday"]) & (df["weekday"] < 5)]
+    choices = ["peak"]
+    df["peak"] = np.select(conditions, choices, default="offpeak")
+    df["week"] = df[date_key].dt.isocalendar().week
+    df["year"] = df[date_key].dt.isocalendar().year
+    df[date_key] = df[date_key].dt.date.astype(str)
+
+    # select date of the week
+    dates = df[df["weekday"] == 0]
+    dates = dates[[date_key, "week", "year"]].drop_duplicates()
+
+    # limit data to just peak, merge back dates
+    final = df[df["peak"] == "peak"]
+
+    final = final.groupby(["year", "week", route_key])[count_key].mean().round().reset_index()
+
+    final = final.merge(dates, on=["week", "year"], how="left")
+
+    # get list of routes
+    routelist = list(set(final[route_key].tolist()))
+
+    # create dict
+    output = {}
+
+    # write out each set of routes to dict
+    for route in routelist:
+        for_route = final[final[route_key] == route]
+        only_date_and_count = for_route[[date_key, count_key]].dropna()
+        dictdata = only_date_and_count.rename(columns={date_key: "date", count_key: "count"}).to_dict(orient="records")
+        route_id = route_ids_map[route] if route_ids_map else route
+        output[route_id] = dictdata
+    return output
 
 
 def format_subway_data(path_to_csv_file: str):
@@ -106,7 +177,19 @@ def format_bus_data(path_to_excel_file: str):
     return output
 
 
-def get_ridership_by_route_id(path_to_subway_file: str, path_to_bus_file: str):
+def format_cr_data(path_to_ridershp_file: str):
+    ridership_by_route = format_ridership_csv(
+        path_to_csv_file=path_to_ridershp_file,
+        date_key="service_date",
+        route_key="line",
+        count_key="estimated_boardings",
+        route_ids_map=unofficial_cr_labels_map,
+    )
+    return ridership_by_route
+
+
+def get_ridership_by_route_id(path_to_subway_file: str, path_to_bus_file: str, path_to_cr_file: str):
     subway = format_subway_data(path_to_subway_file)
     bus = format_bus_data(path_to_bus_file)
-    return {**subway, **bus}
+    cr = format_cr_data(path_to_cr_file)
+    return {**subway, **bus, **cr}
