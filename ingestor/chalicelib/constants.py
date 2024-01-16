@@ -1,16 +1,16 @@
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from . import stations
 
-ALL_ROUTES = [
-    ["line-red", "a"],
-    ["line-red", "b"],
-    ["line-orange", None],
-    ["line-blue", None],
-    ["line-green", "b"],
-    ["line-green", "c"],
-    ["line-green", "d"],
-    ["line-green", "e"],
+ALL_ROUTES: list[tuple[str, str | None]] = [
+    ("line-red", "a"),
+    ("line-red", "b"),
+    ("line-orange", None),
+    ("line-blue", None),
+    ("line-green", "b"),
+    ("line-green", "c"),
+    ("line-green", "d"),
+    ("line-green", "e"),
 ]
 STATIONS = stations.STATIONS
 
@@ -230,7 +230,7 @@ TERMINI_NEW = {
 }
 
 
-def get_route_metadata(line, date, include_terminals, route=None):
+def get_route_metadata(line: str, date: date, include_terminals: bool, route: str | None = None):
     terminals_key = "including_terminals" if include_terminals else "excluding_terminals"
     if line == "line-green":
         if date < GLX_EXTENSION_DATE:
@@ -241,7 +241,7 @@ def get_route_metadata(line, date, include_terminals, route=None):
     return TERMINI_NEW[line][terminals_key]
 
 
-LINES = ["line-red", "line-orange", "line-blue", "line-green"]
+LINES: list[str] = ["line-red", "line-orange", "line-blue", "line-green"]
 RIDERSHIP_KEYS = {
     "line-red": "line-Red",
     "line-orange": "line-Orange",

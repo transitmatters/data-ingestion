@@ -1,4 +1,4 @@
-from datetime import timedelta, datetime
+from datetime import date, timedelta, datetime
 from decimal import Decimal
 import json
 from urllib.parse import urlencode
@@ -56,7 +56,9 @@ def send_requests(api_requests):
     return speed_object
 
 
-def format_tt_objects(speed_objects, route_metadata, line, route, expected_num_entries, date_range):
+def format_tt_objects(
+    speed_objects, route_metadata, line: str, route: str | None, expected_num_entries, date_range: list[str]
+):
     """Remove invalid entries and format for Dynamo."""
     formatted_speed_objects = []
     route_name = f"{line}-{route}"
@@ -82,8 +84,8 @@ def format_tt_objects(speed_objects, route_metadata, line, route, expected_num_e
     return formatted_speed_objects
 
 
-def get_date_range_strings(start_date, end_date):
-    date_range = []
+def get_date_range_strings(start_date: date, end_date: date):
+    date_range: list[str] = []
     current_date = start_date
     while current_date <= end_date:
         date_range.append(current_date.strftime("%Y-%m-%d"))
@@ -91,10 +93,10 @@ def get_date_range_strings(start_date, end_date):
     return date_range
 
 
-def populate_daily_table(start_date, end_date, line, route):
+def populate_daily_table(start_date: datetime, end_date: datetime, line: str, route: str | None):
     """Populate DeliveredTripMetrics table. Calculates median TTs and trip counts for all days between start and end dates."""
     print(f"populating DeliveredTripMetrics for Line/Route: {line}/{route if route else '(no-route)'}")
-    current_date = start_date
+    current_date = start_date.date()
     delta = timedelta(days=180)
     speed_objects = []
     while current_date < end_date:
