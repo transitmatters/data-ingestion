@@ -55,7 +55,6 @@ def send_requests(api_requests):
                 }
     return speed_object
 
-
 def format_tt_objects(speed_objects, route_metadata, line, route, expected_num_entries, date_range):
     """Remove invalid entries and format for Dynamo."""
     formatted_speed_objects = []
@@ -131,7 +130,7 @@ def update_daily_table(date):
         print(f"Calculating update on [{route[0]}/{route[1] if route[1] else '(no-route)'}] for date: {date_string}")
         API_requests = get_agg_tt_api_requests(route_metadata["stops"], date, delta)
         speed_object = send_requests(API_requests)
-        formatted_speed_object = format_tt_objects(speed_object, route_metadata, len(API_requests), [date_string])
+        formatted_speed_object = format_tt_objects(speed_object, route_metadata, route_metadata["line"], route_metadata["route"], len(API_requests), [date_string])
         if len(formatted_speed_object) == 0:
             print("No data for date {date_string}")
             continue
