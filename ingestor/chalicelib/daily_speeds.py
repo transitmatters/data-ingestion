@@ -61,7 +61,10 @@ def format_tt_objects(
 ):
     """Remove invalid entries and format for Dynamo."""
     formatted_speed_objects = []
-    route_name = f"{line}-{route}"
+    if route:
+        route_name = f"{line}-{route}"
+    else:
+        route_name = line
 
     for current_date in date_range:
         metrics = speed_objects.get(current_date)
@@ -123,7 +126,7 @@ def populate_daily_table(start_date: datetime, end_date: datetime, line: str, ro
         print("Done")
 
 
-def update_daily_table(date):
+def update_daily_table(date: date):
     """Update DailySpeed table"""
     speed_objects = []
     for route in constants.ALL_ROUTES:
@@ -131,7 +134,7 @@ def update_daily_table(date):
         route = route[1]
         route_metadata = constants.get_route_metadata(line, date, False, route)
         delta = timedelta(days=1)
-        date_string = datetime.strftime(date, constants.DATE_FORMAT_BACKEND)
+        date_string = date.strftime(constants.DATE_FORMAT_BACKEND)
         print(f"Calculating update on [{line}/{route if route else '(no-route)'}] for date: {date_string}")
         API_requests = get_agg_tt_api_requests(route_metadata["stops"], date, delta)
         speed_object = send_requests(API_requests)
