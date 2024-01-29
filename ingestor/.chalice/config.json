@@ -12,6 +12,10 @@
         "DD_SERVICE": "ingestor",
         "DD_TRACE_ENABLED": "true"
       },
+      "tags": {
+        "service": "ingestor",
+        "env": "prod"
+      },
       "lambda_functions": {
         "store_yesterday_alerts": {
           "iam_policy_file": "policy-alerts.json"
