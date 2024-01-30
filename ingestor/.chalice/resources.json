@@ -320,7 +320,13 @@
             "AttributeType": "S"
           }
         ],
-        "BillingMode": "PAY_PER_REQUEST"
+        "BillingMode": "PAY_PER_REQUEST",
+        "Tags": [
+          {
+            "Key": "service",
+            "Value": "t-performance-dash"
+          }
+        ]
       }
     },
     "DeliveredTripMetricsExtendedDB": {
@@ -347,7 +353,13 @@
             "AttributeType": "S"
           }
         ],
-        "BillingMode": "PAY_PER_REQUEST"
+        "BillingMode": "PAY_PER_REQUEST",
+        "Tags": [
+          {
+            "Key": "service",
+            "Value": "t-performance-dash"
+          }
+        ]
       }
     },
     "DeliveredTripMetricsWeeklyDB": {
@@ -374,7 +386,13 @@
             "AttributeType": "S"
           }
         ],
-        "BillingMode": "PAY_PER_REQUEST"
+        "BillingMode": "PAY_PER_REQUEST",
+        "Tags": [
+          {
+            "Key": "service",
+            "Value": "t-performance-dash"
+          }
+        ]
       }
     },
     "DeliveredTripMetricsMonthlyDB": {
@@ -401,7 +419,13 @@
             "AttributeType": "S"
           }
         ],
-        "BillingMode": "PAY_PER_REQUEST"
+        "BillingMode": "PAY_PER_REQUEST",
+        "Tags": [
+          {
+            "Key": "service",
+            "Value": "t-performance-dash"
+          }
+        ]
       }
     },
     "ScheduledServiceDaily": {
@@ -428,7 +452,13 @@
             "KeyType": "RANGE"
           }
         ],
-        "BillingMode": "PAY_PER_REQUEST"
+        "BillingMode": "PAY_PER_REQUEST",
+        "Tags": [
+          {
+            "Key": "service",
+            "Value": "t-performance-dash"
+          }
+        ]
       }
     },
     "Ridership": {
@@ -455,7 +485,13 @@
             "KeyType": "RANGE"
           }
         ],
-        "BillingMode": "PAY_PER_REQUEST"
+        "BillingMode": "PAY_PER_REQUEST",
+        "Tags": [
+          {
+            "Key": "service",
+            "Value": "t-performance-dash"
+          }
+        ]
       }
     },
     "SpeedRestrictions": {
@@ -482,7 +518,13 @@
             "KeyType": "RANGE"
           }
         ],
-        "BillingMode": "PAY_PER_REQUEST"
+        "BillingMode": "PAY_PER_REQUEST",
+        "Tags": [
+          {
+            "Key": "service",
+            "Value": "t-performance-dash"
+          }
+        ]
       }
     },
     "TimePredictions": {
@@ -509,7 +551,13 @@
             "KeyType": "RANGE"
           }
         ],
-        "BillingMode": "PAY_PER_REQUEST"
+        "BillingMode": "PAY_PER_REQUEST",
+        "Tags": [
+          {
+            "Key": "service",
+            "Value": "t-performance-dash"
+          }
+        ]
       }
     }
   }
