@@ -94,9 +94,12 @@ def get_driving_distance(old_coords: Tuple[float, float], new_coords: Tuple[floa
 
     response_json = json.loads(response.text)
 
-    if response_json["code"] != "Ok":
-        print(f"Error getting response from OSRM routing API! Returned non-ok response {response_json["code"]}")
+    api_code = response_json["code"]
+    if api_code != "Ok":
+        print(f"Error getting response from OSRM routing API! Returned non-ok response {api_code}")
         return None
+
+    print(response_json)
 
     return response_json["routes"][0]["distance"]
 
@@ -113,9 +116,6 @@ def update_shuttles(last_bus_positions):
     bus_positions = []
 
     for bus in buses:
-
-        print(bus)
-
         name = bus["name"]
         long = bus["location"]["longitude"]
         lat = bus["location"]["latitude"]
@@ -130,18 +130,20 @@ def update_shuttles(last_bus_positions):
         last_long = None
         last_lat = None
 
-        if name in last_bus_positions:
+        dist = 0
+        for pos in last_bus_positions:
+            if pos["name"] == name:
             # do calculation of distance
-            last_lat = last_bus_positions[name]["latitude"]
-            last_long = last_bus_positions[name]["longitude"]
+                last_lat = pos["latitude"]
+                last_long = pos["longitude"] 
 
-            last_coords = (float(last_lat), float(last_long))
+                last_coords = (float(last_lat), float(last_long))
 
-            dist = get_driving_distance(last_coords, coords)
-            # persist distance to distance table
+                # accumulate distance traveled
+                dist = get_driving_distance(last_coords, coords)
+                dist += pos["distance_travelled"]
 
-            print(f"bus {name} distance travelled: {dist}")
-        bus_positions.append({ "name": name, "latitude": lat, "longitude": long, "size": 5, "color": "red"})
+        bus_positions.append({ "name": name, "latitude": lat, "longitude": long, "size": 5, "color": "red", "distance_travelled": dist})
 
     return bus_positions
 
@@ -162,4 +164,4 @@ if __name__ == "__main__":
         # fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
         # fig.show()
         save_bus_positions(last_bus_positions)
-        time.sleep(60*5)
+        time.sleep(60)
