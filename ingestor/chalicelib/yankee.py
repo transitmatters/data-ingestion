@@ -5,7 +5,7 @@ import plotly.express as px
 import pandas as pd
 import json
 import geopy.distance
-import s3
+import boto3
 from keys import YANKEE_API_KEY
 from botocore.exceptions import ClientError
 from datetime import datetime
@@ -26,6 +26,7 @@ KEY = "yankee/last_shuttle_positions.csv"
 BOSTON_COORDS = (-71.057083, 42.361145)
 OSRM_DISTANCE_API = "http://router.project-osrm.org/route/v1/driving/"
 METERS_PER_MILE = 0.000621371
+SHUTTLE_PREFIX = "Shuttle"
 
 def load_bus_positions():
     file_name = "bus_positions.csv"
@@ -43,52 +44,96 @@ def load_bus_positions():
     #     if ex.response["Error"]["Code"] != "NoSuchKey":
     #         raise
 
-
 def get_shuttle_shapes(
     session: Session,
-) -> List[ShapePoint]:
+) -> List[List[ShapePoint]]:
     route_patterns = (
         session.query(RoutePattern)
         .filter(
             RoutePattern.route_pattern_typicality == RoutePatternTypicality.DIVERSION,
-        )
-        .first()
+            RoutePattern.route_pattern_id.startswith(SHUTTLE_PREFIX)
+        ).all()
     )
-    print(route_patterns)
-    # if route_pattern == None:
-    #     print(f"Unable to fetch route patttern for route id {route_id}")
-    #     return []
-    #
-    # representative_trip = (
-    #     session.query(Trip)
-    #     .filter(Trip.trip_id == route_pattern.representative_trip_id)
-    #     .first()
-    # )
-    #
-    # if representative_trip == None:
-    #     print(f"Unable to fetch route patttern for route id {route_id}")
-    #     return []
-    #
-    # shape_points = (
-    #     session.query(ShapePoint)
-    #     .filter(ShapePoint.shape_id == representative_trip.shape_id)
-    #     .order_by(ShapePoint.shape_pt_sequence)
-    # ).all()
-    # return shape_points
+
+    print(f"Found {len(route_patterns)} active shuttle route patterns")
+
+    shuttle_shapes: List[List[ShapePoint]]= []
+    for route_pattern in route_patterns:
+        if route_pattern == None:
+            print(f"Unable to fetch route patttern for route id {route_pattern.route_id}")
+            continue
+
+        representative_trip = (
+            session.query(Trip)
+            .filter(Trip.trip_id == route_pattern.representative_trip_id)
+            .first()
+        )
+        #
+        if representative_trip == None:
+            print(f"Unable to fetch route patttern for route id {route_pattern.route_id}")
+            continue
+
+        print(f"Getting shapes for {route_pattern.route_id}")
+
+        shape_points = (
+            session.query(ShapePoint)
+            .filter(ShapePoint.shape_id == representative_trip.shape_id)
+            .order_by(ShapePoint.shape_pt_sequence)
+        ).all()
+
+        shuttle_shapes.append(shape_points)
+
+    return shuttle_shapes
 
 
 def get_session_for_latest_feed() -> Session:
-    archive = MbtaGtfsArchive(local_archive_path=TemporaryDirectory().name)
+
+    s3 = boto3.resource("s3")
+    archive = MbtaGtfsArchive(
+            local_archive_path=TemporaryDirectory().name,
+            s3_bucket=s3.Bucket("tm-gtfs"))
     latest_feed = archive.get_latest_feed()
     latest_feed.download_or_build()
     return latest_feed.create_sqlite_session()
 
+# https://en.wikipedia.org/wiki/Even%E2%80%93odd_rule
+def is_in_shape(coords: Tuple[float, float], shape: List[ShapePoint]):
+    x = coords[0]
+    y = coords[1]
 
-def get_shuttle_route_shape():
+    in_shape = False
+
+    for i in range(len(shape)):
+        point_a = shape[i]
+        # this is fine because shape[-1] is valid python
+        point_b = shape[i - 1]
+
+        (ax, ay) = (point_a.shape_pt_lon, point_a.shape_pt_lat)
+        (bx, by) = (point_b.shape_pt_lon, point_b.shape_pt_lat)
+
+        if point_a.shape_pt_lon == x and point_a.shape_pt_lat == coords:
+            # point is a corner
+            return True
+
+        if (point_a.shape_pt_lat > y) != (point_b.shape_pt_lat > y):
+            # high school math class fuck yeah
+            slope = (ax - x)   * (by - ay) - (bx - ax) * (y - ay)
+            if slope == 0:
+                # point on boundary
+                return True
+            if (slope < 0) != (by < ay):
+                in_shape = not in_shape
+
+    return in_shape
+
+    
+
+
+def get_shuttle_route_shapes() -> List[List[ShapePoint]]:
     session = get_session_for_latest_feed()
     shape_points = get_shuttle_shapes(session)
-    # for point in shape_points:
-    #     print((point.shape_pt_lat, point.shape_pt_lon))
+
+    return shape_points
 
 
 def save_bus_positions(bus_positions):
@@ -164,7 +209,7 @@ def get_driving_distance(old_coords: Tuple[float, float], new_coords: Tuple[floa
 
     return float(response_json["routes"][0]["distance"]) * METERS_PER_MILE
 
-def update_shuttles(last_bus_positions):
+def update_shuttles(last_bus_positions, shuttle_shapes):
     url = "https://api.samsara.com/fleet/vehicles/locations"
 
     headers = {
@@ -207,6 +252,8 @@ def update_shuttles(last_bus_positions):
 
 if __name__ == "__main__":
     last_bus_positions = []
+    shuttle_shapes = get_shuttle_route_shapes()
+
     for i in range(10000):
         last_bus_positions = update_shuttles(last_bus_positions)
 
