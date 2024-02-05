@@ -1,15 +1,15 @@
-from typing import Optional, Tuple
+from typing import Dict, Optional, Tuple
 import requests
 import time
-import plotly.express as px
 import pandas as pd
 import json
-import geopy.distance
 import boto3
 from keys import YANKEE_API_KEY
 from botocore.exceptions import ClientError
 from datetime import datetime
 from tempfile import TemporaryDirectory
+import s3
+from ddtrace import tracer
 
 from typing import List
 from sqlalchemy.orm import Session
@@ -21,6 +21,8 @@ from mbta_gtfs_sqlite.models import (
     ShapePoint,
 )
 
+ShapeDict = Dict[str, List[ShapePoint]]
+
 BUCKET = "tm-shuttle-positions"
 KEY = "yankee/last_shuttle_positions.csv"
 BOSTON_COORDS = (-71.057083, 42.361145)
@@ -29,24 +31,16 @@ METERS_PER_MILE = 0.000621371
 SHUTTLE_PREFIX = "Shuttle"
 
 def load_bus_positions():
-    file_name = "bus_positions.csv"
-    with open(file_name) as f:
-        data = f.read()
-
-    js = json.loads(data)
-    return js
-
-    # try:
-    #     data = s3.download(BUCKET, KEY, compressed=False)
-    #
-    #     return data
-    # except ClientError as ex:
-    #     if ex.response["Error"]["Code"] != "NoSuchKey":
-    #         raise
+    try:
+        data = s3.download(BUCKET, KEY, compressed=False)
+        return data
+    except ClientError as ex:
+        if ex.response["Error"]["Code"] != "NoSuchKey":
+            raise
 
 def get_shuttle_shapes(
     session: Session,
-) -> List[List[ShapePoint]]:
+) -> ShapeDict:
     route_patterns = (
         session.query(RoutePattern)
         .filter(
@@ -57,7 +51,7 @@ def get_shuttle_shapes(
 
     print(f"Found {len(route_patterns)} active shuttle route patterns")
 
-    shuttle_shapes: List[List[ShapePoint]]= []
+    shuttle_shapes: ShapeDict = {}
     for route_pattern in route_patterns:
         if route_pattern == None:
             print(f"Unable to fetch route patttern for route id {route_pattern.route_id}")
@@ -81,7 +75,8 @@ def get_shuttle_shapes(
             .order_by(ShapePoint.shape_pt_sequence)
         ).all()
 
-        shuttle_shapes.append(shape_points)
+        shuttle_shapes[route_pattern.route_id] = shape_points
+
 
     return shuttle_shapes
 
@@ -90,8 +85,8 @@ def get_session_for_latest_feed() -> Session:
 
     s3 = boto3.resource("s3")
     archive = MbtaGtfsArchive(
-            local_archive_path=TemporaryDirectory().name,
-            s3_bucket=s3.Bucket("tm-gtfs"))
+            local_archive_path=TemporaryDirectory().name)
+            #s3_bucket=s3.Bucket("tm-gtfs"))
     latest_feed = archive.get_latest_feed()
     latest_feed.download_or_build()
     return latest_feed.create_sqlite_session()
@@ -129,7 +124,7 @@ def is_in_shape(coords: Tuple[float, float], shape: List[ShapePoint]):
     
 
 
-def get_shuttle_route_shapes() -> List[List[ShapePoint]]:
+def get_shuttle_route_shapes() -> ShapeDict:
     session = get_session_for_latest_feed()
     shape_points = get_shuttle_shapes(session)
 
@@ -209,7 +204,8 @@ def get_driving_distance(old_coords: Tuple[float, float], new_coords: Tuple[floa
 
     return float(response_json["routes"][0]["distance"]) * METERS_PER_MILE
 
-def update_shuttles(last_bus_positions, shuttle_shapes):
+@tracer.wrap()
+def _update_shuttles(last_bus_positions, shuttle_shapes: ShapeDict):
     url = "https://api.samsara.com/fleet/vehicles/locations"
 
     headers = {
@@ -230,6 +226,16 @@ def update_shuttles(last_bus_positions, shuttle_shapes):
         coords = (float(long), float(lat))
 
         # skip buses that aren't in a shuttle shape
+        # TODO(rudiejd): optimize this. there is probably a more efficient way to check if a shape is in 
+        # any one of a list of polygons. Maybe you can use the the ray method on all of the poly poitns?
+        detected_route = None
+        for route_id, shape in shuttle_shapes.items():
+            if is_in_shape(coords, shape):
+                detected_route = route_id
+                break
+
+        if detected_route == None:
+            print(f"Bus {name} at coordinates ({long}, {lat}) not detected on any route")
 
         dist = 0
         for pos in last_bus_positions:
@@ -244,18 +250,26 @@ def update_shuttles(last_bus_positions, shuttle_shapes):
                     # accumulate distance traveled
                     dist = get_driving_distance(last_coords, coords)
                     dist += pos["distance_travelled"]
-                print (f"Calculated distance {dist}")
-        bus_positions.append({ "name": name, "latitude": lat, "longitude": long, "size": 5, "color": "red", "distance_travelled": dist})
+        bus_positions.append({ "name": name, "latitude": lat, "longitude": long, "distance_travelled": dist, "detected_route": detected_route})
 
     return bus_positions
 
+def update_shuttles():
+    last_bus_positions = load_bus_positions()
+    shuttle_shapes = get_shuttle_route_shapes()
 
+    updated_positions = _update_shuttles(last_bus_positions, shuttle_shapes)
+
+    save_bus_positions(updated_positions)
+
+
+# for running locally
 if __name__ == "__main__":
     last_bus_positions = []
     shuttle_shapes = get_shuttle_route_shapes()
 
     for i in range(10000):
-        last_bus_positions = update_shuttles(last_bus_positions)
+        last_bus_positions = _update_shuttles(last_bus_positions, shuttle_shapes)
 
         df = pd.DataFrame.from_records(last_bus_positions)
         # fig = px.scatter_mapbox(df, lat="latitude", lon="longitude",   
