@@ -56,13 +56,13 @@ def get_shuttle_shapes(
 
     shuttle_shapes: ShapeDict = {}
     for route_pattern in route_patterns:
-        if route_pattern == None:
+        if route_pattern is None:
             print(f"Unable to fetch route patttern for route id {route_pattern.route_id}")
             continue
 
         representative_trip = session.query(Trip).filter(Trip.trip_id == route_pattern.representative_trip_id).first()
         #
-        if representative_trip == None:
+        if representative_trip is None:
             print(f"Unable to fetch route patttern for route id {route_pattern.route_id}")
             continue
 
@@ -231,7 +231,7 @@ def _update_shuttles(last_bus_positions, shuttle_shapes: ShapeDict):
                 detected_route = route_id
                 break
 
-        if detected_route == None:
+        if detected_route is None:
             print(f"Bus {name} at coordinates ({long}, {lat}) not detected on any route")
             continue
 
