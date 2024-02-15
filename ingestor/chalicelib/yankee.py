@@ -292,7 +292,7 @@ def _update_shuttles(last_bus_positions, shuttle_shapes: ShapeDict, shuttle_stop
 
 def insert_travel_time(route_id, name, last_detected_stop_id, detected_stop_id, last_update_date, current_date):
     with open("travel_times.csv", "a") as f:
-        f.write(f"{route_id},{name},{last_detected_stop_id},{detected_stop_id},{last_update_date},{current_date}")
+        f.write(f"{route_id},{name},{last_detected_stop_id},{detected_stop_id},{last_update_date},{current_date}\n")
 
 
 def update_shuttles():
