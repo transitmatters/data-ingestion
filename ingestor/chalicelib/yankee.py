@@ -32,6 +32,7 @@ OSRM_DISTANCE_API = "http://router.project-osrm.org/route/v1/driving/"
 METERS_PER_MILE = 0.000621371
 SHUTTLE_PREFIX = "Shuttle"
 STOP_RADIUS_MILES = 0.1
+TIME_FORMAT = "%Y-%m-%d-%H:%M:%S"
 
 
 def load_bus_positions():
@@ -134,7 +135,7 @@ def is_in_shape(coords: Tuple[float, float], shape: List[ShapePoint]):
 
 
 def save_bus_positions(bus_positions):
-    now_str = datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
+    now_str = datetime.now().strftime(TIME_FORMAT)
     print(f"{now_str}: saving bus positions")
     file_name = "bus_positions.csv"
     with open(file_name, "w") as f:
@@ -241,12 +242,14 @@ def _update_shuttles(last_bus_positions, shuttle_shapes: ShapeDict, shuttle_stop
 
         dist = 0
         last_detected_stop_id = -1
+        last_update_date = None
         for pos in last_bus_positions:
             if pos["name"] == name:
                 # do calculation of distance
                 last_lat = pos["latitude"]
                 last_long = pos["longitude"]
                 last_detected_stop_id = pos["detected_stop_id"]
+                last_update_date = pos["last_update_date"]
 
                 last_coords = (float(last_long), float(last_lat))
 
@@ -267,9 +270,10 @@ def _update_shuttles(last_bus_positions, shuttle_shapes: ShapeDict, shuttle_stop
             detected_stop_id = last_detected_stop_id
 
         # here, we've had the bus arrive at a new stop!
-        if detected_stop_id != last_detected_stop_id:
+        if detected_stop_id != last_detected_stop_id and last_detected_stop_id:
             # insert into table
-            print(f"Bus {name} arrived at stop {detected_stop_id}")
+            print(f"Bus {name} arrived at stop {detected_stop_id} from stop {last_detected_stop_id}")
+            insert_travel_time(detected_route, name, last_detected_stop_id, detected_stop_id, last_update_date, datetime.now().strftime(TIME_FORMAT))
 
         #TODO(rudiejd) use an object to serialize this instead of a dict
         bus_positions.append(
@@ -280,11 +284,15 @@ def _update_shuttles(last_bus_positions, shuttle_shapes: ShapeDict, shuttle_stop
                 "distance_travelled": dist,
                 "detected_route": detected_route,
                 "detected_stop_id": detected_stop_id,
-                "last_update_date": datetime.now() 
+                "last_update_date": datetime.now().strftime(TIME_FORMAT)
             }
         )
 
     return bus_positions
+
+def insert_travel_time(route_id, name, last_detected_stop_id, detected_stop_id, last_update_date, current_date):
+    with open("travel_times.csv", "a") as f:
+        f.write(f"{route_id},{name},{last_detected_stop_id},{detected_stop_id},{last_update_date},{current_date}")
 
 
 def update_shuttles():
