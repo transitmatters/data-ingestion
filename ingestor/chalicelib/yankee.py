@@ -8,6 +8,7 @@ from keys import YANKEE_API_KEY
 from botocore.exceptions import ClientError
 from datetime import datetime
 from tempfile import TemporaryDirectory
+from geopy import distance
 import s3
 from ddtrace import tracer
 
@@ -19,6 +20,7 @@ from mbta_gtfs_sqlite.models import (
     RoutePatternTypicality,
     Trip,
     ShapePoint,
+    Stop
 )
 
 ShapeDict = Dict[str, List[ShapePoint]]
@@ -29,6 +31,7 @@ BOSTON_COORDS = (-71.057083, 42.361145)
 OSRM_DISTANCE_API = "http://router.project-osrm.org/route/v1/driving/"
 METERS_PER_MILE = 0.000621371
 SHUTTLE_PREFIX = "Shuttle"
+STOP_RADIUS_MILES = 0.1
 
 
 def load_bus_positions():
@@ -39,6 +42,16 @@ def load_bus_positions():
         if ex.response["Error"]["Code"] != "NoSuchKey":
             raise
 
+def get_shuttle_stops(
+        session: Session
+        ) -> List[Stop]:
+    return (
+        session.query(Stop)
+        .filter(
+            Stop.platform_name.contains("Shuttle")
+        )
+        .all()
+    )
 
 def get_shuttle_shapes(
     session: Session,
@@ -119,12 +132,6 @@ def is_in_shape(coords: Tuple[float, float], shape: List[ShapePoint]):
     return in_shape
 
 
-def get_shuttle_route_shapes() -> ShapeDict:
-    session = get_session_for_latest_feed()
-    shape_points = get_shuttle_shapes(session)
-
-    return shape_points
-
 
 def save_bus_positions(bus_positions):
     now_str = datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
@@ -136,52 +143,49 @@ def save_bus_positions(bus_positions):
     return
 
 
-"""
-
-Calculates the driving distance between two coordinates
-Args:
-    old_coords: first position
-    new_coords: second position
-
-Returns:
-    The distance in miles between the coordinate pairs, or None if the request failed
-
-Uses the API from http://project-osrm.org/docs/v5.5.1/api/#route-service
-
-Example response from API:
-    (there's also some other stuff we can ignore)
-```json
-{
-  "code": "Ok",
-  "routes": [
-    {
-      "legs": [
-        {
-          "steps": [],
-          "summary": "",
-          "weight": 263.2,
-          "duration": 260.3,
-          "distance": 1886.8
-        },
-        {
-          "steps": [],
-          "summary": "",
-          "weight": 370.4,
-          "duration": 370.4,
-          "distance": 2845.4
-        }
-      ],
-      "weight_name": "routability",
-      "weight": 633.599999999,
-      "duration": 630.7,
-      "distance": 4732.2
-    }
-}
-```json
-"""
-
-
 def get_driving_distance(old_coords: Tuple[float, float], new_coords: Tuple[float, float]) -> Optional[float]:
+    """
+    Calculates the driving distance between two coordinates
+    Args:
+        old_coords: first position
+        new_coords: second position
+
+    Returns:
+        The distance in miles between the coordinate pairs, or None if the request failed
+
+    Uses the API from http://project-osrm.org/docs/v5.5.1/api/#route-service
+
+    Example response from API:
+        (there's also some other stuff we can ignore)
+    ```json
+    {
+      "code": "Ok",
+      "routes": [
+        {
+          "legs": [
+            {
+              "steps": [],
+              "summary": "",
+              "weight": 263.2,
+              "duration": 260.3,
+              "distance": 1886.8
+            },
+            {
+              "steps": [],
+              "summary": "",
+              "weight": 370.4,
+              "duration": 370.4,
+              "distance": 2845.4
+            }
+          ],
+          "weight_name": "routability",
+          "weight": 633.599999999,
+          "duration": 630.7,
+          "distance": 4732.2
+        }
+    }
+    ```json
+    """
     # coords must be in order (longitude, latitude)
     url = f"{OSRM_DISTANCE_API}/{old_coords[0]},{old_coords[1]};{new_coords[0]},{new_coords[1]}?overview=false"
 
@@ -204,7 +208,7 @@ def get_driving_distance(old_coords: Tuple[float, float], new_coords: Tuple[floa
 
 
 @tracer.wrap()
-def _update_shuttles(last_bus_positions, shuttle_shapes: ShapeDict):
+def _update_shuttles(last_bus_positions, shuttle_shapes: ShapeDict, shuttle_stops: List[Stop]):
     url = "https://api.samsara.com/fleet/vehicles/locations"
 
     headers = {"accept": "application/json", "authorization": f"Bearer {YANKEE_API_KEY}"}
@@ -236,11 +240,13 @@ def _update_shuttles(last_bus_positions, shuttle_shapes: ShapeDict):
             continue
 
         dist = 0
+        last_detected_stop_id = -1
         for pos in last_bus_positions:
             if pos["name"] == name:
                 # do calculation of distance
                 last_lat = pos["latitude"]
                 last_long = pos["longitude"]
+                last_detected_stop_id = pos["detected_stop_id"]
 
                 last_coords = (float(last_long), float(last_lat))
 
@@ -248,6 +254,24 @@ def _update_shuttles(last_bus_positions, shuttle_shapes: ShapeDict):
                     # accumulate distance traveled
                     dist = get_driving_distance(last_coords, coords)
                     dist += pos["distance_travelled"]
+
+
+        detected_stop_id = -1
+        for stop in shuttle_stops:
+            stop_coords = (stop.stop_lon, stop.stop_lat)
+            if distance.geodesic(stop_coords, coords).miles <= STOP_RADIUS_MILES:
+                detected_stop_id = stop.stop_id
+
+        # if we're not currently near a stop, use the last stop ID we detected
+        if detected_stop_id == -1:
+            detected_stop_id = last_detected_stop_id
+
+        # here, we've had the bus arrive at a new stop!
+        if detected_stop_id != last_detected_stop_id:
+            # insert into table
+            print(f"Bus {name} arrived at stop {detected_stop_id}")
+
+        #TODO(rudiejd) use an object to serialize this instead of a dict
         bus_positions.append(
             {
                 "name": name,
@@ -255,6 +279,8 @@ def _update_shuttles(last_bus_positions, shuttle_shapes: ShapeDict):
                 "longitude": long,
                 "distance_travelled": dist,
                 "detected_route": detected_route,
+                "detected_stop_id": detected_stop_id,
+                "last_update_date": datetime.now() 
             }
         )
 
@@ -263,9 +289,11 @@ def _update_shuttles(last_bus_positions, shuttle_shapes: ShapeDict):
 
 def update_shuttles():
     last_bus_positions = load_bus_positions()
-    shuttle_shapes = get_shuttle_route_shapes()
+    session = get_session_for_latest_feed()
+    shuttle_shapes = get_shuttle_shapes(session)
+    shuttle_stops = get_shuttle_stops(session)
 
-    updated_positions = _update_shuttles(last_bus_positions, shuttle_shapes)
+    updated_positions = _update_shuttles(last_bus_positions, shuttle_shapes, shuttle_stops)
 
     save_bus_positions(updated_positions)
 
@@ -273,10 +301,12 @@ def update_shuttles():
 # for running locally
 if __name__ == "__main__":
     last_bus_positions = []
-    shuttle_shapes = get_shuttle_route_shapes()
+    session = get_session_for_latest_feed()
+    shuttle_shapes = get_shuttle_shapes(session)
+    shuttle_stops = get_shuttle_stops(session)
 
     for i in range(10000):
-        last_bus_positions = _update_shuttles(last_bus_positions, shuttle_shapes)
+        last_bus_positions = _update_shuttles(last_bus_positions, shuttle_shapes, shuttle_stops)
 
         df = pd.DataFrame.from_records(last_bus_positions)
         # fig = px.scatter_mapbox(df, lat="latitude", lon="longitude",
