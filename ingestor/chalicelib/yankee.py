@@ -11,6 +11,8 @@ from tempfile import TemporaryDirectory
 from geopy import distance
 import s3
 from ddtrace import tracer
+from dataclasses import dataclass
+from chalicelib import dynamo
 
 from typing import List
 from sqlalchemy.orm import Session
@@ -24,6 +26,7 @@ from mbta_gtfs_sqlite.models import (
 )
 
 ShapeDict = Dict[str, List[ShapePoint]]
+Coords = Tuple[float, float]
 
 BUCKET = "tm-shuttle-positions"
 KEY = "yankee/last_shuttle_positions.csv"
@@ -33,15 +36,35 @@ METERS_PER_MILE = 0.000621371
 SHUTTLE_PREFIX = "Shuttle"
 STOP_RADIUS_MILES = 0.1
 TIME_FORMAT = "%Y-%m-%d-%H:%M:%S"
+SHUTTLE_TRAVELTIME_TABLE = "ShuttleTravelTimes"
+# hardcoding this for now to avoid messing with the data dashboard
+SHUTTLE_LINE = "line-shuttle"
+
+@dataclass(frozen=True)
+class ShuttleTravelTime:
+    # line of the trip (for now always line-shuttle)
+    line: str
+    # route of the trip e.g. Shuttle-AlewifeParkSt
+    route: str
+    date: datetime
+    # distance in miles of the trip
+    distance_miles: float
+    # time in minutes of the trip
+    time: float
+    # yankee's identifier for the bus that made the trip
+    name: str
 
 
-def load_bus_positions():
+def load_bus_positions() -> Optional[List[Dict]]:
     try:
         data = s3.download(BUCKET, KEY, compressed=False)
-        return data
+        return json.loads(data)
     except ClientError as ex:
         if ex.response["Error"]["Code"] != "NoSuchKey":
             raise
+    except Exception as ex:
+        print("Failed to get last shuttle positions")
+        raise
 
 def get_shuttle_stops(
         session: Session
@@ -134,14 +157,19 @@ def is_in_shape(coords: Tuple[float, float], shape: List[ShapePoint]):
 
 
 
-def save_bus_positions(bus_positions):
+def save_bus_positions(bus_positions: List[dict]):
     now_str = datetime.now().strftime(TIME_FORMAT)
     print(f"{now_str}: saving bus positions")
-    file_name = "bus_positions.csv"
-    with open(file_name, "w") as f:
-        f.write(json.dumps(bus_positions))
+    
+    s3.upload(BUCKET, KEY, bus_positions, compress=False)
 
-    return
+
+def write_traveltimes_to_dynamo(travel_times: List[Optional[ShuttleTravelTime]]):
+    row_dicts = []
+    for travel_time in travel_times:
+        if travel_time:
+            row_dicts.append(travel_time.__dict__)
+    dynamo.dynamo_batch_write(row_dicts, SHUTTLE_TRAVELTIME_TABLE)
 
 
 def get_driving_distance(old_coords: Tuple[float, float], new_coords: Tuple[float, float]) -> Optional[float]:
@@ -209,7 +237,7 @@ def get_driving_distance(old_coords: Tuple[float, float], new_coords: Tuple[floa
 
 
 @tracer.wrap()
-def _update_shuttles(last_bus_positions, shuttle_shapes: ShapeDict, shuttle_stops: List[Stop]):
+def _update_shuttles(last_bus_positions: List[Dict], shuttle_shapes: ShapeDict, shuttle_stops: List[Stop]):
     url = "https://api.samsara.com/fleet/vehicles/locations"
 
     headers = {"accept": "application/json", "authorization": f"Bearer {YANKEE_API_KEY}"}
@@ -240,40 +268,38 @@ def _update_shuttles(last_bus_positions, shuttle_shapes: ShapeDict, shuttle_stop
             print(f"Bus {name} at coordinates ({long}, {lat}) not detected on any route")
             continue
 
-        dist = 0
         last_detected_stop_id = -1
         last_update_date = None
+        # travel times to write to dynamo
+        travel_times: List[Optional[ShuttleTravelTime]] = []
         for pos in last_bus_positions:
             if pos["name"] == name:
-                # do calculation of distance
-                last_lat = pos["latitude"]
-                last_long = pos["longitude"]
                 last_detected_stop_id = pos["detected_stop_id"]
                 last_update_date = pos["last_update_date"]
 
-                last_coords = (float(last_long), float(last_lat))
 
-                if last_coords != coords:
-                    # accumulate distance traveled
-                    dist = get_driving_distance(last_coords, coords)
-                    dist += pos["distance_travelled"]
-
-
-        detected_stop_id = -1
+        detected_stop_id: int = -1
         for stop in shuttle_stops:
             stop_coords = (stop.stop_lon, stop.stop_lat)
             if distance.geodesic(stop_coords, coords).miles <= STOP_RADIUS_MILES:
-                detected_stop_id = stop.stop_id
+                detected_stop_id = int(stop.stop_id)
 
         # if we're not currently near a stop, use the last stop ID we detected
         if detected_stop_id == -1:
             detected_stop_id = last_detected_stop_id
 
+        update_date = last_update_date
         # here, we've had the bus arrive at a new stop!
-        if detected_stop_id != last_detected_stop_id and last_detected_stop_id:
+        if detected_stop_id != last_detected_stop_id and last_detected_stop_id != -1:
             # insert into table
             print(f"Bus {name} arrived at stop {detected_stop_id} from stop {last_detected_stop_id}")
-            insert_travel_time(detected_route, name, last_detected_stop_id, detected_stop_id, last_update_date, datetime.now().strftime(TIME_FORMAT))
+            travel_time = create_travel_time(name, 
+                                             detected_route, 
+                                             last_detected_stop_id, 
+                                             detected_stop_id, 
+                                             last_update_date, 
+                                             shuttle_stops)
+            travel_times.append(travel_time)
 
         #TODO(rudiejd) use an object to serialize this instead of a dict
         bus_positions.append(
@@ -281,22 +307,80 @@ def _update_shuttles(last_bus_positions, shuttle_shapes: ShapeDict, shuttle_stop
                 "name": name,
                 "latitude": lat,
                 "longitude": long,
-                "distance_travelled": dist,
                 "detected_route": detected_route,
                 "detected_stop_id": detected_stop_id,
-                "last_update_date": datetime.now().strftime(TIME_FORMAT)
+                "last_update_date": update_date
             }
         )
 
+    write_traveltimes_to_dynamo(travel_times)
+
     return bus_positions
 
-def insert_travel_time(route_id, name, last_detected_stop_id, detected_stop_id, last_update_date, current_date):
+def create_travel_time(name: str, route_id: str, last_detected_stop_id: int, detected_stop_id: int, last_update_date: Optional[str], shuttle_stops: List[Stop]):
+    # don't write travel times with no start date
+        # new_speed_object = {
+        #     "route": route_name,
+        #     "line": line,
+        #     "date": current_date,
+        #     "count": None,
+        # }
+    if last_update_date == None:
+        return
+
+    last_update_datetime = datetime.strptime(last_update_date, TIME_FORMAT)
+    update_datetime = datetime.now()
+
+    last_stop_coords: Optional[Coords] =  None
+    stop_coords: Optional[Coords] = None
+
+    #TODO(rudiejd) this can be made O(1) if it's slow
+    for stop in shuttle_stops:
+        coords = (stop.stop_lon, stop.stop_lat)
+        if stop.stop_id == last_detected_stop_id:
+            last_stop_coords = coords
+        elif stop.stop_id == detected_stop_id:
+            stop_coords = coords
+
+        if stop_coords is not None and last_stop_coords is not None:
+            break
+
+    if stop_coords is None or last_stop_coords is None:
+        print(f"Unable to detect stop ids. Last stop coordinates {last_stop_coords}, current stop coordinates {stop_coords}")
+        return None
+
+    #TODO(rudiejd) maybe precompute the stop distances for all the shuttle lines?
+    dist = get_driving_distance(last_stop_coords, stop_coords)
+
+    if dist is None:
+        print(f"Unable calculate driving distnance for stop ids {last_detected_stop_id}, {detected_stop_id}")
+        return None
+    # total time in minutes
+    time_minutes = (update_datetime - last_update_datetime).total_seconds() // 60
+
+    # HACK: for debugging
     with open("travel_times.csv", "a") as f:
-        f.write(f"{route_id},{name},{last_detected_stop_id},{detected_stop_id},{last_update_date},{current_date}\n")
+        f.write(f"{route_id},{last_detected_stop_id},{detected_stop_id},{last_update_datetime},{update_datetime}\n")
+
+    return ShuttleTravelTime(SHUTTLE_LINE, route_id, datetime.today(), dist, time_minutes, name)
+
 
 
 def update_shuttles():
+    """
+    Updates the shuttle travel times table with the travel times, in minutes, of the Yankee
+    Transit shuttles that have been detected as arriving at a stop when this lambda is run.
+    Shuttle routes are detected by checking the GTFS shape in which the shuttle's position is contained
+    in, and distance travelled (driving distance) is calculated by querying the OSRM routing API.
+
+    We persist a record of a shuttle's position to s3 so we know at which station it was previously
+    detected.
+    """
     last_bus_positions = load_bus_positions()
+
+    if not last_bus_positions:
+        return
+
     session = get_session_for_latest_feed()
     shuttle_shapes = get_shuttle_shapes(session)
     shuttle_stops = get_shuttle_stops(session)
