@@ -15,7 +15,7 @@ from chalicelib import (
     predictions,
     landing,
     trip_metrics,
-    yankee
+    yankee,
 )
 
 app = Chalice(app_name="ingestor")

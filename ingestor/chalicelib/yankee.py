@@ -17,13 +17,7 @@ from chalicelib import dynamo
 from typing import List
 from sqlalchemy.orm import Session
 from mbta_gtfs_sqlite import MbtaGtfsArchive
-from mbta_gtfs_sqlite.models import (
-    RoutePattern,
-    RoutePatternTypicality,
-    Trip,
-    ShapePoint,
-    Stop
-)
+from mbta_gtfs_sqlite.models import RoutePattern, RoutePatternTypicality, Trip, ShapePoint, Stop
 
 ShapeDict = Dict[str, List[ShapePoint]]
 Coords = Tuple[float, float]
@@ -39,6 +33,7 @@ TIME_FORMAT = "%Y-%m-%d-%H:%M:%S"
 SHUTTLE_TRAVELTIME_TABLE = "ShuttleTravelTimes"
 # hardcoding this for now to avoid messing with the data dashboard
 SHUTTLE_LINE = "line-shuttle"
+
 
 @dataclass(frozen=True)
 class ShuttleTravelTime:
@@ -66,16 +61,10 @@ def load_bus_positions() -> Optional[List[Dict]]:
         print("Failed to get last shuttle positions")
         raise
 
-def get_shuttle_stops(
-        session: Session
-        ) -> List[Stop]:
-    return (
-        session.query(Stop)
-        .filter(
-            Stop.platform_name.contains("Shuttle")
-        )
-        .all()
-    )
+
+def get_shuttle_stops(session: Session) -> List[Stop]:
+    return session.query(Stop).filter(Stop.platform_name.contains("Shuttle")).all()
+
 
 def get_shuttle_shapes(
     session: Session,
@@ -156,11 +145,10 @@ def is_in_shape(coords: Tuple[float, float], shape: List[ShapePoint]):
     return in_shape
 
 
-
 def save_bus_positions(bus_positions: List[dict]):
     now_str = datetime.now().strftime(TIME_FORMAT)
     print(f"{now_str}: saving bus positions")
-    
+
     s3.upload(BUCKET, KEY, bus_positions, compress=False)
 
 
@@ -277,7 +265,6 @@ def _update_shuttles(last_bus_positions: List[Dict], shuttle_shapes: ShapeDict, 
                 last_detected_stop_id = pos["detected_stop_id"]
                 last_update_date = pos["last_update_date"]
 
-
         detected_stop_id: int = -1
         for stop in shuttle_stops:
             stop_coords = (stop.stop_lon, stop.stop_lat)
@@ -293,15 +280,12 @@ def _update_shuttles(last_bus_positions: List[Dict], shuttle_shapes: ShapeDict, 
         if detected_stop_id != last_detected_stop_id and last_detected_stop_id != -1:
             # insert into table
             print(f"Bus {name} arrived at stop {detected_stop_id} from stop {last_detected_stop_id}")
-            travel_time = create_travel_time(name, 
-                                             detected_route, 
-                                             last_detected_stop_id, 
-                                             detected_stop_id, 
-                                             last_update_date, 
-                                             shuttle_stops)
+            travel_time = create_travel_time(
+                name, detected_route, last_detected_stop_id, detected_stop_id, last_update_date, shuttle_stops
+            )
             travel_times.append(travel_time)
 
-        #TODO(rudiejd) use an object to serialize this instead of a dict
+        # TODO(rudiejd) use an object to serialize this instead of a dict
         bus_positions.append(
             {
                 "name": name,
@@ -309,7 +293,7 @@ def _update_shuttles(last_bus_positions: List[Dict], shuttle_shapes: ShapeDict, 
                 "longitude": long,
                 "detected_route": detected_route,
                 "detected_stop_id": detected_stop_id,
-                "last_update_date": update_date
+                "last_update_date": update_date,
             }
         )
 
@@ -317,24 +301,32 @@ def _update_shuttles(last_bus_positions: List[Dict], shuttle_shapes: ShapeDict, 
 
     return bus_positions
 
-def create_travel_time(name: str, route_id: str, last_detected_stop_id: int, detected_stop_id: int, last_update_date: Optional[str], shuttle_stops: List[Stop]):
+
+def create_travel_time(
+    name: str,
+    route_id: str,
+    last_detected_stop_id: int,
+    detected_stop_id: int,
+    last_update_date: Optional[str],
+    shuttle_stops: List[Stop],
+):
     # don't write travel times with no start date
-        # new_speed_object = {
-        #     "route": route_name,
-        #     "line": line,
-        #     "date": current_date,
-        #     "count": None,
-        # }
+    # new_speed_object = {
+    #     "route": route_name,
+    #     "line": line,
+    #     "date": current_date,
+    #     "count": None,
+    # }
     if last_update_date == None:
         return
 
     last_update_datetime = datetime.strptime(last_update_date, TIME_FORMAT)
     update_datetime = datetime.now()
 
-    last_stop_coords: Optional[Coords] =  None
+    last_stop_coords: Optional[Coords] = None
     stop_coords: Optional[Coords] = None
 
-    #TODO(rudiejd) this can be made O(1) if it's slow
+    # TODO(rudiejd) this can be made O(1) if it's slow
     for stop in shuttle_stops:
         coords = (stop.stop_lon, stop.stop_lat)
         if stop.stop_id == last_detected_stop_id:
@@ -346,10 +338,12 @@ def create_travel_time(name: str, route_id: str, last_detected_stop_id: int, det
             break
 
     if stop_coords is None or last_stop_coords is None:
-        print(f"Unable to detect stop ids. Last stop coordinates {last_stop_coords}, current stop coordinates {stop_coords}")
+        print(
+            f"Unable to detect stop ids. Last stop coordinates {last_stop_coords}, current stop coordinates {stop_coords}"
+        )
         return None
 
-    #TODO(rudiejd) maybe precompute the stop distances for all the shuttle lines?
+    # TODO(rudiejd) maybe precompute the stop distances for all the shuttle lines?
     dist = get_driving_distance(last_stop_coords, stop_coords)
 
     if dist is None:
@@ -363,7 +357,6 @@ def create_travel_time(name: str, route_id: str, last_detected_stop_id: int, det
         f.write(f"{route_id},{last_detected_stop_id},{detected_stop_id},{last_update_datetime},{update_datetime}\n")
 
     return ShuttleTravelTime(SHUTTLE_LINE, route_id, datetime.today(), dist, time_minutes, name)
-
 
 
 def update_shuttles():
