@@ -107,8 +107,10 @@ def get_shuttle_shapes(
 
 def get_session_for_latest_feed() -> Session:
     s3 = boto3.resource("s3")
-    archive = MbtaGtfsArchive(local_archive_path=TemporaryDirectory().name)
-    # s3_bucket=s3.Bucket("tm-gtfs"))
+    archive = MbtaGtfsArchive(
+        local_archive_path=TemporaryDirectory().name,
+        s3_bucket=s3.Bucket("tm-gtfs"),
+    )
     latest_feed = archive.get_latest_feed()
     latest_feed.download_or_build()
     return latest_feed.create_sqlite_session()
@@ -235,6 +237,8 @@ def _update_shuttles(last_bus_positions: List[Dict], shuttle_shapes: ShapeDict, 
     print(buses)
     bus_positions = []
 
+    travel_times: List[Optional[ShuttleTravelTime]] = []
+
     for bus in buses:
         name = bus["name"]
         long = bus["location"]["longitude"]
@@ -259,7 +263,6 @@ def _update_shuttles(last_bus_positions: List[Dict], shuttle_shapes: ShapeDict, 
         last_detected_stop_id = -1
         last_update_date = None
         # travel times to write to dynamo
-        travel_times: List[Optional[ShuttleTravelTime]] = []
         for pos in last_bus_positions:
             if pos["name"] == name:
                 last_detected_stop_id = pos["detected_stop_id"]
@@ -311,12 +314,6 @@ def create_travel_time(
     shuttle_stops: List[Stop],
 ):
     # don't write travel times with no start date
-    # new_speed_object = {
-    #     "route": route_name,
-    #     "line": line,
-    #     "date": current_date,
-    #     "count": None,
-    # }
     if last_update_date == None:
         return
 
@@ -352,10 +349,6 @@ def create_travel_time(
     # total time in minutes
     time_minutes = (update_datetime - last_update_datetime).total_seconds() // 60
 
-    # HACK: for debugging
-    with open("travel_times.csv", "a") as f:
-        f.write(f"{route_id},{last_detected_stop_id},{detected_stop_id},{last_update_datetime},{update_datetime}\n")
-
     return ShuttleTravelTime(SHUTTLE_LINE, route_id, datetime.today(), dist, time_minutes, name)
 
 
@@ -382,26 +375,3 @@ def update_shuttles():
 
     save_bus_positions(updated_positions)
 
-
-# for running locally
-if __name__ == "__main__":
-    last_bus_positions = []
-    session = get_session_for_latest_feed()
-    shuttle_shapes = get_shuttle_shapes(session)
-    shuttle_stops = get_shuttle_stops(session)
-
-    for i in range(10000):
-        last_bus_positions = _update_shuttles(last_bus_positions, shuttle_shapes, shuttle_stops)
-
-        df = pd.DataFrame.from_records(last_bus_positions)
-        # fig = px.scatter_mapbox(df, lat="latitude", lon="longitude",
-        #                 zoom=8,
-        #                 height=800,
-        #                 size="size",
-        #                 color="color",
-        #                 width=800)
-        # fig.update_layout(mapbox_style="open-street-map")
-        # fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
-        # fig.show()
-        save_bus_positions(last_bus_positions)
-        time.sleep(60)
