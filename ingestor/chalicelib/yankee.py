@@ -374,4 +374,3 @@ def update_shuttles():
     updated_positions = _update_shuttles(last_bus_positions, shuttle_shapes, shuttle_stops)
 
     save_bus_positions(updated_positions)
-
