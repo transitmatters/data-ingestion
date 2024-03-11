@@ -55,7 +55,7 @@ def load_bus_positions() -> Optional[List[Dict]]:
     except ClientError as ex:
         if ex.response["Error"]["Code"] != "NoSuchKey":
             raise
-    except Exception as _:
+    except Exception:
         print("Failed to get last shuttle positions")
         raise
 
