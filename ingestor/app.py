@@ -15,6 +15,7 @@ from chalicelib import (
     predictions,
     landing,
     trip_metrics,
+    yankee,
 )
 
 app = Chalice(app_name="ingestor")
@@ -154,3 +155,9 @@ def store_landing_data(event):
     ridership_data = landing.get_ridership_data()
     landing.upload_to_s3(json.dumps(trip_metrics_data), json.dumps(ridership_data))
     landing.clear_cache()
+
+
+# Runs every 5 minutes from either 4 AM -> 1:55AM or 5 AM -> 2:55 AM depending on DST
+@app.schedule(Cron("0/5", "0-6,9-23", "*", "*", "?", "*"))
+def update_yankee_shuttle_bucket(event):
+    yankee.update_shuttles()
