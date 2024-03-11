@@ -1,7 +1,5 @@
 from typing import Dict, Optional, Tuple
 import requests
-import time
-import pandas as pd
 import json
 import boto3
 from keys import YANKEE_API_KEY
@@ -57,7 +55,7 @@ def load_bus_positions() -> Optional[List[Dict]]:
     except ClientError as ex:
         if ex.response["Error"]["Code"] != "NoSuchKey":
             raise
-    except Exception as ex:
+    except Exception as _:
         print("Failed to get last shuttle positions")
         raise
 
@@ -314,7 +312,7 @@ def create_travel_time(
     shuttle_stops: List[Stop],
 ):
     # don't write travel times with no start date
-    if last_update_date == None:
+    if last_update_date is None:
         return
 
     last_update_datetime = datetime.strptime(last_update_date, TIME_FORMAT)
