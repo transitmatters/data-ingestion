@@ -2,7 +2,7 @@ from typing import Dict, Optional, Tuple
 import requests
 import json
 import boto3
-from keys import YANKEE_API_KEY
+from .keys import YANKEE_API_KEY
 from botocore.exceptions import ClientError
 from datetime import datetime
 from tempfile import TemporaryDirectory
@@ -38,7 +38,7 @@ class ShuttleTravelTime:
     # line of the trip (for now always line-shuttle)
     line: str
     # route of the trip e.g. Shuttle-AlewifeParkSt
-    route: str
+    routeId: str
     date: datetime
     # distance in miles of the trip
     distance_miles: float
