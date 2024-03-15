@@ -7,10 +7,9 @@ from botocore.exceptions import ClientError
 from datetime import datetime
 from tempfile import TemporaryDirectory
 from geopy import distance
-import s3
 from ddtrace import tracer
 from dataclasses import dataclass
-from chalicelib import dynamo
+from chalicelib import dynamo, s3
 
 from typing import List
 from sqlalchemy.orm import Session
