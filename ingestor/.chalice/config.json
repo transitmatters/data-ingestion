@@ -100,6 +100,10 @@
         "update_time_predictions": {
           "iam_policy_file": "policy-time-predictions.json",
           "lambda_timeout": 300
+        },
+        "yankee": {
+          "iam_policy_file": "policy-yankee.json",
+          "lambda_timeout": 900
         }
       }
     }

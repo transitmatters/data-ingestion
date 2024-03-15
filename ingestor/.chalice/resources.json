@@ -4,6 +4,10 @@
       "Type": "String",
       "Description": "MBTA Performance API Key"
     },
+    "YankeeApiKey": {
+      "Type": "String",
+      "Description", "Yankee shuttle API key"
+    }
     "DDApiKey": {
       "Type": "String",
       "Description": "Datadog API key."
@@ -31,6 +35,27 @@
             },
             "DD_TAGS": {
               "Ref": "DDTags"
+            }
+          }
+        }
+      }
+    },
+    "Yankee": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "Environment": {
+          "Variables": {
+            "DD_API_KEY": {
+              "Ref": "DDApiKey"
+            },
+            "DD_VERSION": {
+              "Ref": "GitVersion"
+            },
+            "DD_TAGS": {
+              "Ref": "DDTags"
+            },
+            "YANKEE_API_KEY": {
+              "Ref": "YankeeApiKey"
             }
           }
         }
@@ -558,6 +583,47 @@
             "Value": "t-performance-dash"
           }
         ]
+      }
+    },
+  "ShuttleTravelTimes": {
+      "Type": "AWS::DynamoDB::Table",
+      "Properties": {
+        "TableName": "ShuttleTravelTimes",
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "routeId",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "date",
+            "AttributeType": "S"
+          }
+        ],
+        "KeySchema": [
+          {
+            "AttributeName": "routeId",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "date",
+            "KeyType": "RANGE"
+          }
+
+        ],
+        "BillingMode": "PAY_PER_REQUEST",
+        "Tags": [
+          {
+            "Key": "service",
+            "Value": "t-performance-dash"
+          }
+        ]
+      }
+    },
+    "S3Bucket": {
+      "Type": "AWS::S3::Bucket",
+      "DeletionPolicy": "Retain",
+      "Properties": {
+          "BucketName": "tm-shuttle-positions"
       }
     }
   }
