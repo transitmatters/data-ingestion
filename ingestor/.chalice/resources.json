@@ -4,6 +4,10 @@
       "Type": "String",
       "Description": "MBTA Performance API Key"
     },
+    "YankeeApiKey": {
+      "Type": "String",
+      "Description", "Yankee shuttle API key"
+    }
     "DDApiKey": {
       "Type": "String",
       "Description": "Datadog API key."
@@ -31,6 +35,27 @@
             },
             "DD_TAGS": {
               "Ref": "DDTags"
+            }
+          }
+        }
+      }
+    },
+    "Yankee": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "Environment": {
+          "Variables": {
+            "DD_API_KEY": {
+              "Ref": "DDApiKey"
+            },
+            "DD_VERSION": {
+              "Ref": "GitVersion"
+            },
+            "DD_TAGS": {
+              "Ref": "DDTags"
+            },
+            "YANKEE_API_KEY": {
+              "Ref": "YankeeApiKey"
             }
           }
         }
@@ -601,4 +626,5 @@
           "BucketName": "tm-shuttle-positions"
       }
     }
+  }
 }
