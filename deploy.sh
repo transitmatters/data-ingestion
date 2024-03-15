@@ -1,6 +1,6 @@
 #!/bin/bash -x
 
-if [[ -z "$MBTA_V2_API_KEY" || -z "$DD_API_KEY"  || -z "$YANKEE_API_KEY"]]; then
+if [[ -z "$MBTA_V2_API_KEY" || -z "$DD_API_KEY"  || -z "$YANKEE_API_KEY"  ]]; then
     echo "Must provide MBTA_V2_API_KEY, YANKEE_API_KEY, and DD_API_KEY in environment" 1>&2
     exit 1
 fi
