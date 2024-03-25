@@ -40,27 +40,6 @@
         }
       }
     },
-    "Yankee": {
-      "Type": "AWS::Serverless::Function",
-      "Properties": {
-        "Environment": {
-          "Variables": {
-            "DD_API_KEY": {
-              "Ref": "DDApiKey"
-            },
-            "DD_VERSION": {
-              "Ref": "GitVersion"
-            },
-            "DD_TAGS": {
-              "Ref": "DDTags"
-            },
-            "YANKEE_API_KEY": {
-              "Ref": "YankeeApiKey"
-            }
-          }
-        }
-      }
-    },
     "PopulateAggDeliveredTripMetrics": {
       "Type": "AWS::Serverless::Function",
       "Properties": {
