@@ -6,8 +6,8 @@
     },
     "YankeeApiKey": {
       "Type": "String",
-      "Description", "Yankee shuttle API key"
-    }
+      "Description": "Yankee shuttle API key"
+    },
     "DDApiKey": {
       "Type": "String",
       "Description": "Datadog API key."

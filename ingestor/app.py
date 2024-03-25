@@ -159,5 +159,5 @@ def store_landing_data(event):
 
 # Runs every 5 minutes from either 4 AM -> 1:55AM or 5 AM -> 2:55 AM depending on DST
 @app.schedule(Cron("0/5", "0-6,9-23", "*", "*", "?", "*"))
-def update_yankee_shuttle_bucket(event):
+def update_yankee_shuttles(event):
     yankee.update_shuttles()
