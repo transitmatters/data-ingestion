@@ -24,14 +24,19 @@
       "Resource": ["arn:aws:dynamodb:us-east-1:473352343756:table/ShuttleTravelTimes"]
     },
     {
-      "Action": [
-        "s3:GetObject",
-        "s3:PutObject"
-      ],
+      "Action": "s3:*",
       "Effect": "Allow",
       "Resource": [
         "arn:aws:s3:::tm-shuttle-positions",
         "arn:aws:s3:::tm-shuttle-positions/*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": "s3:*",
+      "Resource": [
+        "arn:aws:s3:::tm-gtfs",
+        "arn:aws:s3:::tm-gtfs/*"
       ]
     }
   ]
