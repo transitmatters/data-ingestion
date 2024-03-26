@@ -362,7 +362,7 @@ def update_shuttles():
     last_bus_positions = load_bus_positions()
 
     if not last_bus_positions:
-        return
+        last_bus_positions = []
 
     session = get_session_for_latest_feed()
     shuttle_shapes = get_shuttle_shapes(session)
