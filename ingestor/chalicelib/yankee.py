@@ -230,7 +230,13 @@ def _update_shuttles(last_bus_positions: List[Dict], shuttle_shapes: ShapeDict, 
     headers = {"accept": "application/json", "authorization": f"Bearer {YANKEE_API_KEY}"}
 
     response = requests.get(url, headers=headers)
-    buses = json.loads(response.text)["data"]
+    if response.status_code % 100 != 2:
+        raise Exception(f"Received status code {response.status_code} from Samsara bus API. Body: {response.text}")
+    try:
+        buses = json.loads(response.text)["data"]
+    except Exception:
+        raise Exception(f"Bus response problematic. We received {json}")
+
     print(buses)
     bus_positions = []
 
