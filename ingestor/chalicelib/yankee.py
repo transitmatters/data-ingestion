@@ -103,13 +103,26 @@ def get_shuttle_shapes(
 
 
 def get_session_for_latest_feed() -> Session:
+    s3_client = boto3.client('s3')
+
+    response = s3_client.list_objects_v2(Bucket=BUCKET, Delimiter = '/')
+
+    gtfs_feed_dates_s3 = []
+
+    for prefix in response['CommonPrefixes']:
+        gtfs_feed_dates_s3.append(prefix['Prefix'][:-1])
+
+    gtfs_feed_dates_s3.sort(reverse=True)
+
     s3 = boto3.resource("s3")
     archive = MbtaGtfsArchive(
         local_archive_path=TemporaryDirectory().name,
         s3_bucket=s3.Bucket("tm-gtfs"),
     )
-    latest_feed = archive.get_latest_feed()
-    latest_feed.download_or_build()
+    latest_feed = archive.get_feed_by_key(gtfs_feed_dates_s3[0])
+    if not latest_feed:
+        raise Exception('Unable pull feed from archive for an object that exists in S3 GTFS store')
+    latest_feed.download_from_s3()
     return latest_feed.create_sqlite_session()
 
 
