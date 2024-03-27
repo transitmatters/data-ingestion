@@ -83,7 +83,7 @@
         "update_gtfs": {
           "iam_policy_file": "policy-gtfs.json",
           "lambda_timeout": 900,
-          "lambda_memory_size": 10240,
+          "lambda_memory_size": 1024,
           "max_ebs_size_gb": 10
         },
         "update_ridership": {
@@ -103,7 +103,9 @@
         },
         "update_yankee_shuttles": {
           "iam_policy_file": "policy-yankee.json",
-          "lambda_timeout": 900
+          "lambda_memory_size": 1024,
+          "lambda_timeout": 900,
+          "max_ebs_size_gb": 2
         }
       }
     }
