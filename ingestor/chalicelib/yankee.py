@@ -108,14 +108,8 @@ def get_session_for_latest_feed() -> Session:
         local_archive_path=TemporaryDirectory().name,
         s3_bucket=s3.Bucket("tm-gtfs"),
     )
-    feeds = archive.get_all_feeds()
-    if not feeds:
-        raise Exception("Failed to get feeds from MBTA list")
-
-    latest_feed = next(feed for feed in reversed(feeds) if feed.exists_remotely)
-    if not latest_feed:
-        raise Exception("Unable to find feeds in S3, aborting")
-    latest_feed.download_from_s3()
+    latest_feed = archive.get_latest_feed()
+    latest_feed.download_or_build()
     return latest_feed.create_sqlite_session()
 
 
@@ -236,7 +230,13 @@ def _update_shuttles(last_bus_positions: List[Dict], shuttle_shapes: ShapeDict, 
     headers = {"accept": "application/json", "authorization": f"Bearer {YANKEE_API_KEY}"}
 
     response = requests.get(url, headers=headers)
-    buses = json.loads(response.text)["data"]
+    if response.status_code % 100 != 2:
+        raise Exception(f"Received status code {response.status_code} from Samsara bus API. Body: {response.text}")
+    try:
+        buses = json.loads(response.text)["data"]
+    except:
+        raise Exception(f"Bus response did not contain data. Instead received {json}")
+
     print(buses)
     bus_positions = []
 
