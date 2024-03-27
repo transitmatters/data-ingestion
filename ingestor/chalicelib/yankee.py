@@ -234,8 +234,8 @@ def _update_shuttles(last_bus_positions: List[Dict], shuttle_shapes: ShapeDict, 
         raise Exception(f"Received status code {response.status_code} from Samsara bus API. Body: {response.text}")
     try:
         buses = json.loads(response.text)["data"]
-    except:
-        raise Exception(f"Bus response did not contain data. Instead received {json}")
+    except Exception:
+        raise Exception(f"Bus response problematic. We received {json}")
 
     print(buses)
     bus_positions = []
