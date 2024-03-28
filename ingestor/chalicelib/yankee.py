@@ -375,4 +375,3 @@ def update_shuttles():
     shuttle_stops = get_shuttle_stops(session)
 
     _update_shuttles(last_bus_positions, shuttle_shapes, shuttle_stops)
-
