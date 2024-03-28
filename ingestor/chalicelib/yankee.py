@@ -148,7 +148,7 @@ def save_bus_positions(bus_positions: List[dict]):
     now_str = datetime.now().strftime(TIME_FORMAT)
     print(f"{now_str}: saving bus positions")
 
-    s3.upload(BUCKET, KEY, bus_positions, compress=False)
+    s3.upload(BUCKET, KEY, json.dumps(bus_positions), compress=False)
 
 
 def write_traveltimes_to_dynamo(travel_times: List[Optional[ShuttleTravelTime]]):
