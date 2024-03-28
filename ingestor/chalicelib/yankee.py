@@ -89,6 +89,8 @@ def get_shuttle_shapes(
             print(f"Unable to fetch route patttern for route id {route_pattern.route_id}")
             continue
 
+        print(f"Getting shapes for {route_pattern.route_id}")
+
         shape_points = (
             session.query(ShapePoint)
             .filter(ShapePoint.shape_id == representative_trip.shape_id)
@@ -220,6 +222,7 @@ def get_driving_distance(old_coords: Tuple[float, float], new_coords: Tuple[floa
 
     return float(response_json["routes"][0]["distance"]) * METERS_PER_MILE
 
+
 # TODO: this function is doing too much, trying to make it chill
 @tracer.wrap()
 def _update_shuttles(last_bus_positions: List[Dict], shuttle_shapes: ShapeDict, shuttle_stops: List[Stop]):
@@ -314,7 +317,7 @@ def maybe_create_travel_time(
 ):
     # don't write travel times with no start date
     if last_update_date is None:
-        print(f'Position of bus {name} on {route_id} from {last_detected_stop_id} to {detected_stop_id} had no last update date, cannot create travel time');
+        print(f'Position of bus {name} on {route_id} from {last_detected_stop_id} to {detected_stop_id} had no last update date, cannot create travel time')
         return None
 
     last_update_datetime = datetime.strptime(last_update_date, TIME_FORMAT)
