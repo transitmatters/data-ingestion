@@ -223,6 +223,7 @@ def get_driving_distance(old_coords: Tuple[float, float], new_coords: Tuple[floa
     return float(response_json["routes"][0]["distance"]) * METERS_PER_MILE
 
 
+# TODO: this function is doing too much, trying to make it chill
 @tracer.wrap()
 def _update_shuttles(last_bus_positions: List[Dict], shuttle_shapes: ShapeDict, shuttle_stops: List[Stop]):
     url = "https://api.samsara.com/fleet/vehicles/locations"
@@ -260,7 +261,6 @@ def _update_shuttles(last_bus_positions: List[Dict], shuttle_shapes: ShapeDict, 
                 break
 
         if detected_route is None:
-            print(f"Bus {name} at coordinates ({long}, {lat}) not detected on any route")
             continue
 
         last_detected_stop_id = -1
@@ -281,12 +281,11 @@ def _update_shuttles(last_bus_positions: List[Dict], shuttle_shapes: ShapeDict, 
         if detected_stop_id == -1:
             detected_stop_id = last_detected_stop_id
 
-        update_date = last_update_date
         # here, we've had the bus arrive at a new stop!
         if detected_stop_id != last_detected_stop_id and last_detected_stop_id != -1:
             # insert into table
             print(f"Bus {name} arrived at stop {detected_stop_id} from stop {last_detected_stop_id}")
-            travel_time = create_travel_time(
+            travel_time = maybe_create_travel_time(
                 name, detected_route, last_detected_stop_id, detected_stop_id, last_update_date, shuttle_stops
             )
             travel_times.append(travel_time)
@@ -299,7 +298,7 @@ def _update_shuttles(last_bus_positions: List[Dict], shuttle_shapes: ShapeDict, 
                 "longitude": long,
                 "detected_route": detected_route,
                 "detected_stop_id": detected_stop_id,
-                "last_update_date": update_date,
+                "last_update_date": datetime.now(),
             }
         )
 
@@ -308,7 +307,7 @@ def _update_shuttles(last_bus_positions: List[Dict], shuttle_shapes: ShapeDict, 
     return bus_positions
 
 
-def create_travel_time(
+def maybe_create_travel_time(
     name: str,
     route_id: str,
     last_detected_stop_id: int,
@@ -318,7 +317,10 @@ def create_travel_time(
 ):
     # don't write travel times with no start date
     if last_update_date is None:
-        return
+        print(
+            f"Position of bus {name} on {route_id} from {last_detected_stop_id} to {detected_stop_id} had no last update date, cannot create travel time"
+        )
+        return None
 
     last_update_datetime = datetime.strptime(last_update_date, TIME_FORMAT)
     update_datetime = datetime.now()
@@ -374,6 +376,4 @@ def update_shuttles():
     shuttle_shapes = get_shuttle_shapes(session)
     shuttle_stops = get_shuttle_stops(session)
 
-    updated_positions = _update_shuttles(last_bus_positions, shuttle_shapes, shuttle_stops)
-
-    save_bus_positions(updated_positions)
+    _update_shuttles(last_bus_positions, shuttle_shapes, shuttle_stops)
