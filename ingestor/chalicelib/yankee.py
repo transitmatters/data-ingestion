@@ -317,7 +317,9 @@ def maybe_create_travel_time(
 ):
     # don't write travel times with no start date
     if last_update_date is None:
-        print(f'Position of bus {name} on {route_id} from {last_detected_stop_id} to {detected_stop_id} had no last update date, cannot create travel time')
+        print(
+            f"Position of bus {name} on {route_id} from {last_detected_stop_id} to {detected_stop_id} had no last update date, cannot create travel time"
+        )
         return None
 
     last_update_datetime = datetime.strptime(last_update_date, TIME_FORMAT)
