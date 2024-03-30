@@ -54,6 +54,7 @@ class ShuttleTravelTime:
     # yankee's identifier for the bus that made the trip
     name: str
 
+
 @dataclass(frozen=True)
 class ShuttlePosition:
     name: str
@@ -62,6 +63,7 @@ class ShuttlePosition:
     detected_route: str
     detected_stop_id: str
     last_update_date: str
+
 
 def load_bus_positions() -> Dict[str, ShuttlePosition]:
     ret = {}
@@ -80,17 +82,23 @@ def load_bus_positions() -> Dict[str, ShuttlePosition]:
 
     return ret
 
+
 def get_shuttle_stops(session: Session) -> List[Stop]:
     return session.query(Stop).filter(Stop.platform_name.contains("Shuttle")).all()
+
 
 def get_stop_in_radius(coords: Coords, session: Session) -> Optional[Stop]:
     result: List[Stop] = []
 
     distance_fn = lambda s: distance.geodesic((s.stop_lon, s.stop_lat), coords) <= STOP_RADIUS_MILES
     try:
-        result = session.query(Stop).filter(
-            Stop.platform_name.contains("Shuttle"),
-        ).all()
+        result = (
+            session.query(Stop)
+            .filter(
+                Stop.platform_name.contains("Shuttle"),
+            )
+            .all()
+        )
 
         result: List[Stop] = list(filter(distance_fn, result))
     except Exception as e:
@@ -103,22 +111,22 @@ def get_stop_in_radius(coords: Coords, session: Session) -> Optional[Stop]:
 
     return sorted(result, key=distance_fn)[0]
 
+
 def get_stop_by_id(session: Session, stop_id: Optional[str]):
     if stop_id is None:
         return None
 
     result = None
     try:
-        result = session.query(Stop).filter(
-            Stop.stop_id == stop_id
-        ).first()
+        result = session.query(Stop).filter(Stop.stop_id == stop_id).first()
     except Exception:
         print(f"Failed to find stop with ID {stop_id}")
 
     return result
 
+
 # TODO(rudiejd): Make types for the yankee API response
-def query_yankee_bus_api(): 
+def query_yankee_bus_api():
     headers = {"accept": "application/json", "authorization": f"Bearer {YANKEE_API_KEY}"}
 
     response = requests.get(YANKEE_BUS_API, headers=headers)
@@ -129,7 +137,6 @@ def query_yankee_bus_api():
         return buses
     except Exception:
         raise Exception(f"Bus response problematic. We received {json}")
-
 
 
 def get_shuttle_shapes(
@@ -306,6 +313,7 @@ def get_driving_distance(old_coords: Tuple[float, float], new_coords: Tuple[floa
 
     return float(response_json["routes"][0]["distance"]) * METERS_PER_MILE
 
+
 # TODO: this function is doing too much, trying to make it chill
 @tracer.wrap()
 def _update_shuttles(last_bus_positions: Dict[str, ShuttlePosition], shuttle_shapes: ShapeDict, session: Session):
@@ -350,23 +358,19 @@ def _update_shuttles(last_bus_positions: Dict[str, ShuttlePosition], shuttle_sha
         print(f"Bus {name} is at stop {detected_stop.stop_name}!")
 
         # here, we've had the bus arrive at a new stop!
-        if last_detected_pos != None and last_detected_pos.detected_stop_id != detected_stop:
+        if last_detected_pos is not None and last_detected_pos.detected_stop_id != detected_stop:
             # insert into table
             print(f"Bus {name} arrived at stop {detected_stop} from stop {last_detected_pos.detected_stop_id}")
             last_detected_stop = get_stop_by_id(session, last_detected_pos.detected_stop_id)
             travel_time = maybe_create_travel_time(
-                name, detected_route, last_detected_stop, detected_stop, last_detected_pos.last_update_date 
+                name, detected_route, last_detected_stop, detected_stop, last_detected_pos.last_update_date
             )
             if travel_time:
                 travel_times.append(travel_time)
 
-
-        bus_positions[name] = ShuttlePosition(name, 
-                                lat, 
-                                long, 
-                                detected_route, 
-                                detected_stop.stop_id, 
-                                datetime.now().strftime(TIME_FORMAT))
+        bus_positions[name] = ShuttlePosition(
+            name, lat, long, detected_route, detected_stop.stop_id, datetime.now().strftime(TIME_FORMAT)
+        )
 
     write_traveltimes_to_dynamo(travel_times)
 
@@ -398,23 +402,29 @@ def maybe_create_travel_time(
         return None
 
     # TODO(rudiejd) maybe precompute the stop distances for all the shuttle lines?
-    dist = get_driving_distance((last_detected_stop.stop_lon, last_detected_stop.stop_lat), (detected_stop.stop_lon, detected_stop.stop_lat))
+    dist = get_driving_distance(
+        (last_detected_stop.stop_lon, last_detected_stop.stop_lat), (detected_stop.stop_lon, detected_stop.stop_lat)
+    )
 
     if dist is None:
-        print(f"Unable calculate driving distnance for stops {last_detected_stop.id}, {detected_stop.stop_id} ({last_detected_stop.stop_name} to {detected_stop.stop_name})")
+        print(
+            f"Unable calculate driving distnance for stops {last_detected_stop.id}, {detected_stop.stop_id} ({last_detected_stop.stop_name} to {detected_stop.stop_name})"
+        )
         return None
     # total time in minutes
     time_minutes = (update_datetime - last_update_datetime).total_seconds() // 60
 
-    return ShuttleTravelTime(SHUTTLE_LINE, 
-                             route_id, 
-                             datetime.today().strftime("%Y-%m-%d"), 
-                             # cover your eyes
-                             Decimal(str(round(dist, 2))), 
-                             Decimal(str(round(time_minutes, 2))), 
-                             last_detected_stop.stop_id,
-                             detected_stop.stop_id,
-                             name)
+    return ShuttleTravelTime(
+        SHUTTLE_LINE,
+        route_id,
+        datetime.today().strftime("%Y-%m-%d"),
+        # cover your eyes
+        Decimal(str(round(dist, 2))),
+        Decimal(str(round(time_minutes, 2))),
+        last_detected_stop.stop_id,
+        detected_stop.stop_id,
+        name,
+    )
 
 
 def update_shuttles():
@@ -438,4 +448,3 @@ def update_shuttles():
     last_bus_positions = _update_shuttles(last_bus_positions, shuttle_shapes, session)
 
     save_bus_positions(last_bus_positions)
-
