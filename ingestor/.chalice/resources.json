@@ -601,7 +601,41 @@
         ],
         "KeySchema": [
           {
-            "AttributeName": "routeId",
+            "AttributeName": "name",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "date",
+            "KeyType": "RANGE"
+          }
+
+        ],
+        "BillingMode": "PAY_PER_REQUEST",
+        "Tags": [
+          {
+            "Key": "service",
+            "Value": "t-performance-dash"
+          }
+        ]
+      }
+    },
+    "ShuttleTravelTimesNew": {
+      "Type": "AWS::DynamoDB::Table",
+      "Properties": {
+        "TableName": "ShuttleTravelTimesNew",
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "name",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "date",
+            "AttributeType": "S"
+          }
+        ],
+        "KeySchema": [
+          {
+            "AttributeName": "name",
             "KeyType": "HASH"
           },
           {

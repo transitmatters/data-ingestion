@@ -31,7 +31,7 @@ METERS_PER_MILE = 0.000621371
 SHUTTLE_PREFIX = "Shuttle"
 STOP_RADIUS_MILES = 0.1
 TIME_FORMAT = "%Y-%m-%d-%H:%M:%S"
-SHUTTLE_TRAVELTIME_TABLE = "ShuttleTravelTimes"
+SHUTTLE_TRAVELTIME_TABLE = "ShuttleTravelTimesNew"
 # hardcoding this for now to avoid messing with the data dashboard
 SHUTTLE_LINE = "line-shuttle"
 
@@ -145,7 +145,6 @@ def get_shuttle_shapes(
     route_patterns = (
         session.query(RoutePattern)
         .filter(
-            RoutePattern.route_pattern_typicality == RoutePatternTypicality.DIVERSION,
             RoutePattern.route_pattern_id.startswith(SHUTTLE_PREFIX),
         )
         .all()
@@ -246,7 +245,13 @@ def write_traveltimes_to_dynamo(travel_times: List[ShuttleTravelTime]):
     row_dicts = list(map(lambda pos: pos.__dict__, travel_times))
 
     print(f"Writing {len(row_dicts)} travel times to dynamo")
-    dynamo.dynamo_batch_write(row_dicts, SHUTTLE_TRAVELTIME_TABLE)
+    try:
+        dynamo.dynamo_batch_write(row_dicts, SHUTTLE_TRAVELTIME_TABLE)
+    except Exception as e:
+        print(f"Encountered error {e} writing to dynamo with these travel times:")
+        for travel_time in travel_times:
+            print(travel_time.__dict__)
+
     print("Finished writing to dynamo")
 
 
@@ -358,9 +363,9 @@ def _update_shuttles(last_bus_positions: Dict[str, ShuttlePosition], shuttle_sha
         print(f"Bus {name} is at stop {detected_stop.stop_name}!")
 
         # here, we've had the bus arrive at a new stop!
-        if last_detected_pos is not None and last_detected_pos.detected_stop_id != detected_stop:
+        if last_detected_pos is not None and last_detected_pos.detected_stop_id != detected_stop.stop_id:
             # insert into table
-            print(f"Bus {name} arrived at stop {detected_stop} from stop {last_detected_pos.detected_stop_id}")
+            print(f"Bus {name} arrived at stop {detected_stop.stop_id} from stop {last_detected_pos.detected_stop_id}")
             last_detected_stop = get_stop_by_id(session, last_detected_pos.detected_stop_id)
             travel_time = maybe_create_travel_time(
                 name, detected_route, last_detected_stop, detected_stop, last_detected_pos.last_update_date
@@ -412,12 +417,13 @@ def maybe_create_travel_time(
         )
         return None
     # total time in minutes
-    time_minutes = (update_datetime - last_update_datetime).total_seconds() // 60
+    time_minutes = (update_datetime - last_update_datetime).total_seconds() / 60
 
-    return ShuttleTravelTime(
+
+    ret = ShuttleTravelTime(
         SHUTTLE_LINE,
         route_id,
-        datetime.today().strftime("%Y-%m-%d"),
+        datetime.today().strftime(TIME_FORMAT),
         # cover your eyes
         Decimal(str(round(dist, 2))),
         Decimal(str(round(time_minutes, 2))),
@@ -425,6 +431,9 @@ def maybe_create_travel_time(
         detected_stop.stop_id,
         name,
     )
+
+    print(ret.__dict__)
+    return ret
 
 
 def update_shuttles():
