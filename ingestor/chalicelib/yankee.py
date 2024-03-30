@@ -11,6 +11,7 @@ from ddtrace import tracer
 from dataclasses import dataclass
 from chalicelib import dynamo, s3
 from decimal import Decimal
+import copy
 
 from typing import List
 from sqlalchemy.orm import Session
@@ -62,10 +63,14 @@ class ShuttlePosition:
     detected_stop_id: str
     last_update_date: str
 
-def load_bus_positions() -> Optional[List[ShuttlePosition]]:
+def load_bus_positions() -> Dict[str, ShuttlePosition]:
+    ret = {}
     try:
         data = s3.download(BUCKET, KEY, compressed=False)
-        return json.loads(data, object_hook=lambda pos: ShuttlePosition(**pos))
+        data_as_classes: List[ShuttlePosition] = json.loads(data, object_hook=lambda pos: ShuttlePosition(**pos))
+        ret = {}
+        for cl in data_as_classes:
+            ret[cl.name] = cl
     except ClientError as ex:
         if ex.response["Error"]["Code"] != "NoSuchKey":
             raise
@@ -73,6 +78,7 @@ def load_bus_positions() -> Optional[List[ShuttlePosition]]:
         print("Failed to get last shuttle positions")
         raise
 
+    return ret
 
 def get_shuttle_stops(session: Session) -> List[Stop]:
     return session.query(Stop).filter(Stop.platform_name.contains("Shuttle")).all()
@@ -220,11 +226,11 @@ def is_in_shape(coords: Tuple[float, float], shape: List[ShapePoint]):
     return in_shape
 
 
-def save_bus_positions(bus_positions: List[ShuttlePosition]):
+def save_bus_positions(bus_positions: Dict[str, ShuttlePosition]):
     now_str = datetime.now().strftime(TIME_FORMAT)
     print(f"{now_str}: saving bus positions")
 
-    bus_positions_dicts = list(map(lambda pos: pos.__dict__, bus_positions))
+    bus_positions_dicts = list(map(lambda pos: pos.__dict__, list(bus_positions.values())))
 
     s3.upload(BUCKET, KEY, json.dumps(bus_positions_dicts), compress=False)
 
@@ -300,13 +306,12 @@ def get_driving_distance(old_coords: Tuple[float, float], new_coords: Tuple[floa
 
     return float(response_json["routes"][0]["distance"]) * METERS_PER_MILE
 
-
 # TODO: this function is doing too much, trying to make it chill
 @tracer.wrap()
-def _update_shuttles(last_bus_positions: List[ShuttlePosition], shuttle_shapes: ShapeDict, session: Session):
+def _update_shuttles(last_bus_positions: Dict[str, ShuttlePosition], shuttle_shapes: ShapeDict, session: Session):
     buses = query_yankee_bus_api()
 
-    bus_positions: List[ShuttlePosition] = []
+    bus_positions: Dict[str, ShuttlePosition] = copy.deepcopy(last_bus_positions)
     travel_times: List[ShuttleTravelTime] = []
 
     for bus in buses:
@@ -335,13 +340,7 @@ def _update_shuttles(last_bus_positions: List[ShuttlePosition], shuttle_shapes: 
 
         print(f"Detected bus {name} on route {detected_route} at {long}, {lat}")
 
-        last_detected_stop_id = None
-        last_update_date = None
-
-        for pos in last_bus_positions:
-            if pos.name == name:
-                last_detected_stop_id = pos.detected_stop_id
-                last_update_date = pos.last_update_date
+        last_detected_pos = last_bus_positions.get(name, None)
 
         detected_stop: Optional[Stop] = get_stop_in_radius(coords, session)
 
@@ -351,25 +350,23 @@ def _update_shuttles(last_bus_positions: List[ShuttlePosition], shuttle_shapes: 
         print(f"Bus {name} is at stop {detected_stop.stop_name}!")
 
         # here, we've had the bus arrive at a new stop!
-        if detected_stop.stop_id != last_detected_stop_id and last_detected_stop_id != None:
+        if last_detected_pos != None and last_detected_pos.detected_stop_id != detected_stop:
             # insert into table
-            print(f"Bus {name} arrived at stop {detected_stop} from stop {last_detected_stop_id}")
-            last_detected_stop = get_stop_by_id(session, last_detected_stop_id)
+            print(f"Bus {name} arrived at stop {detected_stop} from stop {last_detected_pos.detected_stop_id}")
+            last_detected_stop = get_stop_by_id(session, last_detected_pos.detected_stop_id)
             travel_time = maybe_create_travel_time(
-                name, detected_route, last_detected_stop, detected_stop, last_update_date 
+                name, detected_route, last_detected_stop, detected_stop, last_detected_pos.last_update_date 
             )
             if travel_time:
                 travel_times.append(travel_time)
 
 
-        # Only save the position when it's at a stop
-        bus_positions.append(
-            ShuttlePosition(name, 
-                            lat, 
-                            long, 
-                            detected_route, 
-                            detected_stop.stop_id, 
-                            datetime.now().strftime(TIME_FORMAT)))
+        bus_positions[name] = ShuttlePosition(name, 
+                                lat, 
+                                long, 
+                                detected_route, 
+                                detected_stop.stop_id, 
+                                datetime.now().strftime(TIME_FORMAT))
 
     write_traveltimes_to_dynamo(travel_times)
 
@@ -431,9 +428,6 @@ def update_shuttles():
     detected.
     """
     last_bus_positions = load_bus_positions()
-
-    if not last_bus_positions:
-        last_bus_positions = []
 
     session = get_session_for_latest_feed()
 
