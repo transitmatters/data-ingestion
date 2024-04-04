@@ -14,7 +14,7 @@ LAMP_INDEX_URL = "https://performancedata.mbta.com/lamp/subway-on-time-performan
 RAPID_DAILY_URL_TEMPLATE = "https://performancedata.mbta.com/lamp/subway-on-time-performance-v1/{YYYY_MM_DD}-subway-on-time-performance-v1.parquet"
 S3_BUCKET = "datadashboard-backend-beta"
 # month and day are not zero-padded
-S3_KEY_TEMPLATE = "Events/daily-data/{stop_id}/Year={YYYY}/Month={_M}/Day={_D}/events.csv"
+S3_KEY_TEMPLATE = "Events/rapid-data/{stop_id}/Year={YYYY}/Month={_M}/Day={_D}/events.csv"
 EASTERN_TIME = "US/Eastern"
 
 # LAMP columns to fetch from parquet files
@@ -108,8 +108,8 @@ def upload_to_s3(stop_id_and_events: Tuple[str, pd.DataFrame], service_date: dat
 
     # Upload to s3 as csv
     s3_key = S3_KEY_TEMPLATE.format(stop_id=stop_id, YYYY=service_date.year, _M=service_date.month, _D=service_date.day)
-    # s3.upload_df_as_csv(S3_BUCKET, s3_key, stop_events)
-    _local_save(S3_BUCKET, s3_key, stop_events)
+    s3.upload_df_as_csv(S3_BUCKET, s3_key, stop_events)
+    # _local_save(S3_BUCKET, s3_key, stop_events)
     return [True]
 
 
