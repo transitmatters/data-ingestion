@@ -15,6 +15,8 @@ echo "Deploying version $GIT_VERSION | $GIT_SHA"
 
 # Adding some datadog tags to get better data
 DD_TAGS="git.commit.sha:$GIT_SHA,git.repository_url:github.com/transitmatters/data-ingestion"
+DD_GIT_REPOSITORY_URL="github.com/transitmatters/data-ingestion"
+DD_GIT_COMMIT_SHA="$GIT_SHA"
 
 poetry export -f requirements.txt --output ingestor/requirements.txt --without-hashes
 

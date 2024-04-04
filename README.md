@@ -7,6 +7,8 @@ So far we have:
 - Store MBTA Alerts data daily.
 - Store number of trips with new trains on Orange and Red line daily.
 - Store Bluebikes station status data every 5 min.
+- Store ridership data
+- Process and store speed restrictions
 
 To add a new lambda function, put the methods you need in a new file in chalicelib/.
 Then add your trigger in app.py.
