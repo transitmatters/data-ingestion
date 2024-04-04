@@ -63,8 +63,7 @@ def _service_date(ts: datetime) -> date:
     return date(prior.year, prior.month, prior.day)
 
 
-def fetch_pq_file_from_remote(time_args: datetime) -> pd.DataFrame:
-    service_date = _service_date(time_args)
+def fetch_pq_file_from_remote(service_date: date) -> pd.DataFrame:
     url = RAPID_DAILY_URL_TEMPLATE.format(YYYY_MM_DD=service_date.strftime("%Y-%m-%d"))
     result = requests.get(url)
     return pd.read_parquet(io.BytesIO(result.content), columns=INPUT_COLUMNS, engine="pyarrow")
@@ -72,47 +71,56 @@ def fetch_pq_file_from_remote(time_args: datetime) -> pd.DataFrame:
 
 def ingest_pq_file(pq_df: pd.DataFrame) -> pd.DataFrame:
     """Process and tranform columns for the full day's events."""
-    # NB: We can trust df dtypes fetched from parquet files as the files are compressed with columnar metadata
+    # NB: While generally, we can trust df dtypes fetched from parquet files as the files are compressed with columnar metadata,
+    # theres some numerical imprecisions that numpy seem to be throwing on M1 machines
+    # that are affecting how epoch timestamps are being cased to datetimes. Maybe not a problem on the AWS machines, though?
     pq_df["dep_time"] = pd.to_datetime(pq_df["move_timestamp"], unit="s", utc=True).dt.tz_convert("US/Eastern")
     pq_df["arr_time"] = pd.to_datetime(pq_df["stop_timestamp"], unit="s", utc=True).dt.tz_convert("US/Eastern")
     pq_df["direction_id"] = pq_df["direction_id"].astype("int16")
     pq_df["service_date"] = pq_df["service_date"].apply(_format_dateint)
 
-    # explode and stack dep and arr time
-    arrivals_df = pq_df[pq_df["arr_time"].notna()]
-    departures_df = pq_df[pq_df["dep_time"].notna()]
-    arrivals_df["event_type"] = "ARR"
-    arrivals_df["event_time"] = arrivals_df["arr_time"]
-    departures_df["event_type"] = "DEP"
-    departures_df["event_time"] = departures_df["dep_time"]
+    # explode and stack departure and arrival times
+    arr_df = pq_df[pq_df["arr_time"].notna()]
+    arr_df = arr_df.assign(event_type="ARR").rename(columns={"arr_time": "event_time"}).drop(columns=["dep_time"])
+    dep_df = pq_df[pq_df["dep_time"].notna()]
+    dep_df = dep_df.assign(event_type="DEP").rename(columns={"dep_time": "event_time"}).drop(columns=["arr_time"])
 
     # stitch together arrivals and departures
-    processed_daily_events = pd.concat([arrivals_df, departures_df])
+    # TODO: sort by event_time?
+    processed_daily_events = pd.concat([arr_df, dep_df])
 
     # drop intermediate inference columns
     return processed_daily_events[OUTPUT_COLUMNS]
 
 
-def make_s3_key(stop_id: str, time_args: datetime) -> str:
-    service_date = _service_date(time_args)
-    return S3_KEY_TEMPLATE.format(stop_id=stop_id, YYYY=service_date.year, _M=service_date.month, _D=service_date.day)
+def _local_save(S3_BUCKET, s3_key, stop_events):
+    import os
+
+    s3_key = ".temp/" + s3_key
+    if not os.path.exists(os.path.dirname(s3_key)):
+        os.makedirs(os.path.dirname(s3_key))
+    stop_events.to_csv(s3_key)
 
 
-def upload_to_s3(stop_id_and_events: Tuple[str, pd.DataFrame], time_args: datetime) -> None:
+def upload_to_s3(stop_id_and_events: Tuple[str, pd.DataFrame], service_date: date) -> None:
+    # unpack from iterable
     stop_id, stop_events = stop_id_and_events
-    s3_key = make_s3_key(stop_id, time_args)
-    # Upload s3 as DF
-    print("Want to upload", s3_key)
+
+    # Upload to s3 as csv
+    s3_key = S3_KEY_TEMPLATE.format(stop_id=stop_id, YYYY=service_date.year, _M=service_date.month, _D=service_date.day)
     # s3.upload_df_as_csv(S3_BUCKET, s3_key, stop_events)
+    _local_save(S3_BUCKET, s3_key, stop_events)
+    return [True]
 
 
 _parallel_upload = make_parallel(upload_to_s3)
 
 if __name__ == "__main__":
     time_args = None or datetime.now(ZoneInfo(EASTERN_TIME))
-    pq_df = fetch_pq_file_from_remote(time_args)
+    service_date = _service_date(time_args)
+    pq_df = fetch_pq_file_from_remote(service_date)
     processed_daily_events = ingest_pq_file(pq_df)
 
     # split daily events by stop_id and parallel upload to s3
     stop_event_groups = processed_daily_events.groupby("stop_id")
-    _parallel_upload(stop_event_groups, time_args)
+    a = _parallel_upload(stop_event_groups, service_date)
