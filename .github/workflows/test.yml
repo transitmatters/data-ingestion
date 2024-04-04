@@ -11,13 +11,10 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.12']
+        python-version: ["3.11"]
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
-      - name: Set up empty local config
-        run: |
-          cp ./config/template.json ./config/local.json
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
