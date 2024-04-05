@@ -2,12 +2,10 @@ from datetime import date
 import io
 from typing import Tuple
 import requests
-from . import utils
-
-from ..parallel import make_parallel
-from .. import s3
-
 import pandas as pd
+
+from .utils import format_dateint, get_current_service_date
+from ..parallel import make_parallel
 
 
 LAMP_INDEX_URL = "https://performancedata.mbta.com/lamp/subway-on-time-performance-v1/index.csv"
@@ -60,7 +58,7 @@ def ingest_pq_file(pq_df: pd.DataFrame) -> pd.DataFrame:
     pq_df["dep_time"] = pd.to_datetime(pq_df["move_timestamp"], unit="s", utc=True).dt.tz_convert("US/Eastern")
     pq_df["arr_time"] = pd.to_datetime(pq_df["stop_timestamp"], unit="s", utc=True).dt.tz_convert("US/Eastern")
     pq_df["direction_id"] = pq_df["direction_id"].astype("int16")
-    pq_df["service_date"] = pq_df["service_date"].apply(utils.format_dateint)
+    pq_df["service_date"] = pq_df["service_date"].apply(format_dateint)
 
     # explode and stack departure and arrival times
     arr_df = pq_df[pq_df["arr_time"].notna()]
@@ -100,7 +98,7 @@ _parallel_upload = make_parallel(upload_to_s3)
 
 
 def ingest_lamp_data():
-    service_date = utils.get_current_service_date()
+    service_date = get_current_service_date()
     pq_df = fetch_pq_file_from_remote(service_date)
     processed_daily_events = ingest_pq_file(pq_df)
 
