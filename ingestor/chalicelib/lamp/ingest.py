@@ -1,12 +1,11 @@
-from datetime import date, datetime
+from datetime import date
 import io
 from typing import Tuple
-from zoneinfo import ZoneInfo
 import requests
-import utils
+from . import utils
 
-from parallel import make_parallel
-import s3
+from ..parallel import make_parallel
+from .. import s3
 
 import pandas as pd
 
@@ -47,25 +46,6 @@ OUTPUT_COLUMNS = [
 ]
 
 
-def download_lamp_file(date: datetime.date):
-    """
-    LAMP (Lightweight Application for Measuring Performance) is data from the MBTA for system performance.
-
-    Files are parquet files and are made available daily, and updated on a regular schedule.
-
-    Details available at https://performancedata.mbta.com/
-    """
-    url = f"https://performancedata.mbta.com/lamp/subway-on-time-performance-v1/{date.strftime('%Y-%m-%d')}-subway-on-time-performance-v1.parquet"
-
-    response = requests.get(url)
-    if response.status_code == 200:
-        with open(f"{date.strftime('%Y-%m-%d')}-subway-on-time-performance-v1.parquet", "wb") as file:
-            file.write(response.content)
-        print("File downloaded successfully.")
-    else:
-        print("Failed to download file.")
-
-
 def fetch_pq_file_from_remote(service_date: date) -> pd.DataFrame:
     url = RAPID_DAILY_URL_TEMPLATE.format(YYYY_MM_DD=service_date.strftime("%Y-%m-%d"))
     result = requests.get(url)
@@ -96,7 +76,7 @@ def ingest_pq_file(pq_df: pd.DataFrame) -> pd.DataFrame:
     return processed_daily_events[OUTPUT_COLUMNS]
 
 
-def _local_save(S3_BUCKET, s3_key, stop_events):
+def _local_save(s3_key, stop_events):
     import os
 
     s3_key = ".temp/" + s3_key
@@ -111,8 +91,8 @@ def upload_to_s3(stop_id_and_events: Tuple[str, pd.DataFrame], service_date: dat
 
     # Upload to s3 as csv
     s3_key = S3_KEY_TEMPLATE.format(stop_id=stop_id, YYYY=service_date.year, _M=service_date.month, _D=service_date.day)
-    s3.upload_df_as_csv(S3_BUCKET, s3_key, stop_events)
-    # _local_save(S3_BUCKET, s3_key, stop_events)
+    # s3.upload_df_as_csv(S3_BUCKET, s3_key, stop_events)
+    _local_save(s3_key, stop_events)
     return [True]
 
 
@@ -120,12 +100,7 @@ _parallel_upload = make_parallel(upload_to_s3)
 
 
 def ingest_lamp_data():
-    # download today's file
-    download_lamp_file(utils.get_current_service_date())
-
-    # process it
-    time_args = None or datetime.now(ZoneInfo(utils.EASTERN_TIME))
-    service_date = utils.service_date(time_args)
+    service_date = utils.get_current_service_date()
     pq_df = fetch_pq_file_from_remote(service_date)
     processed_daily_events = ingest_pq_file(pq_df)
 
