@@ -18,3 +18,8 @@ def service_date(ts: datetime) -> date:
 
 def get_current_service_date() -> date:
     return service_date(datetime.now(EASTERN_TIME))
+
+
+def format_dateint(dtint: int) -> str:
+    """Safely takes a dateint of YYYYMMDD to YYYY-MM-DD."""
+    return datetime.strptime(str(dtint), "%Y%m%d").strftime("%Y-%m-%d")
