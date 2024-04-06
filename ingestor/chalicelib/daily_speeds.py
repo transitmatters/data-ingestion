@@ -1,4 +1,4 @@
-from datetime import timedelta, datetime
+from datetime import date, timedelta, datetime
 from decimal import Decimal
 import json
 from urllib.parse import urlencode
@@ -56,10 +56,15 @@ def send_requests(api_requests):
     return speed_object
 
 
-def format_tt_objects(speed_objects, route_metadata, line, route, expected_num_entries, date_range):
+def format_tt_objects(
+    speed_objects, route_metadata, line: str, route: str | None, expected_num_entries, date_range: list[str]
+):
     """Remove invalid entries and format for Dynamo."""
     formatted_speed_objects = []
-    route_name = f"{line}-{route}"
+    if route:
+        route_name = f"{line}-{route}"
+    else:
+        route_name = line
 
     for current_date in date_range:
         metrics = speed_objects.get(current_date)
@@ -82,8 +87,8 @@ def format_tt_objects(speed_objects, route_metadata, line, route, expected_num_e
     return formatted_speed_objects
 
 
-def get_date_range_strings(start_date, end_date):
-    date_range = []
+def get_date_range_strings(start_date: date, end_date: date):
+    date_range: list[str] = []
     current_date = start_date
     while current_date <= end_date:
         date_range.append(current_date.strftime("%Y-%m-%d"))
@@ -91,10 +96,10 @@ def get_date_range_strings(start_date, end_date):
     return date_range
 
 
-def populate_daily_table(start_date, end_date, line, route):
+def populate_daily_table(start_date: datetime, end_date: datetime, line: str, route: str | None):
     """Populate DeliveredTripMetrics table. Calculates median TTs and trip counts for all days between start and end dates."""
     print(f"populating DeliveredTripMetrics for Line/Route: {line}/{route if route else '(no-route)'}")
-    current_date = start_date
+    current_date = start_date.date()
     delta = timedelta(days=180)
     speed_objects = []
     while current_date < end_date:
@@ -121,17 +126,26 @@ def populate_daily_table(start_date, end_date, line, route):
         print("Done")
 
 
-def update_daily_table(date):
+def update_daily_table(date: date):
     """Update DailySpeed table"""
     speed_objects = []
     for route in constants.ALL_ROUTES:
-        route_metadata = constants.get_route_metadata(route[0], date, False, route[1])
+        line = route[0]
+        route = route[1]
+        route_metadata = constants.get_route_metadata(line, date, False, route)
         delta = timedelta(days=1)
-        date_string = datetime.strftime(date, constants.DATE_FORMAT_BACKEND)
-        print(f"Calculating update on [{route[0]}/{route[1] if route[1] else '(no-route)'}] for date: {date_string}")
+        date_string = date.strftime(constants.DATE_FORMAT_BACKEND)
+        print(f"Calculating update on [{line}/{route if route else '(no-route)'}] for date: {date_string}")
         API_requests = get_agg_tt_api_requests(route_metadata["stops"], date, delta)
         speed_object = send_requests(API_requests)
-        formatted_speed_object = format_tt_objects(speed_object, route_metadata, len(API_requests), [date_string])
+        formatted_speed_object = format_tt_objects(
+            speed_object,
+            route_metadata,
+            line,
+            route,
+            len(API_requests),
+            [date_string],
+        )
         if len(formatted_speed_object) == 0:
             print("No data for date {date_string}")
             continue

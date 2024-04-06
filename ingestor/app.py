@@ -15,6 +15,7 @@ from chalicelib import (
     predictions,
     landing,
     trip_metrics,
+    yankee,
 )
 
 app = Chalice(app_name="ingestor")
@@ -73,7 +74,7 @@ def update_delivered_trip_metrics(event):
     """ Update yesterdays entry until 4/5 am (9 AM UTC)"""
     if today.hour < 9:
         today = today - timedelta(days=1)
-    daily_speeds.update_daily_table(today)
+    daily_speeds.update_daily_table(today.date())
 
 
 # 7am UTC -> 2/3am ET
@@ -89,8 +90,10 @@ def update_agg_trip_metrics(event):
 @app.schedule(Cron(0, 12, "*", "*", "?", "*"))
 def update_delivered_trip_metrics_yesterday(event):
     today = datetime.now()
-    daily_speeds.update_daily_table(today - timedelta(days=1))
-    daily_speeds.update_daily_table(today - timedelta(days=2))
+    yesterday = (today - timedelta(days=1)).date()
+    two_days_ago = (today - timedelta(days=2)).date()
+    daily_speeds.update_daily_table(yesterday)
+    daily_speeds.update_daily_table(two_days_ago)
 
 
 # 7am UTC -> 2/3am ET
@@ -137,7 +140,7 @@ def populate_delivered_trip_metrics(params, context):
 @app.lambda_function()
 def populate_agg_delivered_trip_metrics(params, context):
     for line in constants.LINES:
-        print(line)
+        print(f"Populating monthly and weekly aggregate trip metrics for {line}")
         agg_speed_tables.populate_table(line, "monthly")
         agg_speed_tables.populate_table(line, "weekly")
 
@@ -152,3 +155,9 @@ def store_landing_data(event):
     ridership_data = landing.get_ridership_data()
     landing.upload_to_s3(json.dumps(trip_metrics_data), json.dumps(ridership_data))
     landing.clear_cache()
+
+
+# Runs every 5 minutes from either 4 AM -> 1:55AM or 5 AM -> 2:55 AM depending on DST
+@app.schedule(Cron("0/5", "0-6,9-23", "*", "*", "?", "*"))
+def update_yankee_shuttles(event):
+    yankee.update_shuttles()

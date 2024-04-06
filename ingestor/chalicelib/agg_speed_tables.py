@@ -55,18 +55,23 @@ def update_tables(range: Range):
     table = constants.TABLE_MAP[range]
     yesterday = datetime.now() - timedelta(days=1)
     for line in constants.LINES:
-        print(f"Updating {line} for {range}")
         start = table["update_start"]
-        trips = actual_trips_by_line(
-            {
-                "start_date": datetime.strftime(start, constants.DATE_FORMAT_BACKEND),
-                "end_date": datetime.strftime(yesterday, constants.DATE_FORMAT_BACKEND),
-                "line": line,
-                "agg": range,
-            }
-        )
-        dynamo.dynamo_batch_write(json.loads(json.dumps(trips), parse_float=Decimal), table["table_name"])
-        print("Done")
+        start_string = datetime.strftime(start, constants.DATE_FORMAT_BACKEND)
+        end_string = datetime.strftime(yesterday, constants.DATE_FORMAT_BACKEND)
+        print(f"Updating {line} for {range} for week of {start_string} to {end_string}")
+        try:
+            trips = actual_trips_by_line(
+                {
+                    "start_date": start_string,
+                    "end_date": end_string,
+                    "line": line,
+                    "agg": range,
+                }
+            )
+            dynamo.dynamo_batch_write(json.loads(json.dumps(trips), parse_float=Decimal), table["table_name"])
+            print("Done")
+        except Exception as e:
+            print(e)
 
 
 def query_daily_trips_on_route(table_name: str, route: str, start_date: str, end_date: str):

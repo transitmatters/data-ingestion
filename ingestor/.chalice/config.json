@@ -12,6 +12,10 @@
         "DD_SERVICE": "ingestor",
         "DD_TRACE_ENABLED": "true"
       },
+      "tags": {
+        "service": "ingestor",
+        "env": "prod"
+      },
       "lambda_functions": {
         "store_yesterday_alerts": {
           "iam_policy_file": "policy-alerts.json"
@@ -52,11 +56,11 @@
         },
         "update_delivered_trip_metrics": {
           "iam_policy_file": "policy-delivered-trip-metrics-daily.json",
-          "lambda_timeout": 90
+          "lambda_timeout": 150
         },
         "update_delivered_trip_metrics_yesterday": {
           "iam_policy_file": "policy-delivered-trip-metrics-daily.json",
-          "lambda_timeout": 90
+          "lambda_timeout": 150
         },
         "update_agg_trip_metrics": {
           "iam_policy_file": "policy-agg-trip-metric-tables.json"
@@ -79,7 +83,7 @@
         "update_gtfs": {
           "iam_policy_file": "policy-gtfs.json",
           "lambda_timeout": 900,
-          "lambda_memory_size": 10240,
+          "lambda_memory_size": 1024,
           "max_ebs_size_gb": 10
         },
         "update_ridership": {
@@ -96,6 +100,12 @@
         "update_time_predictions": {
           "iam_policy_file": "policy-time-predictions.json",
           "lambda_timeout": 300
+        },
+        "update_yankee_shuttles": {
+          "iam_policy_file": "policy-yankee.json",
+          "lambda_memory_size": 1024,
+          "lambda_timeout": 60,
+          "max_ebs_size_gb": 5
         }
       }
     }
