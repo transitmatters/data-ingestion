@@ -121,7 +121,7 @@ def update_time_predictions(event):
 # 4:40am UTC -> 2:40/3:40am ET every day
 @app.schedule(Cron(40, 7, "*", "*", "?", "*"))
 def update_trip_metrics(event):
-    trip_metrics.ingest_trip_metrics_yesterday()
+    trip_metrics.ingest_recent_trip_metrics(lookback_days=7)
 
 
 # Manually triggered lambda for populating daily trip metric tables. Only needs to be ran once.

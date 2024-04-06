@@ -179,7 +179,7 @@ def ingest_trip_metrics(start_date: date, end_date: date):
     dynamo.dynamo_batch_write(row_dicts, "DeliveredTripMetricsExtended")
 
 
-def ingest_trip_metrics_yesterday():
-    today = date.today()
-    yesterday = today - timedelta(days=1)
-    ingest_trip_metrics(yesterday, today)
+def ingest_recent_trip_metrics(lookback_days: int = 1):
+    end = date.today()
+    start = end - timedelta(days=lookback_days)
+    ingest_trip_metrics(start, end)

@@ -1,3 +1,3 @@
-__all__ = ["ingest_trip_metrics_yesterday", "ingest_trip_metrics"]
+__all__ = ["ingest_recent_trip_metrics", "ingest_trip_metrics"]
 
-from .ingest import ingest_trip_metrics_yesterday, ingest_trip_metrics
+from .ingest import ingest_recent_trip_metrics, ingest_trip_metrics
