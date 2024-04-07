@@ -321,6 +321,24 @@
         }
       }
     },
+    "ProcessDailyLamp": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "Environment": {
+          "Variables": {
+            "DD_API_KEY": {
+              "Ref": "DDApiKey"
+            },
+            "DD_VERSION": {
+              "Ref": "GitVersion"
+            },
+            "DD_TAGS": {
+              "Ref": "DDTags"
+            }
+          }
+        }
+      }
+    },
     "DeliveredTripMetricsDB": {
       "Type": "AWS::DynamoDB::Table",
       "Properties": {
@@ -585,7 +603,7 @@
         ]
       }
     },
-  "ShuttleTravelTimes": {
+    "ShuttleTravelTimes": {
       "Type": "AWS::DynamoDB::Table",
       "Properties": {
         "TableName": "ShuttleTravelTimes",
@@ -608,7 +626,6 @@
             "AttributeName": "date",
             "KeyType": "RANGE"
           }
-
         ],
         "BillingMode": "PAY_PER_REQUEST",
         "Tags": [
@@ -623,7 +640,7 @@
       "Type": "AWS::S3::Bucket",
       "DeletionPolicy": "Retain",
       "Properties": {
-          "BucketName": "tm-shuttle-positions"
+        "BucketName": "tm-shuttle-positions"
       }
     }
   }
