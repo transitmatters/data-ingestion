@@ -10,9 +10,9 @@ from ..parallel import make_parallel
 
 LAMP_INDEX_URL = "https://performancedata.mbta.com/lamp/subway-on-time-performance-v1/index.csv"
 RAPID_DAILY_URL_TEMPLATE = "https://performancedata.mbta.com/lamp/subway-on-time-performance-v1/{YYYY_MM_DD}-subway-on-time-performance-v1.parquet"
-S3_BUCKET = "datadashboard-backend-beta"
+S3_BUCKET = "tm-mbta-performance"
 # month and day are not zero-padded
-S3_KEY_TEMPLATE = "Events/daily-data/{stop_id}/Year={YYYY}/Month={_M}/Day={_D}/events.csv"
+S3_KEY_TEMPLATE = "Events-lamp/daily-data/{stop_id}/Year={YYYY}/Month={_M}/Day={_D}/events.csv"
 
 
 # LAMP columns to fetch from parquet files
@@ -42,6 +42,16 @@ OUTPUT_COLUMNS = [
     "event_type",
     "event_time",
 ]
+
+
+def _local_save(s3_key, stop_events):
+    """TODO remove this temp code, it saves the output files locally!"""
+    import os
+
+    s3_key = ".temp/" + s3_key
+    if not os.path.exists(os.path.dirname(s3_key)):
+        os.makedirs(os.path.dirname(s3_key))
+    stop_events.to_csv(s3_key)
 
 
 def _process_arrivals_departure_times(pq_df: pd.DataFrame) -> pd.DataFrame:
@@ -93,6 +103,7 @@ def _process_arrivals_departure_times(pq_df: pd.DataFrame) -> pd.DataFrame:
 
 
 def fetch_pq_file_from_remote(service_date: date) -> pd.DataFrame:
+    """Fetch a parquet file from LAMP for a given service date."""
     # TODO(check if file exists in index, throw if it doesn't)
     url = RAPID_DAILY_URL_TEMPLATE.format(YYYY_MM_DD=service_date.strftime("%Y-%m-%d"))
     result = requests.get(url)
@@ -108,23 +119,15 @@ def ingest_pq_file(pq_df: pd.DataFrame) -> pd.DataFrame:
     return processed_daily_events.sort_values(by=["event_time"])
 
 
-def _local_save(s3_key, stop_events):
-    import os
-
-    s3_key = ".temp/" + s3_key
-    if not os.path.exists(os.path.dirname(s3_key)):
-        os.makedirs(os.path.dirname(s3_key))
-    stop_events.to_csv(s3_key)
-
-
 def upload_to_s3(stop_id_and_events: Tuple[str, pd.DataFrame], service_date: date) -> None:
+    """Upload events to s3 as a .csv file."""
     # unpack from iterable
     stop_id, stop_events = stop_id_and_events
 
     # Upload to s3 as csv
     s3_key = S3_KEY_TEMPLATE.format(stop_id=stop_id, YYYY=service_date.year, _M=service_date.month, _D=service_date.day)
-    # s3.upload_df_as_csv(S3_BUCKET, s3_key, stop_events)
-    _local_save(s3_key, stop_events)
+    # _local_save(s3_key, stop_events)
+    s3.upload_df_as_csv(S3_BUCKET, s3_key, stop_events)
     return [stop_id]
 
 
@@ -132,6 +135,7 @@ _parallel_upload = make_parallel(upload_to_s3)
 
 
 def ingest_lamp_data():
+    """Ingest and upload today's LAMP data."""
     service_date = get_current_service_date()
     pq_df = fetch_pq_file_from_remote(service_date)
     processed_daily_events = ingest_pq_file(pq_df)
