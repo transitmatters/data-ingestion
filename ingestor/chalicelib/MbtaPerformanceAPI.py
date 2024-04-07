@@ -1,5 +1,6 @@
 import json
 import datetime
+import warnings
 import pytz
 import requests
 from urllib.parse import urlencode
@@ -40,6 +41,7 @@ def get_timestamp_range(start_day, end_day=None):
 
 
 def get_single_url(start_day, end_day, module, params):
+    warnings.warn("MBTA performance API calls are deprecated", DeprecationWarning)
     # import api key & set base url
     base_url_v2 = "https://realtime.mbta.com/developer/api/v2.1/{command}?{parameters}"
 
