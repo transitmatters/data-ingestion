@@ -6,6 +6,7 @@ import pandas as pd
 
 from .utils import format_dateint, get_current_service_date
 from ..parallel import make_parallel
+from ..s3 import upload_df_as_csv
 
 
 LAMP_INDEX_URL = "https://performancedata.mbta.com/lamp/subway-on-time-performance-v1/index.csv"
@@ -127,7 +128,7 @@ def upload_to_s3(stop_id_and_events: Tuple[str, pd.DataFrame], service_date: dat
     # Upload to s3 as csv
     s3_key = S3_KEY_TEMPLATE.format(stop_id=stop_id, YYYY=service_date.year, _M=service_date.month, _D=service_date.day)
     # _local_save(s3_key, stop_events)
-    s3.upload_df_as_csv(S3_BUCKET, s3_key, stop_events)
+    upload_df_as_csv(S3_BUCKET, s3_key, stop_events)
     return [stop_id]
 
 
