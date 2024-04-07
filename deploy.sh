@@ -25,13 +25,25 @@ pushd ingestor/
 poetry run chalice package --stage prod --merge-template .chalice/resources.json cfn/
 
 # Shrink the deployment package for the lambda layer https://stackoverflow.com/a/69355796
-zip -d cfn/layer-deployment.zip '*/__pycache__/*'
-zip -d cfn/layer-deployment.zip python/**/*.dist-info/**/*
-zip -d cfn/layer-deployment.zip python/lib/python3.11/site-packages/numpy*/tests/**/*
-zip -d cfn/layer-deployment.zip python/lib/python3.11/site-packages/pandas*/tests/**/*
-zip -d cfn/layer-deployment.zip python/lib/python3.11/site-packages/pyarrow*/tests/**/*
-zip -d cfn/layer-deployment.zip python/lib/python3.11/site-packages/boto3*/**/*
-zip -d cfn/layer-deployment.zip python/lib/python3.11/site-packages/botocore*/**/*
+echo "Shrinking the deployment package for the lambda layer"
+
+zip -d -qq cfn/layer-deployment.zip '*/__pycache__/*'
+zip -d -qq cfn/layer-deployment.zip python/lib/python3.11/site-packages/*.dist-info/**/*
+zip -d -qq cfn/layer-deployment.zip python/lib/python3.11/site-packages/*.dist-info/*
+zip -d -qq cfn/layer-deployment.zip python/lib/python3.11/site-packages/numpy*/tests/**/*
+zip -d -qq cfn/layer-deployment.zip python/lib/python3.11/site-packages/pandas*/tests/**/*
+zip -d -qq cfn/layer-deployment.zip python/lib/python3.11/site-packages/pyarrow*/tests/**/*
+zip -d -qq cfn/layer-deployment.zip python/lib/python3.11/site-packages/boto*/data/**/*
+zip -d -qq cfn/layer-deployment.zip python/lib/python3.11/site-packages/boto*/docs/**/*
+
+# Check package size before deploying
+maximumsize=80000000
+actualsize=$(wc -c <"cfn/layer-deployment.zip")
+if [ $actualsize -ge $maximumsize ]; then
+    echo ""
+    echo "layer-deployment.zip is over $maximumsize bytes. Shrink the package further to be able to deploy"
+    exit 1
+fi
 
 aws cloudformation package --template-file cfn/sam.json --s3-bucket $BUCKET --output-template-file cfn/packaged.yaml
 aws cloudformation deploy --template-file cfn/packaged.yaml --stack-name $STACK_NAME \
