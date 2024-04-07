@@ -23,6 +23,16 @@ poetry export -f requirements.txt --output ingestor/requirements.txt --without-h
 pushd ingestor/
 
 poetry run chalice package --stage prod --merge-template .chalice/resources.json cfn/
+
+# Shrink the deployment package for the lambda layer https://stackoverflow.com/a/69355796
+zip -d cfn/layer-deployment.zip '*/__pycache__/*'
+zip -d cfn/layer-deployment.zip python/**/*.dist-info/**/*
+zip -d cfn/layer-deployment.zip python/lib/python3.11/site-packages/numpy*/tests/**/*
+zip -d cfn/layer-deployment.zip python/lib/python3.11/site-packages/pandas*/tests/**/*
+zip -d cfn/layer-deployment.zip python/lib/python3.11/site-packages/pyarrow*/tests/**/*
+zip -d cfn/layer-deployment.zip python/lib/python3.11/site-packages/boto3*/**/*
+zip -d cfn/layer-deployment.zip python/lib/python3.11/site-packages/botocore*/**/*
+
 aws cloudformation package --template-file cfn/sam.json --s3-bucket $BUCKET --output-template-file cfn/packaged.yaml
 aws cloudformation deploy --template-file cfn/packaged.yaml --stack-name $STACK_NAME \
     --capabilities CAPABILITY_NAMED_IAM --no-fail-on-empty-changeset \
