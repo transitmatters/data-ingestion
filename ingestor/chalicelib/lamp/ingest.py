@@ -116,7 +116,7 @@ def ingest_pq_file(pq_df: pd.DataFrame) -> pd.DataFrame:
     pq_df["direction_id"] = pq_df["direction_id"].astype("int16")
     pq_df["service_date"] = pq_df["service_date"].apply(format_dateint)
 
-    processed_daily_events = _process_arrivals_departure_times(pq_df)
+    processed_daily_events = _process_arrival_departure_times(pq_df)
     return processed_daily_events.sort_values(by=["event_time"])
 
 
