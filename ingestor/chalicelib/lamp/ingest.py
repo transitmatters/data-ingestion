@@ -55,7 +55,7 @@ def _local_save(s3_key, stop_events):
     stop_events.to_csv(s3_key)
 
 
-def _process_arrivals_departure_times(pq_df: pd.DataFrame) -> pd.DataFrame:
+def _process_arrival_departure_times(pq_df: pd.DataFrame) -> pd.DataFrame:
     """Process and collate arrivals and departures for a timetable of events.
 
     Before: TODO add example
