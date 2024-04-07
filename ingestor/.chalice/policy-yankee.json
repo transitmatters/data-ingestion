@@ -15,13 +15,15 @@
       "Effect": "Allow",
       "Resource": [
         "arn:aws:dynamodb:us-east-1:473352343756:table/ShuttleTravelTimes",
-        "arn:aws:dynamodb:us-east-1:473352343756:table/ShuttleTravelTimes"
+        "arn:aws:dynamodb:us-east-1:473352343756:table/ShuttleTravelTimes",
+        "arn:aws:dynamodb:us-east-1:473352343756:table/ShuttleTravelTimesNew",
+        "arn:aws:dynamodb:us-east-1:473352343756:table/ShuttleTravelTimesNew"
       ]
     },
     {
       "Action": ["dynamodb:Query"],
       "Effect": "Allow",
-      "Resource": ["arn:aws:dynamodb:us-east-1:473352343756:table/ShuttleTravelTimes"]
+      "Resource": ["arn:aws:dynamodb:us-east-1:473352343756:table/ShuttleTravelTimes", "arn:aws:dynamodb:us-east-1:473352343756:table/ShuttleTravelTimesNew"]
     },
     {
       "Effect": "Allow",
