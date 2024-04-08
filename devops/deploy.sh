@@ -23,6 +23,22 @@ poetry export -f requirements.txt --output ingestor/requirements.txt --without-h
 pushd ingestor/
 
 poetry run chalice package --stage prod --merge-template .chalice/resources.json cfn/
+
+# Shrink the deployment package for the lambda layer https://stackoverflow.com/a/69355796
+echo "Shrinking the deployment package for the lambda layer"
+
+source ../devops/helpers.sh
+shrink
+
+Check package size before deploying
+maximumsize=79100000
+actualsize=$(wc -c <"cfn/layer-deployment.zip")
+if [ $actualsize -ge $maximumsize ]; then
+    echo ""
+    echo "layer-deployment.zip is over $maximumsize bytes. Shrink the package further to be able to deploy"
+    exit 1
+fi
+
 aws cloudformation package --template-file cfn/sam.json --s3-bucket $BUCKET --output-template-file cfn/packaged.yaml
 aws cloudformation deploy --template-file cfn/packaged.yaml --stack-name $STACK_NAME \
     --capabilities CAPABILITY_NAMED_IAM --no-fail-on-empty-changeset \
