@@ -9,7 +9,6 @@ function shrink {
     zip -d -qq cfn/layer-deployment.zip '**/NOTICE*'
     zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/numpy*/tests/**/*
     zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/pandas*/tests/**/*
-    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/pyarrow*/tests/**/*
     zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/examples/*
     zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/a*/*
     zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/b*/*

@@ -15,7 +15,6 @@ from chalicelib import (
     predictions,
     landing,
     trip_metrics,
-    lamp,
     yankee,
 )
 
@@ -164,9 +163,3 @@ def store_landing_data(event):
 @app.schedule(Cron("0", "0-6,9-23", "*", "*", "?", "*"))
 def update_yankee_shuttles(event):
     yankee.update_shuttles()
-
-
-# Runs every 60 minutes from either 4 AM -> 1:55AM or 5 AM -> 2:55 AM depending on DST
-@app.schedule(Cron("0", "0-6,9-23", "*", "*", "?", "*"))
-def process_daily_lamp(event):
-    lamp.ingest_lamp_data()

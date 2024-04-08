@@ -106,11 +106,6 @@
           "lambda_memory_size": 1024,
           "lambda_timeout": 60,
           "max_ebs_size_gb": 2
-        },
-        "process_daily_lamp": {
-          "iam_policy_file": "policy-lamp-ingest.json",
-          "lambda_timeout": 900,
-          "lambda_memory_size": 2048
         }
       }
     }
