@@ -30,7 +30,7 @@ echo "Shrinking the deployment package for the lambda layer"
 source ../devops/helpers.sh
 shrink
 
-Check package size before deploying
+# Check package size before deploying
 maximumsize=79100000
 actualsize=$(wc -c <"cfn/layer-deployment.zip")
 if [ $actualsize -ge $maximumsize ]; then
