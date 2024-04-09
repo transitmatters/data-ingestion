@@ -11,13 +11,9 @@
       "Resource": "arn:*:logs:*:*:*"
     },
     {
-      "Action": [
-        "s3:PutObject"
-      ],
+      "Action": ["s3:GetObject", "s3:PutObject"],
       "Effect": "Allow",
-      "Resource": [
-        "arn:aws:s3:::tm-mbta-performance/Alerts/*"
-      ]
+      "Resource": ["arn:aws:s3:::tm-mbta-performance/Alerts/*"]
     }
   ]
 }
