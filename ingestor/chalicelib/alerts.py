@@ -30,15 +30,14 @@ def save_v3_alerts():
 
     service_date = get_current_service_date()
     try:
-        all_alerts = s3.download(BUCKET, key(service_date), encoding="utf8", compressed=True)
+        all_alerts = s3.download(BUCKET, key(service_date, v3=True), encoding="utf8", compressed=True)
     except ClientError as ex:
         if ex.response["Error"]["Code"] != "NoSuchKey":
             raise
         all_alerts = dict()
 
-    all_alerts = dict()
     for alert in alerts["data"]:
         all_alerts[alert["id"]] = alert
 
     alert_json = json.dumps(all_alerts).encode("utf8")
-    s3.upload(BUCKET, key(service_date), alert_json, compress=True)
+    s3.upload(BUCKET, key(service_date, v3=True), alert_json, compress=True)

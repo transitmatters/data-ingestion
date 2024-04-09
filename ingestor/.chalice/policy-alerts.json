@@ -13,7 +13,10 @@
     {
       "Action": ["s3:GetObject", "s3:PutObject"],
       "Effect": "Allow",
-      "Resource": ["arn:aws:s3:::tm-mbta-performance/Alerts/*"]
+      "Resource": [
+        "arn:aws:s3:::tm-mbta-performance/Alerts/*",
+        "arn:aws:s3:::tm-mbta-performance/Alerts/v3/*"
+      ]
     }
   ]
 }
