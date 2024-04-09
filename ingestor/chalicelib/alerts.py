@@ -17,7 +17,7 @@ def key(day, v3: bool = False):
     return f"Alerts/{str(day)}.json.gz"
 
 
-@deprecated("This uses the performance API, we should move to v3 alerts")
+@deprecated("Use of the MBTA Performance API is deprecated. Use the V3 API instead.")
 def store_alerts(day: date):
     api_data = MbtaPerformanceAPI.get_api_data("pastalerts", {}, day)
     alerts = json.dumps(api_data).encode("utf8")
