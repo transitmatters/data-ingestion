@@ -21,7 +21,8 @@
           "iam_policy_file": "policy-alerts.json"
         },
         "store_current_alerts": {
-          "iam_policy_file": "policy-alerts.json"
+          "iam_policy_file": "policy-alerts.json",
+          "lambda_memory_size": 256
         },
         "store_new_train_runs": {
           "iam_policy_file": "policy-newtrains.json"

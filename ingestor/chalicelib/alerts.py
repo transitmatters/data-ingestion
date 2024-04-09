@@ -30,7 +30,8 @@ def save_v3_alerts():
 
     service_date = get_current_service_date()
     try:
-        all_alerts = s3.download(BUCKET, key(service_date, v3=True), encoding="utf8", compressed=True)
+        current_alerts = s3.download(BUCKET, key(service_date, v3=True), encoding="utf8", compressed=True)
+        all_alerts = json.loads(current_alerts)
     except ClientError as ex:
         if ex.response["Error"]["Code"] != "NoSuchKey":
             raise
