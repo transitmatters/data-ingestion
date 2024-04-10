@@ -72,6 +72,7 @@
     "StoreYesterdayAlerts": {
       "Type": "AWS::Serverless::Function",
       "Properties": {
+        "Description": "Stores all v2 API alerts from yesterday",
         "Environment": {
           "Variables": {
             "MBTA_V2_API_KEY": {
@@ -96,6 +97,7 @@
     "StoreCurrentAlerts": {
       "Type": "AWS::Serverless::Function",
       "Properties": {
+        "Description": "Stores all v3 current API alerts",
         "Environment": {
           "Variables": {
             "DD_API_KEY": {
@@ -117,6 +119,7 @@
     "StoreNewTrainRuns": {
       "Type": "AWS::Serverless::Function",
       "Properties": {
+        "Description": "Stores stats about new train runs",
         "Environment": {
           "Variables": {
             "MBTA_V2_API_KEY": {
@@ -141,6 +144,7 @@
     "BbStoreStationStatus": {
       "Type": "AWS::Serverless::Function",
       "Properties": {
+        "Description": "Stores status of all blue bike stations",
         "Environment": {
           "Variables": {
             "DD_LAMBDA_HANDLER": "app.bb_store_station_status",
@@ -290,6 +294,7 @@
     "UpdateRidership": {
       "Type": "AWS::Serverless::Function",
       "Properties": {
+        "Description": "Ingests and saves MBTA ridership numbers from the Box link",
         "Environment": {
           "Variables": {
             "DD_API_KEY": {
@@ -311,6 +316,7 @@
     "UpdateSpeedRestrictions": {
       "Type": "AWS::Serverless::Function",
       "Properties": {
+        "Description": "Ingests and saves MBTA official speed restrictions",
         "Environment": {
           "Variables": {
             "DD_API_KEY": {
@@ -332,6 +338,7 @@
     "UpdateTimePredictions": {
       "Type": "AWS::Serverless::Function",
       "Properties": {
+        "Description": "Ingests and saves time predictions from the MBTA",
         "Environment": {
           "Variables": {
             "DD_API_KEY": {
@@ -353,6 +360,7 @@
     "StoreLandingData": {
       "Type": "AWS::Serverless::Function",
       "Properties": {
+        "Description": "Caches landing page data to improve homepage loading times",
         "Environment": {
           "Variables": {
             "DD_API_KEY": {
@@ -374,6 +382,7 @@
     "UpdateYankeeShuttles": {
       "Type": "AWS::Serverless::Function",
       "Properties": {
+        "Description": "Updates and stores Yankee shuttle positions",
         "Environment": {
           "Variables": {
             "DD_API_KEY": {
