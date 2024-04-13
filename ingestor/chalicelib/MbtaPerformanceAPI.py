@@ -1,6 +1,6 @@
 import json
 import datetime
-import warnings
+from typing_extensions import deprecated
 import pytz
 import requests
 from urllib.parse import urlencode
@@ -40,8 +40,8 @@ def get_timestamp_range(start_day, end_day=None):
         return get_timestamps(start_day)
 
 
+@deprecated("Use of the MBTA Performance API is deprecated. Use the V3 API instead.")
 def get_single_url(start_day, end_day, module, params):
-    warnings.warn("MBTA performance API calls are deprecated", DeprecationWarning)
     # import api key & set base url
     base_url_v2 = "https://realtime.mbta.com/developer/api/v2.1/{command}?{parameters}"
 
@@ -102,6 +102,7 @@ _multithreaded_api = make_parallel(_get_api_data)
 
 
 # we offer this convenient wrapper, that also dispatches to multi-threaded if needed
+@deprecated("Use of the MBTA Performance API is deprecated. Use the V3 API instead.")
 def get_api_data(module, params, start_day, end_day=None):
     if end_day is None:
         return _get_api_data((start_day, None), module, params)
@@ -111,6 +112,7 @@ def get_api_data(module, params, start_day, end_day=None):
 
 # MBTA api won't accept queries > 7 days. 6 day interval here because of DST.
 # this function operates on datetime.dates
+@deprecated("Use of the MBTA Performance API is deprecated. Use the V3 API instead.")
 def get_7day_chunks(start, end):
     delta = (end - start).days + 1
     cur = start

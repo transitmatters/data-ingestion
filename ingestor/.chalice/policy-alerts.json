@@ -11,12 +11,17 @@
       "Resource": "arn:*:logs:*:*:*"
     },
     {
-      "Action": [
-        "s3:PutObject"
-      ],
+      "Action": "s3:ListBucket",
+      "Effect": "Allow",
+      "Resource": ["arn:aws:s3:::tm-mbta-performance"]
+    },
+    {
+      "Action": "s3:*",
       "Effect": "Allow",
       "Resource": [
-        "arn:aws:s3:::tm-mbta-performance/Alerts/*"
+        "arn:aws:s3:::tm-mbta-performance/Alerts",
+        "arn:aws:s3:::tm-mbta-performance/Alerts/*",
+        "arn:aws:s3:::tm-mbta-performance/Alerts/v3/*"
       ]
     }
   ]

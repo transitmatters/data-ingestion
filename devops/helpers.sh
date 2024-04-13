@@ -9,7 +9,6 @@ function shrink {
     zip -d -qq cfn/layer-deployment.zip '**/NOTICE*'
     zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/numpy*/tests/**/*
     zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/pandas*/tests/**/*
-    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/pyarrow*/tests/**/*
     zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/examples/*
     zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/a*/*
     zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/b*/*
@@ -35,7 +34,6 @@ function shrink {
     zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/q*/*
     zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/r*/*
     zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/sa*/*
-    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/se*/*
     zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/ss*/*
     zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/t*/*
     zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/u*/*

@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from ..utils import EASTERN_TIME, service_date
+from ..date_utils import EASTERN_TIME, service_date
 
 
 def test_service_date():
