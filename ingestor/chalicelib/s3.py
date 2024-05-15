@@ -55,7 +55,7 @@ def ls(bucket, prefix):
     return all_keys
 
 
-def clear_cf_cache(distribution, keys):
+def clear_cf_cache(distribution: str, keys: list[str]):
     cloudfront.create_invalidation(
         DistributionId=distribution,
         InvalidationBatch={

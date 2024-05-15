@@ -3,8 +3,8 @@ from tqdm import tqdm
 
 from .ingest import ingest_trip_metrics, get_date_ranges
 
-START_DATE = date(2023, 8, 29)
-END_DATE = date(2023, 8, 30)
+START_DATE = date(2024, 3, 1)
+END_DATE = date(2024, 5, 14)
 MAX_RANGE_SIZE = 90
 
 if __name__ == "__main__":
