@@ -104,14 +104,6 @@ def update_delivered_trip_metrics_yesterday(event):
     daily_speeds.update_daily_table(two_days_ago)
 
 
-# 7:00am UTC -> 2:00/3:00am ET every day
-@app.schedule(Cron(0, 7, "*", "*", "?", "*"))
-def update_gtfs(event):
-    today = datetime.now()
-    last_week = (today - timedelta(days=7)).date()
-    gtfs.ingest_gtfs_feeds_to_dynamo_and_s3(date_range=(last_week, today.date()))
-
-
 # 7:10am UTC -> 2:10/3:10am ET every day
 @app.schedule(Cron(10, 7, "*", "*", "?", "*"))
 def update_ridership(event):
@@ -128,6 +120,14 @@ def update_speed_restrictions(event):
 @app.schedule(Cron(30, 7, "*", "*", "?", "*"))
 def update_time_predictions(event):
     predictions.update_predictions()
+
+
+# 8:00am UTC -> 3:00/4:00am ET every day
+@app.schedule(Cron(0, 8, "*", "*", "?", "*"))
+def update_gtfs(event):
+    today = datetime.now()
+    last_week = (today - timedelta(days=7)).date()
+    gtfs.ingest_gtfs_feeds_to_dynamo_and_s3(date_range=(last_week, today.date()))
 
 
 # 4:40am UTC -> 2:40/3:40am ET every day
