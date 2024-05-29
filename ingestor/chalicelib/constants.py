@@ -12,6 +12,7 @@ ALL_ROUTES: list[tuple[str, str | None]] = [
     ("line-green", "d"),
     ("line-green", "e"),
 ]
+ALL_LINES: list[str] = ["Red", "Orange", "Blue", "Green-B", "Green-C", "Green-D", "Green-E"]
 STATIONS = stations.STATIONS
 
 TERMINI_NEW = {
@@ -259,6 +260,7 @@ NINETY_DAYS_AGO_STRING = (TODAY - timedelta(days=90)).strftime(DATE_FORMAT_BACKE
 
 DD_URL_AGG_TT = "https://dashboard-api.labs.transitmatters.org/api/aggregate/traveltimes?{parameters}"
 DD_URL_SINGLE_TT = "https://dashboard-api.labs.transitmatters.org/api/traveltimes/{date}?{parameters}"
+DD_URL_ALERTS = "https://dashboard-api.labs.transitmatters.org/api/alerts/{date}?{parameters}"
 
 
 def get_monthly_table_update_start():
