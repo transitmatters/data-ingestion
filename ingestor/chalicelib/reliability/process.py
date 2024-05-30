@@ -4,9 +4,11 @@ import re
 from typing import List
 from urllib.parse import urlencode
 
+import pandas as pd
 import requests
 
 from ingestor.chalicelib import constants
+from ingestor.chalicelib.reliability.aggregate import group_monthly_data, group_weekly_data
 from ingestor.chalicelib.reliability.types import Alert, AlertsRequest
 
 
@@ -103,28 +105,38 @@ def process_delay_time(alerts: List[Alert]):
 
 def process_requests(requests: List[AlertsRequest]):
     # process all requests
-    all_data = {"Red": [], "Orange": [], "Blue": [], "Green-B": [], "Green-C": [], "Green-D": [], "Green-E": []}
+    # all_data = {"Red": [], "Orange": [], "Blue": [], "Green-B": [], "Green-C": [], "Green-D": [], "Green-E": []}
+    all_data = []
     for request in requests:
         data = process_single_day(request)
         if data is not None and len(data) != 0:
             total_delay, delay_by_type = process_delay_time(data)
             if total_delay == 0:
                 continue
-            all_data[request.route].append(
+            all_data.append(
                 {
-                    "date": request.date.strftime(constants.DATE_FORMAT_BACKEND),
-                    "delay_time": total_delay,
+                    "date": request.date.isoformat(),
+                    "line": request.route,
+                    "total_delay_time": total_delay,
                     "delay_by_type": delay_by_type,
                 }
             )
-    return all_data
+
+    # convert to DataFrame
+    df = pd.DataFrame(all_data)
+    df = df.join(pd.json_normalize(df["delay_by_type"]))
+    df.drop(columns=["delay_by_type"], inplace=True)
+    df["date"] = pd.to_datetime(df["date"])
+    df.set_index("date", inplace=True)
+    return df
 
 
 if __name__ == "__main__":
-    start_date = date(2024, 1, 10)
-    end_date = date(2024, 1, 25)
+    start_date = date(2024, 3, 1)
+    end_date = date(2024, 3, 5)
     alert_requests = generate_requests(start_date, end_date)
     all_data = process_requests(alert_requests)
-    # Save result to JSON file
-    with open("output.json", "w") as f:
-        json.dump(all_data, f)
+    print(group_monthly_data(all_data, start_date.isoformat()))
+    # # Save result to JSON file
+    # with open("output.json", "w") as f:
+    #     json.dump(all_data, f)
