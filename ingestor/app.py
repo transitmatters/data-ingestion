@@ -4,7 +4,6 @@ from datetime import date, timedelta, datetime
 from datadog_lambda.wrapper import datadog_lambda_wrapper
 from chalicelib import (
     alerts,
-    new_trains,
     bluebikes,
     daily_speeds,
     constants,
@@ -24,16 +23,6 @@ app.register_middleware(ConvertToMiddleware(datadog_lambda_wrapper))
 
 
 ################
-# STORE ALERTS
-# Every day at 10am UTC: store alerts from the past
-# It's called yesterday for now but it's really two days ago!!
-@app.schedule(Cron(0, 10, "*", "*", "?", "*"))
-def store_yesterday_alerts(event):
-    two_days_ago = date.today() - timedelta(days=2)
-    alerts.store_alerts(two_days_ago)
-
-
-################
 # STORE V3 ALERTS
 # Runs every 15 minutes from either 4 AM -> 1:55AM or 5 AM -> 2:55 AM depending on DST
 @app.schedule(Cron("0/15", "0-6,9-23", "*", "*", "?", "*"))
@@ -43,16 +32,12 @@ def store_current_alerts(event):
 
 #################
 # STORE NEW TRAIN TRIPS
-# Ever day at 10:05am UTC: store new train runs from the previous day
-@app.schedule(Cron(5, 10, "*", "*", "?", "*"))
-def store_new_train_runs(event):
-    yesterday = date.today() - timedelta(days=1)
-    new_trains.update_all(yesterday)
-
-
-#################
-# PROCESS & STORE SLOWZONES
-# TBD
+# Every day at 10:05am UTC: store new train runs from the previous day
+# TODO: Convert to use data dashboard api, performance API died
+# @app.schedule(Cron(5, 10, "*", "*", "?", "*"))
+# def store_new_train_runs(event):
+#     yesterday = date.today() - timedelta(days=1)
+#     new_trains.update_all(yesterday)
 
 
 #################
