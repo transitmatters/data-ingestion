@@ -18,15 +18,14 @@ mbta-gtfs-sqlite = "^1.1.1"
 boxsdk = "^3.7.1"
 openpyxl = "^3.1.2"
 dynamodb-json = "^1.3"
-datadog_lambda = "5.92.0"
-ddtrace = "2.8.0"
+datadog_lambda = "5.94.0"
 tqdm = "^4.66.1"
 
 [tool.poetry.dev-dependencies]
-chalice = "^1.31.0"
+chalice = "^1.31.1"
 flake8 = "^7.0.0"
-black = "^24.2.0"
-pytest = "~8.1.1"
+black = "^24.4.2"
+pytest = "~8.2.2"
 
 [tool.black]
 line-length = 120
