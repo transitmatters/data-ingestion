@@ -1,4 +1,5 @@
 from datetime import datetime
+import numpy as np
 import pandas as pd
 
 
@@ -15,8 +16,22 @@ def group_monthly_data(df: pd.DataFrame, start_date: str):
 
 def group_weekly_data(df: pd.DataFrame, start_date: str):
     # Group from Monday - Sunday
-    # TODO: Aggregate the sub values
-    df_weekly = df.groupby("line").resample("W-SUN").sum()
+    df_weekly = df.resample("W-SUN").agg(
+        {
+            "total_delay_time": np.sum,
+            "disabled_train": np.sum,
+            "signal_problem": np.sum,
+            "power_problem": np.sum,
+            "door_problem": np.sum,
+            "switch_problem": np.sum,
+            "track_issue": np.sum,
+            "police_activity": np.sum,
+            "medical_emergency": np.sum,
+            "flooding": np.sum,
+            "other": np.sum,
+            "line": "min",
+        }
+    )
     df_weekly = df_weekly.fillna(0)
     # Pandas resample uses the end date of the range as the index. So we subtract 6 days to convert to first date of the range.
     df_weekly.index = df_weekly.index - pd.Timedelta(days=6)
@@ -25,4 +40,5 @@ def group_weekly_data(df: pd.DataFrame, start_date: str):
         df_weekly = df_weekly.tail(-1)
     # Convert date back to string.
     df_weekly["date"] = df_weekly.index.strftime("%Y-%m-%d")
+    df_weekly = df_weekly[df_weekly["line"] != 0]
     return df_weekly.to_dict(orient="records")

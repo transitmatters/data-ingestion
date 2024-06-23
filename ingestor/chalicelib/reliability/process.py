@@ -1,4 +1,5 @@
 from datetime import date, timedelta
+from decimal import Decimal
 import json
 import re
 from typing import List
@@ -7,15 +8,14 @@ from urllib.parse import urlencode
 import pandas as pd
 import requests
 
-from ingestor.chalicelib import constants
-from ingestor.chalicelib.reliability.aggregate import group_monthly_data, group_weekly_data
+from ingestor.chalicelib import constants, dynamo
+from ingestor.chalicelib.reliability.aggregate import group_weekly_data
 from ingestor.chalicelib.reliability.types import Alert, AlertsRequest
 
+TABLE_NAME = "AlertDelaysWeekly"
 
-def generate_requests(
-    start_date: date,
-    end_date: date,
-) -> List[AlertsRequest]:
+
+def generate_requests(start_date: date, end_date: date) -> List[AlertsRequest]:
     reqs = []
     date_ranges = []
     current_date = start_date
@@ -54,12 +54,22 @@ def alert_is_delay(alert: Alert):
 
 
 def alert_type(alert: Alert):
-    if "disabled train" in alert["text"].lower():
+    if "disabled train" in alert["text"].lower() or "disabled trolley" in alert["text"].lower():
         return "disabled_train"
     elif "signal problem" in alert["text"].lower() or "signal issue" in alert["text"].lower():
         return "signal_problem"
-    elif "door problem" in alert["text"].lower():
+    elif "switch problem" in alert["text"].lower():
+        return "switch_problem"
+    elif (
+        "power problem" in alert["text"].lower()
+        or "overhead wires" in alert["text"].lower()
+        or "wire problem" in alert["text"].lower()
+    ):
+        return "power_problem"
+    elif "door problem" in alert["text"].lower() or "door issue" in alert["text"].lower():
         return "door_problem"
+    elif "track issue" in alert["text"].lower():
+        return "track_issue"
     elif "medical emergency" in alert["text"].lower():
         return "medical_emergency"
     elif "flooding" in alert["text"].lower():
@@ -88,7 +98,10 @@ def process_delay_time(alerts: List[Alert]):
     delay_by_type = {
         "disabled_train": 0,
         "signal_problem": 0,
+        "power_problem": 0,
         "door_problem": 0,
+        "switch_problem": 0,
+        "track_issue": 0,
         "police_activity": 0,
         "medical_emergency": 0,
         "flooding": 0,
@@ -105,38 +118,51 @@ def process_delay_time(alerts: List[Alert]):
 
 def process_requests(requests: List[AlertsRequest]):
     # process all requests
-    # all_data = {"Red": [], "Orange": [], "Blue": [], "Green-B": [], "Green-C": [], "Green-D": [], "Green-E": []}
-    all_data = []
+    all_data = {
+        "line-red": [],
+        "line-orange": [],
+        "line-blue": [],
+        "line-green": [],
+    }
     for request in requests:
         data = process_single_day(request)
         if data is not None and len(data) != 0:
             total_delay, delay_by_type = process_delay_time(data)
             if total_delay == 0:
                 continue
-            all_data.append(
+            all_data[constants.ROUTE_TO_LINE_MAP[request.route]].append(
                 {
                     "date": request.date.isoformat(),
-                    "line": request.route,
+                    "line": constants.ROUTE_TO_LINE_MAP[request.route],
                     "total_delay_time": total_delay,
                     "delay_by_type": delay_by_type,
                 }
             )
 
-    # convert to DataFrame
-    df = pd.DataFrame(all_data)
-    df = df.join(pd.json_normalize(df["delay_by_type"]))
-    df.drop(columns=["delay_by_type"], inplace=True)
-    df["date"] = pd.to_datetime(df["date"])
-    df.set_index("date", inplace=True)
-    return df
+    df_data = {}
+    for line in constants.LINES:
+        # convert to DataFrame
+        df = pd.DataFrame(all_data[line])
+        df = df.join(pd.json_normalize(df["delay_by_type"]))
+        df.drop(columns=["delay_by_type"], inplace=True)
+        df["date"] = pd.to_datetime(df["date"])
+        df.set_index("date", inplace=True)
+        df_data[line] = df
+    return df_data
+
+
+def update_table(start_date: date, end_date: date):
+    alert_requests = generate_requests(start_date, end_date)
+    all_data = process_requests(alert_requests)
+
+    grouped_data = []
+    for line, df in all_data.items():
+        grouped_data.extend(group_weekly_data(df, start_date.isoformat()))
+
+    dynamo.dynamo_batch_write(json.loads(json.dumps(grouped_data), parse_float=Decimal), TABLE_NAME)
 
 
 if __name__ == "__main__":
-    start_date = date(2024, 3, 1)
-    end_date = date(2024, 3, 5)
-    alert_requests = generate_requests(start_date, end_date)
-    all_data = process_requests(alert_requests)
-    print(group_monthly_data(all_data, start_date.isoformat()))
-    # # Save result to JSON file
-    # with open("output.json", "w") as f:
-    #     json.dump(all_data, f)
+    start_date = date(2024, 1, 1)
+    end_date = date(2024, 5, 30)
+    update_table(start_date, end_date)
