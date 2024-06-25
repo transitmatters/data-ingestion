@@ -50,7 +50,7 @@ def process_single_day(request: AlertsRequest):
 
 
 def alert_is_delay(alert: Alert):
-    return "delays of about" in alert["text"].lower()
+    return "delays" in alert["text"].lower() and "minutes" in alert["text"].lower()
 
 
 def alert_type(alert: Alert):
@@ -58,8 +58,9 @@ def alert_type(alert: Alert):
         "disabled train" in alert["text"].lower()
         or "disabled trolley" in alert["text"].lower()
         or "train that was disabled" in alert["text"].lower()
+        or "disabled bus" in alert["text"].lower()
     ):
-        return "disabled_train"
+        return "disabled_vehicle"
     elif "signal problem" in alert["text"].lower() or "signal issue" in alert["text"].lower():
         return "signal_problem"
     elif "switch problem" in alert["text"].lower():
@@ -93,6 +94,7 @@ def alert_type(alert: Alert):
         "medical emergency" in alert["text"].lower()
         or "ill passenger" in alert["text"].lower()
         or "medical assistance" in alert["text"].lower()
+        or "medical attention" in alert["text"].lower()
     ):
         return "medical_emergency"
     elif "flooding" in alert["text"].lower():
@@ -101,8 +103,10 @@ def alert_type(alert: Alert):
         return "police_activity"
     elif "fire" in alert["text"].lower() or "smoke" in alert["text"].lower() or "burning" in alert["text"].lower():
         return "fire"
+    elif "mechanical problem" in alert["text"].lower() or "mechanical issue" in alert["text"].lower():
+        return "mechanical_problem"
 
-    print(alert["text"].lower())
+    print(alert["valid_from"], alert["text"].lower())
     return "other"
 
 
@@ -112,6 +116,10 @@ def process_delay_time(alerts: List[Alert]):
         if not alert_is_delay(alert):
             continue
         delay_time = re.findall(r"delays of about \d+ minutes", alert["text"].lower())
+        if (delay_time is None) or (len(delay_time) == 0):
+            # try another pattern, since the first one didn't match
+            # less accurate, but better than nothing
+            delay_time = re.findall(r"delays of up to \d+ minutes", alert["text"].lower())
         if (delay_time is not None) and (len(delay_time) != 0):
             delays.append(
                 {
@@ -121,13 +129,14 @@ def process_delay_time(alerts: List[Alert]):
             )
     total_delay = 0
     delay_by_type = {
-        "disabled_train": 0,
+        "disabled_vehicle": 0,
         "signal_problem": 0,
         "power_problem": 0,
         "door_problem": 0,
         "brake_problem": 0,
         "switch_problem": 0,
         "track_issue": 0,
+        "mechanical_problem": 0,
         "police_activity": 0,
         "medical_emergency": 0,
         "fire": 0,
@@ -155,8 +164,6 @@ def process_requests(requests: List[AlertsRequest]):
         data = process_single_day(request)
         if data is not None and len(data) != 0:
             total_delay, delay_by_type = process_delay_time(data)
-            if total_delay == 0:
-                continue
             all_data[constants.ROUTE_TO_LINE_MAP[request.route]].append(
                 {
                     "date": request.date.isoformat(),
@@ -168,7 +175,6 @@ def process_requests(requests: List[AlertsRequest]):
 
     df_data = {}
     for line in constants.LINES:
-        # convert to DataFrame
         df = pd.DataFrame(all_data[line])
         df = df.join(pd.json_normalize(df["delay_by_type"]))
         df.drop(columns=["delay_by_type"], inplace=True)
@@ -179,6 +185,9 @@ def process_requests(requests: List[AlertsRequest]):
 
 
 def update_table(start_date: date, end_date: date):
+    """
+    Update the table with rapid transit data
+    """
     alert_requests = generate_requests(start_date, end_date)
     all_data = process_requests(alert_requests)
 
@@ -190,6 +199,6 @@ def update_table(start_date: date, end_date: date):
 
 
 if __name__ == "__main__":
-    start_date = date(2023, 1, 1)
-    end_date = date(2023, 9, 1)
+    start_date = date(2023, 5, 15)
+    end_date = date(2023, 8, 15)
     update_table(start_date, end_date)

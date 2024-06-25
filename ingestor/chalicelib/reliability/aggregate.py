@@ -19,13 +19,14 @@ def group_weekly_data(df: pd.DataFrame, start_date: str):
     df_weekly = df.resample("W-SUN").agg(
         {
             "total_delay_time": np.sum,
-            "disabled_train": np.sum,
+            "disabled_vehicle": np.sum,
             "signal_problem": np.sum,
             "power_problem": np.sum,
             "brake_problem": np.sum,
             "door_problem": np.sum,
             "switch_problem": np.sum,
             "track_issue": np.sum,
+            "mechanical_problem": np.sum,
             "police_activity": np.sum,
             "medical_emergency": np.sum,
             "flooding": np.sum,
