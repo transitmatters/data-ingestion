@@ -69,62 +69,12 @@
         }
       }
     },
-    "StoreYesterdayAlerts": {
-      "Type": "AWS::Serverless::Function",
-      "Properties": {
-        "Description": "Stores all v2 API alerts from yesterday",
-        "Environment": {
-          "Variables": {
-            "MBTA_V2_API_KEY": {
-              "Ref": "MbtaV2ApiKey"
-            },
-            "DD_API_KEY": {
-              "Ref": "DDApiKey"
-            },
-            "DD_VERSION": {
-              "Ref": "GitVersion"
-            },
-            "DD_TAGS": {
-              "Ref": "DDTags"
-            },
-            "DD_GIT_REPOSITORY_URL": {
-              "Ref": "DDGitRepositoryUrl"
-            }
-          }
-        }
-      }
-    },
     "StoreCurrentAlerts": {
       "Type": "AWS::Serverless::Function",
       "Properties": {
         "Description": "Stores all v3 current API alerts",
         "Environment": {
           "Variables": {
-            "DD_API_KEY": {
-              "Ref": "DDApiKey"
-            },
-            "DD_VERSION": {
-              "Ref": "GitVersion"
-            },
-            "DD_TAGS": {
-              "Ref": "DDTags"
-            },
-            "DD_GIT_REPOSITORY_URL": {
-              "Ref": "DDGitRepositoryUrl"
-            }
-          }
-        }
-      }
-    },
-    "StoreNewTrainRuns": {
-      "Type": "AWS::Serverless::Function",
-      "Properties": {
-        "Description": "Stores stats about new train runs",
-        "Environment": {
-          "Variables": {
-            "MBTA_V2_API_KEY": {
-              "Ref": "MbtaV2ApiKey"
-            },
             "DD_API_KEY": {
               "Ref": "DDApiKey"
             },
@@ -474,6 +424,39 @@
       "Type": "AWS::DynamoDB::Table",
       "Properties": {
         "TableName": "DeliveredTripMetricsWeekly",
+        "KeySchema": [
+          {
+            "AttributeName": "line",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "date",
+            "KeyType": "RANGE"
+          }
+        ],
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "line",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "date",
+            "AttributeType": "S"
+          }
+        ],
+        "BillingMode": "PAY_PER_REQUEST",
+        "Tags": [
+          {
+            "Key": "service",
+            "Value": "t-performance-dash"
+          }
+        ]
+      }
+    },
+    "AlertDelaysWeeklyDB": {
+      "Type": "AWS::DynamoDB::Table",
+      "Properties": {
+        "TableName": "AlertDelaysWeekly",
         "KeySchema": [
           {
             "AttributeName": "line",

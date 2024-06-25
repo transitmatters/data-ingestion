@@ -2,5 +2,6 @@
 **/__pycache__
 .python-version
 .temp
+.envrc
 feeds
 .envrc
