@@ -54,28 +54,53 @@ def alert_is_delay(alert: Alert):
 
 
 def alert_type(alert: Alert):
-    if "disabled train" in alert["text"].lower() or "disabled trolley" in alert["text"].lower():
+    if (
+        "disabled train" in alert["text"].lower()
+        or "disabled trolley" in alert["text"].lower()
+        or "train that was disabled" in alert["text"].lower()
+    ):
         return "disabled_train"
     elif "signal problem" in alert["text"].lower() or "signal issue" in alert["text"].lower():
         return "signal_problem"
     elif "switch problem" in alert["text"].lower():
         return "switch_problem"
+    elif "brake issue" in alert["text"].lower() or "brake problem" in alert["text"].lower():
+        return "brake_problem"
     elif (
         "power problem" in alert["text"].lower()
+        or "power issue" in alert["text"].lower()
         or "overhead wires" in alert["text"].lower()
+        or "overhead wire" in alert["text"].lower()
+        or "overhear wires" in alert["text"].lower()  # typo in the alert
+        or "overheard wires" in alert["text"].lower()  # typo in the alert
+        or "catenary wires" in alert["text"].lower()
+        or "the overhead" in alert["text"].lower()
         or "wire problem" in alert["text"].lower()
+        or "electrical problem" in alert["text"].lower()
+        or "overhead catenary" in alert["text"].lower()
+        or "third rail wiring" in alert["text"].lower()
     ):
         return "power_problem"
     elif "door problem" in alert["text"].lower() or "door issue" in alert["text"].lower():
         return "door_problem"
-    elif "track issue" in alert["text"].lower():
+    elif (
+        "track issue" in alert["text"].lower()
+        or "track problem" in alert["text"].lower()
+        or "cracked rail" in alert["text"].lower()
+    ):
         return "track_issue"
-    elif "medical emergency" in alert["text"].lower():
+    elif (
+        "medical emergency" in alert["text"].lower()
+        or "ill passenger" in alert["text"].lower()
+        or "medical assistance" in alert["text"].lower()
+    ):
         return "medical_emergency"
     elif "flooding" in alert["text"].lower():
         return "flooding"
     elif "police" in alert["text"].lower():
         return "police_activity"
+    elif "fire" in alert["text"].lower() or "smoke" in alert["text"].lower() or "burning" in alert["text"].lower():
+        return "fire"
 
     print(alert["text"].lower())
     return "other"
@@ -100,10 +125,12 @@ def process_delay_time(alerts: List[Alert]):
         "signal_problem": 0,
         "power_problem": 0,
         "door_problem": 0,
+        "brake_problem": 0,
         "switch_problem": 0,
         "track_issue": 0,
         "police_activity": 0,
         "medical_emergency": 0,
+        "fire": 0,
         "flooding": 0,
         "other": 0,
     }
@@ -163,6 +190,6 @@ def update_table(start_date: date, end_date: date):
 
 
 if __name__ == "__main__":
-    start_date = date(2024, 1, 1)
-    end_date = date(2024, 5, 30)
+    start_date = date(2023, 1, 1)
+    end_date = date(2023, 9, 1)
     update_table(start_date, end_date)
