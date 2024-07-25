@@ -44,6 +44,7 @@ def get_ridership_data():
         data = query_landing_ridership_data(constants.RIDERSHIP_KEYS[line])
         ridership_object[line] = data
 
+    # get data for commuter rail (treated as one line)
     ridership_object["line-commuter-rail"] = [None] * 10
     for line in constants.COMMUTER_RAIL_LINES:
         data = query_landing_ridership_data(constants.commuter_rail_ridership_key(line))
@@ -59,6 +60,8 @@ def get_ridership_data():
                     "date": week["date"],
                 }
                 ridership_object["line-commuter-rail"][index] = data
+    # filter out None values
+    ridership_object["line-commuter-rail"] = [x for x in ridership_object["line-commuter-rail"] if x is not None]
 
     return ridership_object
 
