@@ -1,3 +1,8 @@
+# data-ingestion
+![lint](https://github.com/transitmatters/data-ingestion/workflows/lint/badge.svg?branch=main)
+![test](https://github.com/transitmatters/data-ingestion/workflows/test/badge.svg?branch=main)
+![deploy](https://github.com/transitmatters/data-ingestion/workflows/deploy/badge.svg?branch=main)
+
 This is an app that can host all our data crunching jobs, especially those that use s3.
 
 It uses Chalice, which makes it easy to add new functions that can be triggered on an interval or via rest API endpoint.

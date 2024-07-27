@@ -259,6 +259,21 @@ RIDERSHIP_KEYS = {
     "line-blue": "line-Blue",
     "line-green": "line-Green",
 }
+COMMUTER_RAIL_LINES = [
+    "CR-Fairmount",
+    "CR-Fitchburg",
+    "CR-Worcester",
+    "CR-Franklin",
+    "CR-Greenbush",
+    "CR-Haverhill",
+    "CR-Kingston",
+    "CR-Lowell",
+    "CR-Middleborough",
+    "CR-Needham",
+    "CR-Newburyport",
+    "CR-Providence",
+]
+
 DATE_FORMAT = "%Y-%m-%dT%H:%M:%S"
 DATE_FORMAT_BACKEND = "%Y-%m-%d"
 GLX_EXTENSION_DATE = datetime.strptime("2023-03-19", DATE_FORMAT_BACKEND).date()
@@ -271,6 +286,10 @@ NINETY_DAYS_AGO_STRING = (TODAY - timedelta(days=90)).strftime(DATE_FORMAT_BACKE
 DD_URL_AGG_TT = "https://dashboard-api.labs.transitmatters.org/api/aggregate/traveltimes?{parameters}"
 DD_URL_SINGLE_TT = "https://dashboard-api.labs.transitmatters.org/api/traveltimes/{date}?{parameters}"
 DD_URL_ALERTS = "https://dashboard-api.labs.transitmatters.org/api/alerts/{date}?{parameters}"
+
+
+def commuter_rail_ridership_key(line: str):
+    return f"line-{line[3:]}"
 
 
 def get_monthly_table_update_start():
