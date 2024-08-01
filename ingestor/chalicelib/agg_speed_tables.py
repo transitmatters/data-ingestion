@@ -33,14 +33,14 @@ class TripsByLineParams:
     agg: Range
 
 
-def populate_table(line: Line, range: Range):
+def populate_table(line: Line, range: Range, start_date: str = "2016-01-01"):
     """Populate weekly or monthly aggregate speed table for a given line. Ran manually as a lambda in AWS console"""
     print(f"Populating {range} table")
     table = constants.TABLE_MAP[range]
     today = datetime.now().strftime(constants.DATE_FORMAT_BACKEND)
     trips = actual_trips_by_line(
         {
-            "start_date": "2016-01-01",
+            "start_date": start_date,
             "end_date": today,
             "line": line,
             "agg": range,
