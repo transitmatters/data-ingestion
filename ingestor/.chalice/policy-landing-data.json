@@ -31,7 +31,7 @@
       "Effect": "Allow",
       "Resource": [
         "arn:aws:cloudfront::473352343756:distribution/EH3F0Z8TUZVCQ",
-        "arn:aws:cloudfront::473352343756:distribution/ENTCATGUNQIQ"
+        "arn:aws:cloudfront::473352343756:distribution/E17EZQSPQV9OWI"
       ]
     }
   ]

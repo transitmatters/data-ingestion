@@ -15,6 +15,6 @@ def get_routes_by_line_id() -> Dict[str, Route]:
     )
     feed = archive.get_latest_feed()
     feed.use_compact_only()
-    feed.download_from_s3()
+    feed.download_or_build()
     session = feed.create_sqlite_session(compact=True)
     return bucket_by(session.query(Route).all(), lambda r: r.line_id)
