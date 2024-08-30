@@ -1,10 +1,11 @@
-from datetime import date
+from datetime import datetime
+import os
 from tqdm import tqdm
 
 from .ingest import ingest_trip_metrics, get_date_ranges
 
-START_DATE = date(2024, 6, 1)
-END_DATE = date(2024, 8, 4)
+START_DATE = datetime.strptime(os.environ["BACKFILL_START_DATE"], "%Y-%m-%d").date()
+END_DATE = datetime.strptime(os.environ["BACKFILL_END_DATE"], "%Y-%m-%d").date()
 MAX_RANGE_SIZE = 90
 
 if __name__ == "__main__":

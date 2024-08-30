@@ -199,6 +199,6 @@ def update_table(start_date: date, end_date: date):
 
 
 if __name__ == "__main__":
-    start_date = date(2023, 5, 15)
-    end_date = date(2023, 8, 15)
+    start_date = date(2024, 5, 15)
+    end_date = date(2024, 8, 31)
     update_table(start_date, end_date)
