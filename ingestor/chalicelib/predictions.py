@@ -48,7 +48,6 @@ def bucket_entries_by_key(entries: Iterator[PredictionAccuracyEntry]) -> Dict[En
 
 
 def parse_prediction_row_to_entry(row: Dict[str, str]) -> Union[None, PredictionAccuracyEntry]:
-    print(row)
     weekly = datetime.strptime(row["weekly"][:10], "%Y-%m-%d").date()
     num_predictions = int(row["num_predictions"])
     num_accurate_predictions = int(row["num_accurate_predictions"])
