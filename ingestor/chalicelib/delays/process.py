@@ -9,8 +9,8 @@ import pandas as pd
 import requests
 
 from ingestor.chalicelib import constants, dynamo
-from ingestor.chalicelib.reliability.aggregate import group_weekly_data
-from ingestor.chalicelib.reliability.types import Alert, AlertsRequest
+from ingestor.chalicelib.delays.aggregate import group_weekly_data
+from ingestor.chalicelib.delays.types import Alert, AlertsRequest
 
 TABLE_NAME = "AlertDelaysWeekly"
 
