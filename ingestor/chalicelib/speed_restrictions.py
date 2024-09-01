@@ -100,6 +100,7 @@ def load_speed_restriction_entries(max_lookback_days: Union[None, int]) -> Itera
     for csv_file_name in zip_file.namelist():
         if not csv_file_name.endswith(".csv") or csv_is_too_old(csv_file_name, max_lookback_days):
             continue
+        print(csv_file_name)
         csv_file = zip_file.open(csv_file_name)
         rows = csv.DictReader(TextIOWrapper(csv_file), delimiter=",")
         for row in rows:
