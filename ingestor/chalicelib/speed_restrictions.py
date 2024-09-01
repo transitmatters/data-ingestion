@@ -2,6 +2,7 @@ import requests
 import zipfile
 import csv
 import boto3
+from pathlib import PurePath
 from datetime import date, datetime
 from dataclasses import dataclass
 from io import BytesIO, TextIOWrapper
@@ -87,8 +88,9 @@ def bucket_entries_by_key(entries: Iterator[SpeedRestrictionEntry]) -> Dict[Entr
 def csv_is_too_old(csv_file_name: str, max_lookback_months: Union[None, int]) -> bool:
     if not max_lookback_months:
         return False
-    csv_date = datetime.strptime(csv_file_name[:7], "%Y-%m").date()
-    print(csv_date)
+    file_name_only = PurePath(csv_file_name).name
+    date_part = file_name_only[:7]
+    csv_date = datetime.strptime(date_part, "%Y-%m").date()
     return (date.today() - csv_date).days > (1 + max_lookback_months) * 30
 
 
@@ -98,7 +100,6 @@ def load_speed_restriction_entries(max_lookback_days: Union[None, int]) -> Itera
     for csv_file_name in zip_file.namelist():
         if not csv_file_name.endswith(".csv") or csv_is_too_old(csv_file_name, max_lookback_days):
             continue
-        print(csv_file_name)
         csv_file = zip_file.open(csv_file_name)
         rows = csv.DictReader(TextIOWrapper(csv_file), delimiter=",")
         for row in rows:
