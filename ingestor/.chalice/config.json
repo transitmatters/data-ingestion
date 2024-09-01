@@ -110,12 +110,6 @@
         "update_time_predictions": {
           "iam_policy_file": "policy-time-predictions.json",
           "lambda_timeout": 300
-        },
-        "update_yankee_shuttles": {
-          "iam_policy_file": "policy-yankee.json",
-          "lambda_memory_size": 1024,
-          "lambda_timeout": 60,
-          "max_ebs_size_gb": 2
         }
       }
     }
