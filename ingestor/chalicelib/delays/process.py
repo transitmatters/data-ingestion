@@ -9,8 +9,8 @@ import pandas as pd
 import requests
 
 from ingestor.chalicelib import constants, dynamo
-from ingestor.chalicelib.reliability.aggregate import group_weekly_data
-from ingestor.chalicelib.reliability.types import Alert, AlertsRequest
+from ingestor.chalicelib.delays.aggregate import group_weekly_data
+from ingestor.chalicelib.delays.types import Alert, AlertsRequest
 
 TABLE_NAME = "AlertDelaysWeekly"
 
@@ -199,6 +199,6 @@ def update_table(start_date: date, end_date: date):
 
 
 if __name__ == "__main__":
-    start_date = date(2023, 5, 15)
-    end_date = date(2023, 8, 15)
+    start_date = date(2024, 5, 15)
+    end_date = date(2024, 8, 31)
     update_table(start_date, end_date)

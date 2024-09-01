@@ -6,7 +6,7 @@ from datetime import date, datetime
 from dataclasses import dataclass
 from typing import Union, Tuple, List, Dict, Iterator
 
-CSV_URL = "https://opendata.arcgis.com/api/v3/datasets/155ab68df00145cabddfb90377201b0e/downloads/data?format=csv&spatialRefId=4326&where=1%3D1"
+CSV_URL = "https://massdot.maps.arcgis.com/sharing/rest/content/items/155ab68df00145cabddfb90377201b0e/data"
 
 
 EntryKey = Tuple[date, str]
@@ -48,7 +48,7 @@ def bucket_entries_by_key(entries: Iterator[PredictionAccuracyEntry]) -> Dict[En
 
 
 def parse_prediction_row_to_entry(row: Dict[str, str]) -> Union[None, PredictionAccuracyEntry]:
-    weekly = datetime.strptime(row["weekly"][:10], "%Y/%m/%d").date()
+    weekly = datetime.strptime(row["weekly"][:10], "%Y-%m-%d").date()
     num_predictions = int(row["num_predictions"])
     num_accurate_predictions = int(row["num_accurate_predictions"])
     # Bus routeId is "", use mode when routeId isn't present
@@ -69,7 +69,7 @@ def load_prediction_entries() -> Iterator[PredictionAccuracyEntry]:
     req = requests.get(CSV_URL)
 
     # Weirdly the csv starts with 3 strange chars
-    rows = csv.DictReader(io.StringIO(req.text[3:]), delimiter=",")
+    rows = csv.DictReader(io.StringIO(req.text), delimiter=",")
 
     for row in rows:
         entry = parse_prediction_row_to_entry(row)
