@@ -19,11 +19,8 @@ def get_routes_by_line() -> Dict[Line, Route]:
     feed.use_compact_only()
     feed.download_or_build()
     session = feed.create_sqlite_session(compact=True)
-    lines_by_id = index_by(
-        session.query(Line).filter(Line.line_id.notin_(IGNORE_LINE_IDS)).all(),
-        lambda line: line.line_id,
-    )
+    lines_by_id = index_by(session.query(Line).all(), lambda line: line.line_id)
     all_routes_with_line_ids = [
-        route for route in session.query(Route).all() if route.line_id and route.route_type == RouteType.METRO
+        route for route in session.query(Route).all() if route.line_id and route.line_id not in IGNORE_LINE_IDS
     ]
     return bucket_by(all_routes_with_line_ids, lambda route: lines_by_id[route.line_id])

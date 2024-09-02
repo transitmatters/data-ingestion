@@ -1,19 +1,8 @@
-from typing import TypedDict, Optional
+from typing import Optional
 from datetime import date, timedelta
 
 from .service_levels import ServiceLevelsEntry, ServiceLevelsByDate
-
-
-class ServiceSummaryForDay(TypedDict):
-    cancelled: bool
-    tripsPerHour: Optional[list[int]]
-    totalTrips: int
-
-
-class ServiceSummary(TypedDict):
-    weekday: ServiceSummaryForDay
-    saturday: ServiceSummaryForDay
-    sunday: ServiceSummaryForDay
+from .types import ServiceSummary, ServiceSummaryForDay
 
 
 def _is_matching_service_levels_entry(
