@@ -110,6 +110,11 @@
         "update_time_predictions": {
           "iam_policy_file": "policy-time-predictions.json",
           "lambda_timeout": 300
+        },
+        "update_service_ridership_dashboard": {
+          "iam_policy_file": "policy-service-ridership-dashboard.json",
+          "lambda_timeout": 900,
+          "lambda_memory_size": 1024
         }
       }
     }

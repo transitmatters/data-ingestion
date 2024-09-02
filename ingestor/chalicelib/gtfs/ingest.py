@@ -18,7 +18,7 @@ from .utils import (
     date_range,
     index_by,
     is_valid_route_id,
-    get_services_for_date,
+    get_service_ids_for_date_to_has_exceptions,
     get_total_service_minutes,
 )
 from .models import SessionModels, RouteDateTotals
@@ -50,6 +50,7 @@ def create_gl_route_date_totals(totals: List[RouteDateTotals]):
             total_by_hour[i] += total.by_hour[i]
     total_count = sum(t.count for t in gl_totals)
     total_service_minutes = sum(t.service_minutes for t in gl_totals)
+    has_service_exceptions = any((t.has_service_exceptions for t in gl_totals))
     return RouteDateTotals(
         route_id="Green",
         line_id="Green",
@@ -57,22 +58,31 @@ def create_gl_route_date_totals(totals: List[RouteDateTotals]):
         count=total_count,
         service_minutes=total_service_minutes,
         by_hour=total_by_hour,
+        has_service_exceptions=has_service_exceptions,
     )
 
 
 def create_route_date_totals(today: date, models: SessionModels):
     all_totals = []
-    services_for_today = get_services_for_date(models, today)
+    service_ids_and_exception_status_for_today = get_service_ids_for_date_to_has_exceptions(models, today)
     for route_id, route in models.routes.items():
         if not is_valid_route_id(route_id):
             continue
-        trips = [trip for trip in models.trips_by_route_id.get(route_id, []) if trip.service_id in services_for_today]
+        trips = [
+            trip
+            for trip in models.trips_by_route_id.get(route_id, [])
+            if trip.service_id in service_ids_and_exception_status_for_today.keys()
+        ]
+        has_service_exceptions = any(
+            (service_ids_and_exception_status_for_today.get(trip.service_id, False) for trip in trips)
+        )
         totals = RouteDateTotals(
             route_id=route_id,
             line_id=route.line_id,
             date=today,
             count=len(trips),
             by_hour=bucket_trips_by_hour(trips),
+            has_service_exceptions=has_service_exceptions,
             service_minutes=get_total_service_minutes(trips),
         )
         all_totals.append(totals)
@@ -99,6 +109,7 @@ def ingest_feed_to_dynamo(
                     "lineId": total.line_id,
                     "count": total.count,
                     "serviceMinutes": total.service_minutes,
+                    "hasServiceExceptions": total.has_service_exceptions,
                     "byHour": {"totals": total.by_hour},
                 }
                 batch.put_item(Item=item)
@@ -112,6 +123,7 @@ def ingest_feeds(
     force_rebuild_feeds: bool = False,
 ):
     for feed in feeds:
+        feed.use_compact_only()
         try:
             if force_rebuild_feeds:
                 print(f"[{feed.key}] Forcing rebuild locally")

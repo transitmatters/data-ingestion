@@ -27,6 +27,7 @@ class RouteDateTotals:
     count: int
     service_minutes: int
     by_hour: List[int]
+    has_service_exceptions: bool
 
     @property
     def timestamp(self):

@@ -1,0 +1,34 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Action": [
+                "logs:CreateLogGroup",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents"
+            ],
+            "Effect": "Allow",
+            "Resource": "arn:*:logs:*:*:*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": "s3:*",
+            "Resource": [
+                "arn:aws:s3:::tm-gtfs",
+                "arn:aws:s3:::tm-gtfs/*",
+                "arn:aws:s3:::tm-service-ridership-dashboard",
+                "arn:aws:s3:::tm-service-ridership-dashboard/*"
+            ]
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "dynamodb:Query"
+            ],
+            "Resource": [
+                "arn:aws:dynamodb:us-east-1:473352343756:table/Ridership",
+                "arn:aws:dynamodb:us-east-1:473352343756:table/ScheduledServiceDaily"
+            ]
+        }
+    ]
+}
