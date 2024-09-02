@@ -94,8 +94,6 @@ def create_service_ridership_dash_json(
     end_date: date = datetime.now(TIME_ZONE).date(),
     write_debug_file: bool = False,
 ):
-    with open("./dash.json", "w") as f:
-        json.dump({"hi": 3}, f)
     service_level_entries = get_service_level_entries_by_line_id(
         start_date=start_date,
         end_date=end_date,
@@ -127,8 +125,9 @@ def create_service_ridership_dash_json(
         "summaryData": summary_data,
         "lineData": line_data_by_line_id,
     }
-    with open(debug_file_name, "w") as f:
-        json.dump(dash_json, f)
+    if write_debug_file:
+        with open(debug_file_name, "w") as f:
+            json.dump(dash_json, f)
 
 
 if __name__ == "__main__":
