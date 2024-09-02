@@ -11,6 +11,8 @@ LineKind = Literal[
     "boat",
 ]
 
+WeeklyMedianTimeSeries = dict[str, float]  # Map yyyy-mm-dd to numbers
+
 
 class ServiceSummaryForDay(TypedDict):
     cancelled: bool
@@ -37,14 +39,14 @@ class LineData(TypedDict):
     routeIds: list[str]
     startDate: str
     lineKind: LineKind
-    ridershipHistory: list[float]
-    serviceHistory: list[float]
+    ridershipHistory: WeeklyMedianTimeSeries
+    serviceHistory: WeeklyMedianTimeSeries
     serviceRegimes: ServiceRegimes
 
 
 class SummaryData(TypedDict):
-    totalRidershipHistory: list[float]
-    totalServiceHistory: list[float]
+    totalRidershipHistory: WeeklyMedianTimeSeries
+    totalServiceHistory: WeeklyMedianTimeSeries
     totalRidershipPercentage: float
     totalServicePercentage: float
     totalPassengers: float

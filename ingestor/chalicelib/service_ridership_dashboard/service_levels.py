@@ -3,7 +3,7 @@ from datetime import date
 from tqdm import tqdm
 
 from .queries import query_scheduled_service, ScheduledServiceRow
-from .gtfs import get_routes_by_line
+from .gtfs import RoutesByLine
 from .util import bucket_by, index_by, date_range, date_to_string
 
 
@@ -33,12 +33,16 @@ def _get_trip_count_by_hour_totals_for_day(rows_for_day: list[ScheduledServiceRo
 
 
 def _get_has_service_exception(rows_for_day: list[ScheduledServiceRow]) -> bool:
-    return any(item["hasServiceExceptions"] for item in rows_for_day)
+    return any(item.get("hasServiceExceptions") for item in rows_for_day)
 
 
-def get_service_level_entries_by_line_id(start_date: date, end_date: date) -> ServiceLevelsByLineId:
+def get_service_level_entries_by_line_id(
+    routes_by_line: RoutesByLine,
+    start_date: date,
+    end_date: date,
+) -> ServiceLevelsByLineId:
     entries: dict[str, list[ServiceLevelsEntry]] = {}
-    for line, routes in (progress := tqdm(get_routes_by_line().items())):
+    for line, routes in (progress := tqdm(routes_by_line.items())):
         entries.setdefault(line.line_id, [])
         progress.set_description(f"Loading service levels for {line.line_id}")
         results_by_date_str: dict[str, list[ScheduledServiceRow]] = bucket_by(

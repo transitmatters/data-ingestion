@@ -1,21 +1,24 @@
 from typing import TypeVar, Callable, Optional
 from datetime import date, timedelta
 
-from .util import date_range
+from .util import date_range, date_to_string
 from .config import FILL_DATE_RANGES
+from .types import WeeklyMedianTimeSeries
 
 Entry = TypeVar("Entry")
 EntryDict = dict[date, Entry]
 
 
-def _valid_date_range(
+def _iterate_mondays(
     entries: EntryDict,
     start_date: date,
     max_end_date: date,
 ):
     max_found_date = max(entries.keys())
     end_date = min(max_end_date, max_found_date)
-    yield from date_range(start_date, end_date)
+    for today in date_range(start_date, end_date):
+        if today in entries:
+            yield today, entries[today]
 
 
 def _get_entry_value_for_date(
@@ -87,20 +90,53 @@ def _fill_zero_ranges_in_time_series(time_series: list[float], start_date: date)
     return altered_time_series
 
 
-def get_time_series(
+def _get_monday_of_week_containing_date(date: date) -> date:
+    return date - timedelta(days=date.weekday())
+
+
+def _bucket_by_week(entries: dict[date, Entry]) -> dict[date, list[Entry]]:
+    buckets: dict[date, list[Entry]] = {}
+    for today, entry in entries.items():
+        week_start = _get_monday_of_week_containing_date(today)
+        buckets.setdefault(week_start, [])
+        buckets[week_start].append(entry)
+    return buckets
+
+
+def get_weekly_median_time_series(
     entries: dict[date, Entry],
     entry_value_getter: Callable[[Entry], float],
     start_date: date,
     max_end_date: date,
-) -> list[float]:
-    time_series: list[float] = []
-    for today in _valid_date_range(entries, start_date, max_end_date):
-        current_value = _get_entry_value_for_date(entries, today, entry_value_getter)
-        previous_value = time_series[-1] if time_series else None
-        chosen_value = _choose_between_previous_and_current_value(
-            current_value=current_value,
-            previous_value=previous_value,
-            today=today,
-        )
-        time_series.append(chosen_value)
-    return _fill_zero_ranges_in_time_series(time_series=time_series, start_date=start_date)
+) -> WeeklyMedianTimeSeries:
+    weekly_buckets = _bucket_by_week(entries)
+    weekly_medians: dict[str, float] = {}
+    for week_start, week_entries in _iterate_mondays(weekly_buckets, start_date, max_end_date):
+        week_values = [entry_value_getter(entry) for entry in week_entries]
+        week_values.sort()
+        weekly_medians[date_to_string(week_start)] = week_values[len(week_values) // 2]
+    return weekly_medians
+
+
+def merge_weekly_median_time_series(many_series: list[WeeklyMedianTimeSeries]) -> WeeklyMedianTimeSeries:
+    merged_series: dict[str, float] = {}
+    for series in many_series:
+        for week_start, value in series.items():
+            merged_series.setdefault(week_start, 0)
+            merged_series[week_start] += value
+    return merged_series
+
+
+def get_weekly_median_time_series_entry_for_date(series: WeeklyMedianTimeSeries, date: date) -> Optional[float]:
+    monday = _get_monday_of_week_containing_date(date)
+    return series.get(date_to_string(monday))
+
+
+def get_latest_weekly_median_time_series_entry(series: WeeklyMedianTimeSeries) -> Optional[float]:
+    latest_date = max(series.keys())
+    return series.get(latest_date)
+
+
+def get_earliest_weekly_median_time_series_entry(series: WeeklyMedianTimeSeries) -> Optional[float]:
+    earliest_date = min(series.keys())
+    return series.get(earliest_date)

@@ -14,6 +14,7 @@ from chalicelib import (
     predictions,
     landing,
     trip_metrics,
+    service_ridership_dashboard,
 )
 
 app = Chalice(app_name="ingestor")
@@ -148,3 +149,9 @@ def store_landing_data(event):
     ridership_data = landing.get_ridership_data()
     landing.upload_to_s3(json.dumps(trip_metrics_data), json.dumps(ridership_data))
     landing.clear_cache()
+
+
+# 9:00 UTC -> 4:30/5:30am ET every day (after GTFS and ridership have bene ingested)
+@app.schedule(Cron(30, 9, "*", "*", "?", "*"))
+def update_service_ridership_dashboard():
+    service_ridership_dashboard.create_service_ridership_dash_json()
