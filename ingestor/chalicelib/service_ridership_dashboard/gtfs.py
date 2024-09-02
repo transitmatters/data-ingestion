@@ -2,7 +2,7 @@ import boto3
 from typing import Dict
 from tempfile import TemporaryDirectory
 from mbta_gtfs_sqlite import MbtaGtfsArchive
-from mbta_gtfs_sqlite.models import Route, Line, RouteType
+from mbta_gtfs_sqlite.models import Route, Line
 
 from ..gtfs.utils import bucket_by, index_by
 

@@ -1,4 +1,4 @@
-from typing import TypeVar, Callable, Optional, Dict
+from typing import TypeVar, Callable, Optional
 from datetime import date, timedelta
 
 from .util import date_range

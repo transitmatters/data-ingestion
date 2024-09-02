@@ -1,10 +1,9 @@
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import date
 from tqdm import tqdm
-from math import isnan
 
 from .queries import query_ridership, RidershipRow
-from .util import date_from_string, date_range
+from .util import date_from_string
 
 
 @dataclass

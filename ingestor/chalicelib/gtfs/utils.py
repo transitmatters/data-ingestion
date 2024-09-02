@@ -4,7 +4,6 @@ from mbta_gtfs_sqlite.models import (
     Trip,
     CalendarServiceExceptionType,
     ServiceDayAvailability,
-    CalendarService,
 )
 
 if TYPE_CHECKING:
