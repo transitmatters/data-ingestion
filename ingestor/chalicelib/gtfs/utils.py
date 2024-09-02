@@ -4,6 +4,7 @@ from mbta_gtfs_sqlite.models import (
     Trip,
     CalendarServiceExceptionType,
     ServiceDayAvailability,
+    CalendarService,
 )
 
 if TYPE_CHECKING:
@@ -64,8 +65,12 @@ def date_range(start_date: date, end_date: date):
         now = now + timedelta(days=1)
 
 
-def get_services_for_date(models: "SessionModels", today: date):
-    services_for_today = set()
+def get_service_ids_for_date_to_has_exceptions(models: "SessionModels", today: date) -> dict[str, bool]:
+    """
+    Reports a dict of service IDs that are active on the given date mapped to a boolean indicating if
+    there are any exceptions for that service on that date.
+    """
+    services_for_today: dict[str, bool] = {}
     for service_id in models.calendar_services.keys():
         service = models.calendar_services.get(service_id)
         if not service:
@@ -81,15 +86,13 @@ def get_services_for_date(models: "SessionModels", today: date):
             service.saturday,
             service.sunday,
         ][today.weekday()] == ServiceDayAvailability.AVAILABLE
+        service_exceptions_today = [ex for ex in service_exceptions if ex.date == today]
         is_removed_by_exception = any(
-            (
-                ex.date == today and ex.exception_type == CalendarServiceExceptionType.REMOVED
-                for ex in service_exceptions
-            )
+            (ex.exception_type == CalendarServiceExceptionType.REMOVED for ex in service_exceptions_today)
         )
         is_added_by_exception = any(
-            (ex.date == today and ex.exception_type == CalendarServiceExceptionType.ADDED for ex in service_exceptions)
+            (ex.exception_type == CalendarServiceExceptionType.ADDED for ex in service_exceptions_today)
         )
         if is_added_by_exception or (in_range and on_sevice_day and not is_removed_by_exception):
-            services_for_today.add(service_id)
+            services_for_today[service_id] = len(service_exceptions_today) > 0
     return services_for_today
