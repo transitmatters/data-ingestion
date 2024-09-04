@@ -107,6 +107,10 @@
           "lambda_memory_size": 1024,
           "lambda_timeout": 900
         },
+        "update_alert_delays": {
+          "iam_policy_file": "policy-alert-delays.json",
+          "lambda_timeout": 600
+        },
         "update_time_predictions": {
           "iam_policy_file": "policy-time-predictions.json",
           "lambda_timeout": 300

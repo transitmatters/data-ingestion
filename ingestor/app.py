@@ -10,6 +10,7 @@ from chalicelib import (
     agg_speed_tables,
     gtfs,
     ridership,
+    delays,
     speed_restrictions,
     predictions,
     landing,
@@ -104,6 +105,14 @@ def update_speed_restrictions(event):
 @app.schedule(Cron(30, 7, "*", "*", "?", "*"))
 def update_time_predictions(event):
     predictions.update_predictions()
+
+
+# 7:45am UTC -> 2:45/3:45am ET every day
+@app.schedule(Cron(45, 7, "*", "*", "?", "*"))
+def update_alert_delays(event):
+    today = datetime.now()
+    two_weeks_ago = (today - timedelta(days=14)).date()
+    delays.update_table(two_weeks_ago, today.date())
 
 
 # 8:00am UTC -> 3:00/4:00am ET every day

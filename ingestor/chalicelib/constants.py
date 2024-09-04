@@ -15,16 +15,6 @@ ALL_ROUTES: list[tuple[str, str | None]] = [
 ALL_LINES: list[str] = ["Red", "Orange", "Blue", "Green-B", "Green-C", "Green-D", "Green-E"]
 STATIONS = stations.STATIONS
 
-ROUTE_TO_LINE_MAP = {
-    "Green-B": "line-green",
-    "Green-C": "line-green",
-    "Green-D": "line-green",
-    "Green-E": "line-green",
-    "Red": "line-red",
-    "Orange": "line-orange",
-    "Blue": "line-blue",
-}
-
 TERMINI_NEW = {
     "line-red": {
         "a": {
