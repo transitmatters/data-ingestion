@@ -111,8 +111,8 @@ def update_time_predictions(event):
 @app.schedule(Cron(45, 7, "*", "*", "?", "*"))
 def update_alert_delays(event):
     today = datetime.now()
-    two_weeks_ago = (today - timedelta(days=14)).date()
-    delays.update_table(two_weeks_ago, today.date())
+    one_week_ago = (today - timedelta(days=8)).date()
+    delays.update_table(one_week_ago, today.date())
 
 
 # 8:00am UTC -> 3:00/4:00am ET every day
