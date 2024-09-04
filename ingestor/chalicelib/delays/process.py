@@ -8,9 +8,9 @@ from urllib.parse import urlencode
 import pandas as pd
 import requests
 
-from ingestor.chalicelib import constants, dynamo
-from ingestor.chalicelib.delays.aggregate import group_weekly_data
-from ingestor.chalicelib.delays.types import Alert, AlertsRequest
+from chalicelib import constants, dynamo
+from chalicelib.delays.aggregate import group_weekly_data
+from chalicelib.delays.types import Alert, AlertsRequest
 
 TABLE_NAME = "AlertDelaysWeekly"
 

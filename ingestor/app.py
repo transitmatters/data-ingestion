@@ -108,7 +108,8 @@ def update_time_predictions(event):
 
 
 # 7:45am UTC -> 2:45/3:45am ET every Monday
-@app.schedule(Cron(45, 7, "*", "*", "1", "*"))
+# There's no benefit to running it more frequently than once a week.
+@app.schedule(Cron(45, 7, "?", "*", "MON", "*"))
 def update_alert_delays(event):
     today = datetime.now()
     one_week_ago = (today - timedelta(days=8)).date()
