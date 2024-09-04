@@ -95,8 +95,8 @@ def update_ridership(event):
     ridership.ingest_ridership_data()
 
 
-# 7:20am UTC -> 2:20/3:20am ET every day
-@app.schedule(Cron(20, 7, "*", "*", "?", "*"))
+# 7:20am UTC -> 2:20/3:20am ET every weekday
+@app.schedule(Cron(20, 7, "?", "*", "MON-FRI", "*"))
 def update_speed_restrictions(event):
     speed_restrictions.update_speed_restrictions(max_lookback_months=2)
 
@@ -148,8 +148,10 @@ def populate_agg_delivered_trip_metrics(params, context):
         agg_speed_tables.populate_table(line, "weekly")
 
 
-# 9:00 UTC -> 4:00/5:00am ET every day.
-@app.schedule(Cron(0, 9, "*", "*", "?", "*"))
+# 9:00 UTC -> 4:00/5:00am ET every weekday.
+# This is the last job that runs for the day.
+# No need to run on weekends
+@app.schedule(Cron(0, 9, "?", "*", "MON-FRI", "*"))
 def store_landing_data(event):
     print(
         f"Uploading ridership and trip metric data for landing page from {constants.NINETY_DAYS_AGO_STRING} to {constants.ONE_WEEK_AGO_STRING}"
