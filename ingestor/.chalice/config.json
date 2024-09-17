@@ -17,11 +17,6 @@
         "env": "prod"
       },
       "lambda_functions": {
-        "store_yesterday_alerts": {
-          "iam_policy_file": "policy-alerts.json",
-          "lambda_memory_size": 256,
-          "lambda_timeout": 150
-        },
         "store_current_alerts": {
           "iam_policy_file": "policy-alerts.json",
           "lambda_memory_size": 256,
@@ -87,8 +82,8 @@
         },
         "update_trip_metrics": {
           "iam_policy_file": "policy-trip-metrics.json",
-          "lambda_timeout": 900,
-          "lambda_memory_size": 1024
+          "lambda_timeout": 300,
+          "lambda_memory_size": 256
         },
         "update_gtfs": {
           "iam_policy_file": "policy-gtfs.json",
@@ -104,12 +99,12 @@
         },
         "update_speed_restrictions": {
           "iam_policy_file": "policy-speed-restrictions.json",
-          "lambda_memory_size": 1024,
-          "lambda_timeout": 900
+          "lambda_memory_size": 256,
+          "lambda_timeout": 300
         },
         "update_alert_delays": {
           "iam_policy_file": "policy-alert-delays.json",
-          "lambda_timeout": 600
+          "lambda_timeout": 300
         },
         "update_time_predictions": {
           "iam_policy_file": "policy-time-predictions.json",
