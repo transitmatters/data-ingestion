@@ -107,15 +107,6 @@ def update_time_predictions(event):
     predictions.update_predictions()
 
 
-# 7:45am UTC -> 2:45/3:45am ET every Monday
-# There's no benefit to running it more frequently than once a week.
-@app.schedule(Cron(45, 7, "?", "*", "MON", "*"))
-def update_alert_delays(event):
-    today = datetime.now()
-    one_week_ago = (today - timedelta(days=8)).date()
-    delays.update_table(one_week_ago, today.date())
-
-
 # 8:00am UTC -> 3:00/4:00am ET every day
 @app.schedule(Cron(0, 8, "*", "*", "?", "*"))
 def update_gtfs(event):
@@ -128,6 +119,15 @@ def update_gtfs(event):
 @app.schedule(Cron(40, 7, "*", "*", "?", "*"))
 def update_trip_metrics(event):
     trip_metrics.ingest_recent_trip_metrics(lookback_days=7)
+
+
+# 11:45am UTC -> 6:45/7:45am ET every Monday
+# There's no benefit to running it more frequently than once a week.
+@app.schedule(Cron(45, 11, "?", "*", "MON", "*"))
+def update_alert_delays(event):
+    today = datetime.now()
+    one_week_ago = (today - timedelta(days=8)).date()
+    delays.update_table(one_week_ago, today.date())
 
 
 # Manually triggered lambda for populating daily trip metric tables. Only needs to be ran once.
