@@ -121,12 +121,12 @@ def update_trip_metrics(event):
     trip_metrics.ingest_recent_trip_metrics(lookback_days=7)
 
 
-# 10:45am UTC -> 5:45/6:45am ET every Monday
-# There's no benefit to running it more frequently than once a week.
-@app.schedule(Cron(45, 10, "?", "*", "MON", "*"))
+# 8:30am UTC -> 3:30/4:30am ET every Monday and Wednesday
+# There's shouldn't be any benefit to running it more frequently.
+@app.schedule(Cron(30, 8, "?", "*", "MON,WED", "*"))
 def update_alert_delays(event):
     today = datetime.now()
-    one_week_ago = (today - timedelta(days=8)).date()
+    one_week_ago = (today - timedelta(days=15)).date()
     delays.update_table(one_week_ago, today.date())
 
 
