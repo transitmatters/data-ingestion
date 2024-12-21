@@ -98,6 +98,7 @@ def alert_type(alert: Alert):
         or "wire repair" in alert["text"].lower()
         or "repairs to the wire" in alert["text"].lower()
         or "wire maintenance" in alert["text"].lower()
+        or "wire inspection" in alert["text"].lower()
         or "wire problem" in alert["text"].lower()
         or "electrical problem" in alert["text"].lower()
         or "overhead catenary" in alert["text"].lower()
@@ -118,6 +119,7 @@ def alert_type(alert: Alert):
         or "ill passenger" in alert["text"].lower()
         or "medical assistance" in alert["text"].lower()
         or "medical attention" in alert["text"].lower()
+        or "sick passenger" in alert["text"].lower()
     ):
         return "medical_emergency"
     elif "flooding" in alert["text"].lower():
@@ -146,12 +148,17 @@ def alert_type(alert: Alert):
         "unauthorized vehicle on the tracks" in alert["text"].lower()
         or "vehicle blocking the tracks" in alert["text"].lower()
         or "auto accident" in alert["text"].lower()
-        or "auto blocking the tracks" in alert["text"].lower()
+        or "car on the tracks" in alert["text"].lower()
+        or "car blocking the tracks" in alert["text"].lower()
+        or "car accident" in alert["text"].lower()
         or "automobile accident" in alert["text"].lower()
         or "car blocking the tracks" in alert["text"].lower()
         or "disabled vehicle on the tracks" in alert["text"].lower()
         or "due to traffic" in alert["text"].lower()
         or "car in the track area" in alert["text"].lower()
+        or "auto that was blocking" in alert["text"].lower()
+        or "auto blocking the track" in alert["text"].lower()
+        or "auto was removed from the track" in alert["text"].lower()
     ):
         return "car_traffic"
 
@@ -249,6 +256,6 @@ def update_table(start_date: date, end_date: date, lines=constants.ALL_LINES):
 
 
 if __name__ == "__main__":
-    start_date = date(2023, 1, 1)
-    end_date = date(2024, 12, 16)
+    start_date = date(2024, 6, 1)
+    end_date = date(2024, 12, 20)
     update_table(start_date, end_date, constants.ALL_LINES)
