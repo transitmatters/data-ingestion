@@ -15,7 +15,7 @@ from chalicelib.delays.types import Alert, AlertsRequest
 TABLE_NAME = "AlertDelaysWeekly"
 
 
-def generate_requests(start_date: date, end_date: date) -> List[AlertsRequest]:
+def generate_requests(start_date: date, end_date: date, lines=constants.ALL_LINES) -> List[AlertsRequest]:
     reqs = []
     date_ranges = []
     current_date = start_date
@@ -23,7 +23,7 @@ def generate_requests(start_date: date, end_date: date) -> List[AlertsRequest]:
         date_ranges.append(current_date)
         current_date += timedelta(days=1)
     for current_date in date_ranges:
-        for line in constants.ALL_LINES:
+        for line in lines:
             request = AlertsRequest(
                 route=line,
                 date=current_date,
@@ -68,6 +68,7 @@ def alert_type(alert: Alert):
         or "signal repairs" in alert["text"].lower()
         or "signal maintenance" in alert["text"].lower()
         or "signal repair" in alert["text"].lower()
+        or "signal work" in alert["text"].lower()
     ):
         return "signal_problem"
     elif (
@@ -95,6 +96,7 @@ def alert_type(alert: Alert):
         or "catenary wires" in alert["text"].lower()
         or "the overhead" in alert["text"].lower()
         or "wire repair" in alert["text"].lower()
+        or "repairs to the wire" in alert["text"].lower()
         or "wire maintenance" in alert["text"].lower()
         or "wire problem" in alert["text"].lower()
         or "electrical problem" in alert["text"].lower()
@@ -128,8 +130,30 @@ def alert_type(alert: Alert):
         "mechanical problem" in alert["text"].lower()
         or "mechanical issue" in alert["text"].lower()
         or "motor problem" in alert["text"].lower()
+        or "pantograph problem" in alert["text"].lower()
     ):
         return "mechanical_problem"
+    elif (
+        "track work" in alert["text"].lower()
+        or "track maintenance" in alert["text"].lower()
+        or "overnight work" in alert["text"].lower()
+        or "track repair" in alert["text"].lower()
+        or "personnel performed maintenance" in alert["text"].lower()
+        or "maintenance work" in alert["text"].lower()
+    ):
+        return "track_work"
+    elif (
+        "unauthorized vehicle on the tracks" in alert["text"].lower()
+        or "vehicle blocking the tracks" in alert["text"].lower()
+        or "auto accident" in alert["text"].lower()
+        or "auto blocking the tracks" in alert["text"].lower()
+        or "automobile accident" in alert["text"].lower()
+        or "car blocking the tracks" in alert["text"].lower()
+        or "disabled vehicle on the tracks" in alert["text"].lower()
+        or "due to traffic" in alert["text"].lower()
+        or "car in the track area" in alert["text"].lower()
+    ):
+        return "car_traffic"
 
     print(alert["valid_from"], alert["text"].lower())
     return "other"
@@ -162,6 +186,8 @@ def process_delay_time(alerts: List[Alert]):
         "switch_problem": 0,
         "track_issue": 0,
         "mechanical_problem": 0,
+        "track_work": 0,
+        "car_traffic": 0,
         "police_activity": 0,
         "medical_emergency": 0,
         "fire": 0,
@@ -177,10 +203,14 @@ def process_delay_time(alerts: List[Alert]):
     return total_delay, delay_by_type
 
 
-def process_requests(requests: List[AlertsRequest]):
+def process_requests(requests: List[AlertsRequest], lines=constants.ALL_LINES):
     # process all requests
-    all_data = {"Red": [], "Orange": [], "Blue": [], "Green-B": [], "Green-C": [], "Green-D": [], "Green-E": []}
+    all_data = {}
+    for line in lines:
+        all_data[line] = []
+
     for request in requests:
+        print(request.route, request.date)
         data = process_single_day(request)
         if data is not None and len(data) != 0:
             total_delay, delay_by_type = process_delay_time(data)
@@ -194,7 +224,7 @@ def process_requests(requests: List[AlertsRequest]):
             )
 
     df_data = {}
-    for line in constants.ALL_LINES:
+    for line in lines:
         df = pd.DataFrame(all_data[line])
         df = df.join(pd.json_normalize(df["delay_by_type"]))
         df.drop(columns=["delay_by_type"], inplace=True)
@@ -204,12 +234,12 @@ def process_requests(requests: List[AlertsRequest]):
     return df_data
 
 
-def update_table(start_date: date, end_date: date):
+def update_table(start_date: date, end_date: date, lines=constants.ALL_LINES):
     """
     Update the table with rapid transit data
     """
-    alert_requests = generate_requests(start_date, end_date)
-    all_data = process_requests(alert_requests)
+    alert_requests = generate_requests(start_date, end_date, lines)
+    all_data = process_requests(alert_requests, lines)
 
     grouped_data = []
     for line, df in all_data.items():
@@ -219,6 +249,6 @@ def update_table(start_date: date, end_date: date):
 
 
 if __name__ == "__main__":
-    start_date = date(2018, 1, 1)
-    end_date = date(2018, 6, 15)
-    update_table(start_date, end_date)
+    start_date = date(2023, 1, 1)
+    end_date = date(2024, 12, 16)
+    update_table(start_date, end_date, constants.ALL_LINES)
