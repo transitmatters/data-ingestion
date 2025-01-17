@@ -12,7 +12,7 @@ ALL_ROUTES: list[tuple[str, str | None]] = [
     ("line-green", "d"),
     ("line-green", "e"),
 ]
-ALL_LINES: list[str] = ["Red", "Orange", "Blue", "Green-B", "Green-C", "Green-D", "Green-E"]
+ALL_LINES: list[str] = ["Red", "Orange", "Blue", "Green-B", "Green-C", "Green-D", "Green-E", "Mattapan"]
 STATIONS = stations.STATIONS
 
 TERMINI_NEW = {
