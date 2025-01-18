@@ -19,7 +19,7 @@ mbta-gtfs-sqlite = "^1.1.1"
 boxsdk = "^3.13.0"
 openpyxl = "^3.1.5"
 dynamodb-json = "^1.4.2"
-datadog_lambda = "6.98.0"
+datadog_lambda = "6.104.0"
 tqdm = "^4.66.5"
 
 [tool.poetry.dev-dependencies]
@@ -27,6 +27,9 @@ chalice = "~1.31.3"
 flake8 = "^7.1.1"
 black = "^24.10.0"
 pytest = "~8.3.4"
+
+[tool.poetry.requires-plugins]
+poetry-plugin-export = "^1.9.0"
 
 [tool.black]
 line-length = 120
