@@ -60,6 +60,7 @@ def alert_type(alert: Alert):
         or "train that was disabled" in alert["text"].lower()
         or "disabled bus" in alert["text"].lower()
         or "train being taken out of service" in alert["text"].lower()
+        or "train being removed from service" in alert["text"].lower()
     ):
         return "disabled_vehicle"
     elif (
@@ -69,6 +70,7 @@ def alert_type(alert: Alert):
         or "signal maintenance" in alert["text"].lower()
         or "signal repair" in alert["text"].lower()
         or "signal work" in alert["text"].lower()
+        or "signal department" in alert["text"].lower()
     ):
         return "signal_problem"
     elif (
@@ -103,6 +105,7 @@ def alert_type(alert: Alert):
         or "electrical problem" in alert["text"].lower()
         or "overhead catenary" in alert["text"].lower()
         or "third rail wiring" in alert["text"].lower()
+        or "power department work" in alert["text"].lower()
     ):
         return "power_problem"
     elif "door problem" in alert["text"].lower() or "door issue" in alert["text"].lower():
@@ -133,6 +136,9 @@ def alert_type(alert: Alert):
         or "mechanical issue" in alert["text"].lower()
         or "motor problem" in alert["text"].lower()
         or "pantograph problem" in alert["text"].lower()
+        or "pantograph issue" in alert["text"].lower()
+        or "issue with the heating system" in alert["text"].lower()
+        or "air pressure problem" in alert["text"].lower()
     ):
         return "mechanical_problem"
     elif (
@@ -142,6 +148,7 @@ def alert_type(alert: Alert):
         or "track repair" in alert["text"].lower()
         or "personnel performed maintenance" in alert["text"].lower()
         or "maintenance work" in alert["text"].lower()
+        or "overnight maintenance" in alert["text"].lower()
     ):
         return "track_work"
     elif (
@@ -156,6 +163,7 @@ def alert_type(alert: Alert):
         or "disabled vehicle on the tracks" in alert["text"].lower()
         or "due to traffic" in alert["text"].lower()
         or "car in the track area" in alert["text"].lower()
+        or "car blocking the track area" in alert["text"].lower()
         or "auto that was blocking" in alert["text"].lower()
         or "auto blocking the track" in alert["text"].lower()
         or "auto was removed from the track" in alert["text"].lower()
