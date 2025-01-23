@@ -1,3 +1,4 @@
+import json
 import boto3
 from boto3.dynamodb.conditions import Key
 from chalicelib import s3
@@ -45,7 +46,7 @@ def get_ridership_data():
         ridership_object[line] = data
 
     # get data for commuter rail (treated as one line)
-    ridership_object["line-commuter-rail"] = [None] * 10
+    ridership_object["line-commuter-rail"] = [None] * (len(data) - 1)
     for line in constants.COMMUTER_RAIL_LINES:
         data = query_landing_ridership_data(constants.commuter_rail_ridership_key(line))
         for index, week in enumerate(data):
@@ -85,3 +86,13 @@ def upload_to_s3(trip_metrics, ridership):
 def clear_cache():
     for distribution in DISTRIBUTIONS:
         s3.clear_cf_cache(distribution, ["/static/landing/*"])
+
+
+if __name__ == "__main__":
+    print(
+        f"Uploading ridership and trip metric data for landing page from {constants.NINETY_DAYS_AGO_STRING} to {constants.ONE_WEEK_AGO_STRING}"
+    )
+    trip_metrics_data = get_trip_metrics_data()
+    ridership_data = get_ridership_data()
+    upload_to_s3(json.dumps(trip_metrics_data), json.dumps(ridership_data))
+    clear_cache()
