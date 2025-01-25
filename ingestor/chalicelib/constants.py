@@ -11,6 +11,7 @@ ALL_ROUTES: list[tuple[str, str | None]] = [
     ("line-green", "c"),
     ("line-green", "d"),
     ("line-green", "e"),
+    ("line-mattapan", None),
 ]
 ALL_LINES: list[str] = ["Red", "Orange", "Blue", "Green-B", "Green-C", "Green-D", "Green-E", "Mattapan"]
 STATIONS = stations.STATIONS
@@ -228,6 +229,23 @@ TERMINI_NEW = {
             },
         },
     },
+    "line-mattapan": {
+        "line": "line-mattapan",
+        "route": None,
+        "excluding_terminals": {
+            "stops": [
+                [STATIONS["CAPEN_ST"]["NB"], STATIONS["CEDAR_GROVE"]["NB"]],
+                [STATIONS["CEDAR_GROVE"]["SB"], STATIONS["CAPEN_ST"]["SB"]],
+            ],
+            "length": Decimal("2.55") * 2,
+        },
+        "including_terminals": {
+            "stops": [
+                [STATIONS["ASHMONT"]["NB"], STATIONS["MATTAPAN"]["NB"]],
+                [STATIONS["MATTAPAN"]["SB"], STATIONS["ASHMONT"]["SB"]],
+            ],
+        },
+    },
 }
 
 
@@ -242,12 +260,13 @@ def get_route_metadata(line: str, date: date, include_terminals: bool, route: st
     return TERMINI_NEW[line][terminals_key]
 
 
-LINES: list[str] = ["line-red", "line-orange", "line-blue", "line-green"]
+LINES: list[str] = ["line-red", "line-orange", "line-blue", "line-green", "line-mattapan"]
 RIDERSHIP_KEYS = {
     "line-red": "line-Red",
     "line-orange": "line-Orange",
     "line-blue": "line-Blue",
     "line-green": "line-Green",
+    "line-mattapan": "line-Mattapan",
 }
 COMMUTER_RAIL_LINES = [
     "CR-Fairmount",
@@ -317,4 +336,5 @@ LINE_TO_ROUTE_MAP = {
     "line-green": ["line-green-b", "line-green-c", "line-green-d", "line-green-e"],
     "line-blue": ["line-blue"],
     "line-orange": ["line-orange"],
+    "line-mattapan": ["line-mattapan"],
 }
