@@ -17,7 +17,7 @@ dynamodb = boto3.resource("dynamodb")
 
 @dataclass
 class Line:
-    Literal["line-red", "line-orange", "line-blue", "line-green"]
+    Literal["line-red", "line-orange", "line-blue", "line-green", "line-mattapan"]
 
 
 @dataclass
@@ -99,7 +99,7 @@ def actual_trips_by_line(params: TripsByLineParams):
         start_date = params["start_date"]
         end_date = params["end_date"]
         line = params["line"]
-        if line not in ["line-red", "line-blue", "line-green", "line-orange"]:
+        if line not in ["line-red", "line-blue", "line-green", "line-orange", "line-mattapan"]:
             raise BadRequestError("Invalid Line key.")
     except KeyError:
         raise BadRequestError("Missing or invalid parameters.")
