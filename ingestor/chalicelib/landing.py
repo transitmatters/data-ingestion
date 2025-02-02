@@ -46,7 +46,7 @@ def get_ridership_data():
         ridership_object[line] = data
 
     # get data for commuter rail (treated as one line)
-    ridership_object["line-commuter-rail"] = [None] * (len(data) - 1)
+    ridership_object["line-commuter-rail"] = [None] * 11
     for line in constants.COMMUTER_RAIL_LINES:
         data = query_landing_ridership_data(constants.commuter_rail_ridership_key(line))
         for index, week in enumerate(data):
