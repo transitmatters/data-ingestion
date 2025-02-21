@@ -18,13 +18,27 @@ def get_station_status_key(date, timestamp):
     return f"station_status/{date}/{timestamp}/bluebikes.csv"
 
 
-def store_station_status():
-    resp = requests.get("https://gbfs.bluebikes.com/gbfs/en/station_status.json")
+def get_station_status():
+    try:
+        resp = requests.get("https://gbfs.bluebikes.com/gbfs/en/station_status.json")
+        resp.raise_for_status()
+        datajson = json.loads(resp.content)
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching station status: {e}")
+        exit(1)
 
-    datajson = json.loads(resp.content)
+    return datajson
+
+
+def store_station_status():
+    datajson = get_station_status()
 
     timestamp = datajson.get("last_updated")
-    df = pd.DataFrame.from_records(datajson.get("data").get("stations"))
+    stations = datajson.get("data", {}).get("stations", [])
+    if not stations:
+        print("No stations found in the response.")
+        return
+    df = pd.DataFrame.from_records(stations)
     df["datetimepulled"] = timestamp
 
     date = datetime.datetime.fromtimestamp(timestamp, TZ).date()
