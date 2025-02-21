@@ -3,7 +3,7 @@
   "app_name": "ingestor",
   "automatic_layer": true,
   "layers": [
-    "arn:aws:lambda:us-east-1:464622532012:layer:Datadog-Extension:68"
+    "arn:aws:lambda:us-east-1:464622532012:layer:Datadog-Extension:69"
   ],
   "stages": {
     "prod": {
@@ -30,7 +30,8 @@
         },
         "bb_store_station_status": {
           "iam_policy_file": "policy-bluebikes-store.json",
-          "lambda_timeout": 90
+          "lambda_memory_size": 256,
+          "lambda_timeout": 30
         },
         "bb_store_station_info": {
           "iam_policy_file": "policy-bluebikes-store.json",

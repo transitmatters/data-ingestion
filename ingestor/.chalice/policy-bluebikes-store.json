@@ -11,13 +11,14 @@
       "Resource": "arn:*:logs:*:*:*"
     },
     {
-      "Action": [
-        "s3:PutObject"
-      ],
+      "Action": ["s3:PutObject", "s3:GetObject"],
       "Effect": "Allow",
-      "Resource": [
-        "arn:aws:s3:::tm-bluebikes/*"
-      ]
+      "Resource": ["arn:aws:s3:::tm-bluebikes/*"]
+    },
+    {
+      "Action": ["s3:ListBucket"],
+      "Effect": "Allow",
+      "Resource": ["arn:aws:s3:::tm-bluebikes"]
     }
   ]
 }
