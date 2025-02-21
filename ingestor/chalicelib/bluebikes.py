@@ -1,4 +1,5 @@
 import datetime
+import sys
 from geopy import distance
 import json
 import numpy as np
@@ -20,12 +21,11 @@ def get_station_status_key(date, timestamp):
 
 def get_station_status():
     try:
-        resp = requests.get("https://gbfs.bluebikes.com/gbfs/en/station_status.json")
+        resp = requests.get("https://gbfs.bluebikes.com/gbfs/en/station_status.json", timeout=15)
         resp.raise_for_status()
         datajson = json.loads(resp.content)
     except requests.exceptions.RequestException as e:
-        print(f"Error fetching station status: {e}")
-        exit(1)
+        sys.exit(f"Error fetching station status: {e}")
 
     return datajson
 
