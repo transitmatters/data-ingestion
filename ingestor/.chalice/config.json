@@ -43,10 +43,9 @@
           "lambda_memory_size": 256
         },
         "store_landing_data": {
-          "iam_policy_file": "policy-landing-data.json"
-        },
-        "store_landing_data_manual_delete_this": {
-          "iam_policy_file": "policy-landing-data.json"
+          "iam_policy_file": "policy-landing-data.json",
+          "lambda_timeout": 90,
+          "lambda_memory_size": 192
         },
         "update_daily_speed_table": {
           "iam_policy_file": "policy-daily-table.json",
@@ -108,10 +107,12 @@
         },
         "update_alert_delays": {
           "iam_policy_file": "policy-alert-delays.json",
+          "lambda_memory_size": 256,
           "lambda_timeout": 300
         },
         "update_time_predictions": {
           "iam_policy_file": "policy-time-predictions.json",
+          "lambda_memory_size": 256,
           "lambda_timeout": 300
         }
       }
