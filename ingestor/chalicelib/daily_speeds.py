@@ -1,7 +1,6 @@
 from datetime import date, timedelta, datetime
 from decimal import Decimal
 import json
-from typing import List
 from urllib.parse import urlencode
 from chalicelib import dynamo, constants
 import requests
@@ -15,7 +14,7 @@ def is_valid_entry(item, expected_entries, date):
     return True
 
 
-def get_agg_tt_api_requests(stops: List[List[str, str]], current_date: date, delta: timedelta):
+def get_agg_tt_api_requests(stops, current_date: date, delta: timedelta):
     """Create API requests from parameters"""
     api_requests = []
     for stop_pair in stops:
