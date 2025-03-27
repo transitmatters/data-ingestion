@@ -188,8 +188,10 @@ def format_cr_data(path_to_ridershp_file: str):
     return ridership_by_route
 
 
-def get_ridership_by_route_id(path_to_subway_file: str, path_to_bus_file: str, path_to_cr_file: str):
-    subway = format_subway_data(path_to_subway_file)
-    bus = format_bus_data(path_to_bus_file)
-    cr = format_cr_data(path_to_cr_file)
+def get_ridership_by_route_id(
+    path_to_subway_file: str | None, path_to_bus_file: str | None, path_to_cr_file: str | None
+):
+    subway = format_subway_data(path_to_subway_file) if path_to_subway_file else {}
+    bus = format_bus_data(path_to_bus_file) if path_to_bus_file else {}
+    cr = format_cr_data(path_to_cr_file) if path_to_cr_file else {}
     return {**subway, **bus, **cr}
