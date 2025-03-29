@@ -259,6 +259,9 @@
               "Ref": "DDGitRepositoryUrl"
             }
           }
+        },
+        "EphemeralStorage": {
+          "Size": 2048
         }
       }
     },
@@ -281,6 +284,9 @@
               "Ref": "DDGitRepositoryUrl"
             }
           }
+        },
+        "EphemeralStorage": {
+          "Size": 1024
         }
       }
     },
