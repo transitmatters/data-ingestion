@@ -163,7 +163,7 @@ def store_landing_data(event):
     landing.clear_cache()
 
 
-# 9:00 UTC -> 4:30/5:30am ET every day (after GTFS and ridership have bene ingested)
+# 9:00 UTC -> 4:30/5:30am ET every day (after GTFS and ridership have been ingested)
 @app.schedule(Cron(30, 9, "*", "*", "?", "*"))
 def update_service_ridership_dashboard():
     service_ridership_dashboard.create_service_ridership_dash_json()
