@@ -2,6 +2,9 @@
   "version": "2.0",
   "app_name": "ingestor",
   "automatic_layer": true,
+  "layers": [
+    "arn:aws:lambda:us-east-1:464622532012:layer:Datadog-Extension:76"
+  ],
   "stages": {
     "prod": {
       "api_gateway_stage": "api",
@@ -17,26 +20,23 @@
         "env": "prod"
       },
       "lambda_functions": {
-        "store_yesterday_alerts": {
-          "iam_policy_file": "policy-alerts.json",
-          "lambda_memory_size": 256,
-          "lambda_timeout": 150
-        },
         "store_current_alerts": {
           "iam_policy_file": "policy-alerts.json",
           "lambda_memory_size": 256,
-          "lambda_timeout": 90
+          "lambda_timeout": 30
         },
         "store_new_train_runs": {
           "iam_policy_file": "policy-newtrains.json"
         },
         "bb_store_station_status": {
           "iam_policy_file": "policy-bluebikes-store.json",
-          "lambda_timeout": 90
+          "lambda_memory_size": 256,
+          "lambda_timeout": 30
         },
         "bb_store_station_info": {
           "iam_policy_file": "policy-bluebikes-store.json",
-          "lambda_timeout": 90
+          "lambda_memory_size": 256,
+          "lambda_timeout": 60
         },
         "bb_calc_daily_stats": {
           "iam_policy_file": "policy-bluebikes-calc.json",
@@ -44,10 +44,9 @@
           "lambda_memory_size": 256
         },
         "store_landing_data": {
-          "iam_policy_file": "policy-landing-data.json"
-        },
-        "store_landing_data_manual_delete_this": {
-          "iam_policy_file": "policy-landing-data.json"
+          "iam_policy_file": "policy-landing-data.json",
+          "lambda_timeout": 60,
+          "lambda_memory_size": 192
         },
         "update_daily_speed_table": {
           "iam_policy_file": "policy-daily-table.json",
@@ -64,12 +63,12 @@
         "update_delivered_trip_metrics": {
           "iam_policy_file": "policy-delivered-trip-metrics-daily.json",
           "lambda_memory_size": 192,
-          "lambda_timeout": 150
+          "lambda_timeout": 90
         },
         "update_delivered_trip_metrics_yesterday": {
           "iam_policy_file": "policy-delivered-trip-metrics-daily.json",
           "lambda_memory_size": 192,
-          "lambda_timeout": 150
+          "lambda_timeout": 90
         },
         "update_agg_trip_metrics": {
           "iam_policy_file": "policy-agg-trip-metric-tables.json",
@@ -87,29 +86,35 @@
         },
         "update_trip_metrics": {
           "iam_policy_file": "policy-trip-metrics.json",
-          "lambda_timeout": 900,
-          "lambda_memory_size": 1024
+          "lambda_timeout": 300,
+          "lambda_memory_size": 256
         },
         "update_gtfs": {
           "iam_policy_file": "policy-gtfs.json",
-          "lambda_timeout": 900,
-          "lambda_memory_size": 10240,
-          "max_ebs_size_gb": 10
+          "lambda_timeout": 500,
+          "lambda_memory_size": 768,
+          "max_ebs_size_gb": 4
         },
         "update_ridership": {
           "iam_policy_file": "policy-ridership.json",
-          "lambda_timeout": 900,
-          "lambda_memory_size": 512,
+          "lambda_timeout": 300,
+          "lambda_memory_size": 384,
           "max_ebs_size_gb": 2
         },
         "update_speed_restrictions": {
           "iam_policy_file": "policy-speed-restrictions.json",
-          "lambda_memory_size": 1024,
-          "lambda_timeout": 900
+          "lambda_memory_size": 256,
+          "lambda_timeout": 90
+        },
+        "update_alert_delays": {
+          "iam_policy_file": "policy-alert-delays.json",
+          "lambda_memory_size": 256,
+          "lambda_timeout": 300
         },
         "update_time_predictions": {
           "iam_policy_file": "policy-time-predictions.json",
-          "lambda_timeout": 300
+          "lambda_memory_size": 256,
+          "lambda_timeout": 60
         },
         "update_service_ridership_dashboard": {
           "iam_policy_file": "policy-service-ridership-dashboard.json",

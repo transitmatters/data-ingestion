@@ -11,14 +11,11 @@
       "Resource": "arn:*:logs:*:*:*"
     },
     {
-      "Action": ["s3:PutObject", "s3:GetObject"],
       "Effect": "Allow",
-      "Resource": ["arn:aws:s3:::tm-bluebikes/*"]
-    },
-    {
-      "Action": ["s3:ListBucket"],
-      "Effect": "Allow",
-      "Resource": ["arn:aws:s3:::tm-bluebikes"]
+      "Action": ["dynamodb:BatchWriteItem"],
+      "Resource": [
+        "arn:aws:dynamodb:us-east-1:473352343756:table/AlertDelaysWeekly"
+      ]
     }
   ]
 }

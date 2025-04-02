@@ -11,19 +11,10 @@ ALL_ROUTES: list[tuple[str, str | None]] = [
     ("line-green", "c"),
     ("line-green", "d"),
     ("line-green", "e"),
+    ("line-mattapan", None),
 ]
-ALL_LINES: list[str] = ["Red", "Orange", "Blue", "Green-B", "Green-C", "Green-D", "Green-E"]
+ALL_LINES: list[str] = ["Red", "Orange", "Blue", "Green-B", "Green-C", "Green-D", "Green-E", "Mattapan"]
 STATIONS = stations.STATIONS
-
-ROUTE_TO_LINE_MAP = {
-    "Green-B": "line-green",
-    "Green-C": "line-green",
-    "Green-D": "line-green",
-    "Green-E": "line-green",
-    "Red": "line-red",
-    "Orange": "line-orange",
-    "Blue": "line-blue",
-}
 
 TERMINI_NEW = {
     "line-red": {
@@ -35,7 +26,7 @@ TERMINI_NEW = {
                     [STATIONS["SHAWMUT"]["NB"], STATIONS["DAVIS"]["NB"]],
                     [STATIONS["DAVIS"]["SB"], STATIONS["SHAWMUT"]["SB"]],
                 ],
-                "length": Decimal("20.26"),
+                "length": Decimal("11.748749681857948") * 2,
             },
             "including_terminals": {
                 "stops": [
@@ -52,7 +43,7 @@ TERMINI_NEW = {
                     [STATIONS["QUINCY_ADAMS"]["NB"], STATIONS["DAVIS"]["NB"]],
                     [STATIONS["DAVIS"]["SB"], STATIONS["QUINCY_ADAMS"]["SB"]],
                 ],
-                "length": Decimal("29.64"),
+                "length": Decimal("17.625824547766033") * 2,
             },
             "including_terminals": {
                 "stops": [
@@ -70,7 +61,7 @@ TERMINI_NEW = {
                 [STATIONS["GREEN_STREET"]["NB"], STATIONS["MALDEN_CENTER"]["NB"]],
                 [STATIONS["MALDEN_CENTER"]["SB"], STATIONS["GREEN_STREET"]["SB"]],
             ],
-            "length": Decimal("19.22"),
+            "length": Decimal("11.029177615227074") * 2,
         },
         "including_terminals": {
             "stops": [
@@ -87,7 +78,7 @@ TERMINI_NEW = {
                 [STATIONS["GOV_CENTER_BLUE"]["NB"], STATIONS["REVERE_BEACH"]["NB"]],
                 [STATIONS["REVERE_BEACH"]["SB"], STATIONS["GOV_CENTER_BLUE"]["SB"]],
             ],
-            "length": Decimal("10.75"),
+            "length": Decimal("5.949268349091304") * 2,
         },
         "including_terminals": {
             "stops": [
@@ -105,7 +96,7 @@ TERMINI_NEW = {
                     [STATIONS["SOUTH_ST"]["NB"], STATIONS["BOYLSTON"]["NB"]],
                     [STATIONS["BOYLSTON"]["SB"], STATIONS["SOUTH_ST"]["SB"]],
                 ],
-                "length": Decimal("5.39") * 2,
+                "length": Decimal("6.408502086564462") * 2,
             },
             "including_terminals": {
                 "stops": [
@@ -119,10 +110,10 @@ TERMINI_NEW = {
             "route": "c",
             "excluding_terminals": {
                 "stops": [
-                    [STATIONS["ENGLEWOOD"]["NB"], STATIONS["GOV_CENTER_GREEN"]["NB"]],
-                    [STATIONS["GOV_CENTER_GREEN"]["SB"], STATIONS["ENGLEWOOD"]["SB"]],
+                    [STATIONS["ENGLEWOOD"]["NB"], STATIONS["PARK_ST"]["NB"]],
+                    [STATIONS["PARK_ST"]["SB"], STATIONS["ENGLEWOOD"]["SB"]],
                 ],
-                "length": Decimal("4.91") * 2,
+                "length": Decimal("5.0796123265131605") * 2,
             },
             "including_terminals": {
                 "stops": [
@@ -139,7 +130,7 @@ TERMINI_NEW = {
                     [STATIONS["WOODLAND"]["NB"], STATIONS["LECHMERE"]["NB"]],
                     [STATIONS["LECHMERE"]["SB"], STATIONS["WOODLAND"]["SB"]],
                 ],
-                "length": Decimal("12.81") * 2,
+                "length": Decimal("14.351562608739952") + Decimal("14.350889348703578"),
             },
             "including_terminals": {
                 "stops": [
@@ -156,7 +147,7 @@ TERMINI_NEW = {
                     [STATIONS["BACK_OF_THE_HILL"]["NB"], STATIONS["BALL_SQ"]["NB"]],
                     [STATIONS["BALL_SQ"]["SB"], STATIONS["BACK_OF_THE_HILL"]["SB"]],
                 ],
-                "length": Decimal("7.88") * 2,
+                "length": Decimal("8.531917015877275") + Decimal("8.538854223832816"),
             },
             "including_terminals": {
                 "stops": [
@@ -175,7 +166,7 @@ TERMINI_NEW = {
                     [STATIONS["SOUTH_ST"]["NB"], STATIONS["BOYLSTON"]["NB"]],
                     [STATIONS["BOYLSTON"]["SB"], STATIONS["SOUTH_ST"]["SB"]],
                 ],
-                "length": Decimal("5.39") * 2,
+                "length": Decimal("6.12448264013163") * 2,
             },
             "including_terminals": {
                 "stops": [
@@ -192,12 +183,12 @@ TERMINI_NEW = {
                     [STATIONS["ENGLEWOOD"]["NB"], STATIONS["GOV_CENTER_GREEN"]["NB"]],
                     [STATIONS["GOV_CENTER_GREEN"]["SB"], STATIONS["ENGLEWOOD"]["SB"]],
                 ],
-                "length": Decimal("4.91") * 2,
+                "length": Decimal("5.568063458154377") * 2,
             },
             "including_terminals": {
                 "stops": [
-                    [STATIONS["CLEVELAND_CIRCLE"]["NB"], STATIONS["GOV_CENTER_GREEN"]["NB"]],
-                    [STATIONS["NORTH_STATION_GREEN"]["SB"], STATIONS["NORTH_STATION_GREEN"]["SB"]],
+                    [STATIONS["CLEVELAND_CIRCLE"]["NB"], STATIONS["NORTH_STATION_GREEN"]["NB"]],
+                    [STATIONS["NORTH_STATION_GREEN"]["SB"], STATIONS["CLEVELAND_CIRCLE"]["SB"]],
                 ]
             },
         },
@@ -210,7 +201,7 @@ TERMINI_NEW = {
                     [STATIONS["WOODLAND"]["NB"], STATIONS["PARK_ST"]["NB"]],
                     [STATIONS["PARK_ST"]["SB"], STATIONS["WOODLAND"]["SB"]],
                 ],
-                "length": Decimal("11.06") * 2,
+                "length": Decimal("11.591020825876871") * 2,
             },
             "including_terminals": {
                 "stops": [
@@ -228,7 +219,7 @@ TERMINI_NEW = {
                     [STATIONS["BACK_OF_THE_HILL"]["NB"], STATIONS["GOV_CENTER_GREEN"]["NB"]],
                     [STATIONS["GOV_CENTER_GREEN"]["SB"], STATIONS["BACK_OF_THE_HILL"]["SB"]],
                 ],
-                "length": Decimal("3.73") * 2,
+                "length": Decimal("3.740221104375446") * 2,
             },
             "including_terminals": {
                 "stops": [
@@ -236,6 +227,23 @@ TERMINI_NEW = {
                     [STATIONS["GOV_CENTER_GREEN"]["SB"], STATIONS["HEATH_ST"]["SB"]],
                 ]
             },
+        },
+    },
+    "line-mattapan": {
+        "line": "line-mattapan",
+        "route": None,
+        "excluding_terminals": {
+            "stops": [
+                [STATIONS["CAPEN_ST"]["NB"], STATIONS["CEDAR_GROVE"]["NB"]],
+                [STATIONS["CEDAR_GROVE"]["SB"], STATIONS["CAPEN_ST"]["SB"]],
+            ],
+            "length": Decimal("2.49553989700151") + Decimal("2.5088339428984714"),
+        },
+        "including_terminals": {
+            "stops": [
+                [STATIONS["ASHMONT"]["NB"], STATIONS["MATTAPAN"]["NB"]],
+                [STATIONS["MATTAPAN"]["SB"], STATIONS["ASHMONT"]["SB"]],
+            ],
         },
     },
 }
@@ -252,12 +260,13 @@ def get_route_metadata(line: str, date: date, include_terminals: bool, route: st
     return TERMINI_NEW[line][terminals_key]
 
 
-LINES: list[str] = ["line-red", "line-orange", "line-blue", "line-green"]
+LINES: list[str] = ["line-red", "line-orange", "line-blue", "line-green", "line-mattapan"]
 RIDERSHIP_KEYS = {
     "line-red": "line-Red",
     "line-orange": "line-Orange",
     "line-blue": "line-Blue",
     "line-green": "line-Green",
+    "line-mattapan": "line-Mattapan",
 }
 COMMUTER_RAIL_LINES = [
     "CR-Fairmount",
@@ -327,4 +336,5 @@ LINE_TO_ROUTE_MAP = {
     "line-green": ["line-green-b", "line-green-c", "line-green-d", "line-green-e"],
     "line-blue": ["line-blue"],
     "line-orange": ["line-orange"],
+    "line-mattapan": ["line-mattapan"],
 }

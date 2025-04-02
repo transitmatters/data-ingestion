@@ -1,4 +1,5 @@
 import datetime
+import sys
 from geopy import distance
 import json
 import numpy as np
@@ -18,13 +19,26 @@ def get_station_status_key(date, timestamp):
     return f"station_status/{date}/{timestamp}/bluebikes.csv"
 
 
-def store_station_status():
-    resp = requests.get("https://gbfs.bluebikes.com/gbfs/en/station_status.json")
+def get_station_status():
+    try:
+        resp = requests.get("https://gbfs.bluebikes.com/gbfs/en/station_status.json", timeout=15)
+        resp.raise_for_status()
+        datajson = json.loads(resp.content)
+    except requests.exceptions.RequestException as e:
+        sys.exit(f"Error fetching station status: {e}")
 
-    datajson = json.loads(resp.content)
+    return datajson
+
+
+def store_station_status():
+    datajson = get_station_status()
 
     timestamp = datajson.get("last_updated")
-    df = pd.DataFrame.from_records(datajson.get("data").get("stations"))
+    stations = datajson.get("data", {}).get("stations", [])
+    if not stations:
+        print("No stations found in the response.")
+        return
+    df = pd.DataFrame.from_records(stations)
     df["datetimepulled"] = timestamp
 
     date = datetime.datetime.fromtimestamp(timestamp, TZ).date()
@@ -148,9 +162,14 @@ def calc_daily_stats(day):
 
     # create fields to determine rideability
     df["pct_full"] = df["num_bikes_available"] / (df["num_docks_available"] + df["num_bikes_available"])
-    df["rideable"] = np.where(
-        (df["pct_full"] >= 0.1) & (df["pct_full"] <= 0.85) & (df["station_status"] == "active"), 1, 0
-    )
+
+    # station_status seems to be missing from recent data, is_renting is present and may be the equivalent
+    if "station_status" in df.columns:
+        df["rideable"] = np.where(
+            (df["pct_full"] >= 0.1) & (df["pct_full"] <= 0.85) & (df["station_status"] == "active"), 1, 0
+        )
+    elif "is_renting" in df.columns:
+        df["rideable"] = np.where((df["pct_full"] >= 0.1) & (df["pct_full"] <= 0.85) & (df["is_renting"] == 1), 1, 0)
 
     # create data frames on rideability for station and neighbors
     df_sm = df[["station_id", "pct_full", "rideable", "datetimepulled"]]

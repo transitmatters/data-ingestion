@@ -14,7 +14,7 @@ def is_valid_entry(item, expected_entries, date):
     return True
 
 
-def get_agg_tt_api_requests(stops, current_date, delta):
+def get_agg_tt_api_requests(stops, current_date: date, delta: timedelta):
     """Create API requests from parameters"""
     api_requests = []
     for stop_pair in stops:
@@ -102,7 +102,7 @@ def populate_daily_table(start_date: datetime, end_date: datetime, line: str, ro
     current_date = start_date.date()
     delta = timedelta(days=180)
     speed_objects = []
-    while current_date < end_date:
+    while current_date < end_date.date():
         route_metadata = constants.get_route_metadata(line, current_date, False, route)
         print(f"Calculating daily values for 180 day chunk starting at: {current_date}")
         API_requests = get_agg_tt_api_requests(route_metadata["stops"], current_date, delta)

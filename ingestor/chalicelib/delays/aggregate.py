@@ -26,6 +26,8 @@ def group_weekly_data(df: pd.DataFrame, start_date: str):
             "door_problem": np.sum,
             "switch_problem": np.sum,
             "track_issue": np.sum,
+            "track_work": np.sum,
+            "car_traffic": np.sum,
             "mechanical_problem": np.sum,
             "police_activity": np.sum,
             "medical_emergency": np.sum,
