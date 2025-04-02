@@ -111,8 +111,16 @@ def update_time_predictions(event):
 @app.schedule(Cron(0, 8, "*", "*", "?", "*"))
 def update_gtfs(event):
     today = datetime.now()
-    last_week = (today - timedelta(days=7)).date()
-    gtfs.ingest_gtfs_feeds_to_dynamo_and_s3(date_range=(last_week, today.date()))
+    two_days_ago = (today - timedelta(days=2)).date()
+    gtfs.ingest_gtfs_feeds_to_dynamo_and_s3(date_range=(two_days_ago, today.date()))
+
+
+# 8:30am UTC -> 3:30/4:30am ET every Monday
+@app.schedule(Cron(30, 8, "?", "*", "MON", "*"))
+def backfill_gtfs(event):
+    today = datetime.now()
+    two_weeks_ago = (today - timedelta(days=14)).date()
+    gtfs.ingest_gtfs_feeds_to_dynamo_and_s3(date_range=(two_weeks_ago, today.date()))
 
 
 # 4:40am UTC -> 2:40/3:40am ET every day
