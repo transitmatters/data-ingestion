@@ -165,5 +165,5 @@ def store_landing_data(event):
 
 # 9:00 UTC -> 4:30/5:30am ET every day (after GTFS and ridership have been ingested)
 @app.schedule(Cron(30, 9, "*", "*", "?", "*"))
-def update_service_ridership_dashboard():
+def update_service_ridership_dashboard(event):
     service_ridership_dashboard.create_service_ridership_dash_json()
