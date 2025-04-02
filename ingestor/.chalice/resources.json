@@ -261,30 +261,6 @@
           }
         },
         "EphemeralStorage": {
-          "Size": 1024
-        }
-      }
-    },
-    "BackfillGtfs": {
-      "Type": "AWS::Serverless::Function",
-      "Properties": {
-        "Environment": {
-          "Variables": {
-            "DD_API_KEY": {
-              "Ref": "DDApiKey"
-            },
-            "DD_VERSION": {
-              "Ref": "GitVersion"
-            },
-            "DD_TAGS": {
-              "Ref": "DDTags"
-            },
-            "DD_GIT_REPOSITORY_URL": {
-              "Ref": "DDGitRepositoryUrl"
-            }
-          }
-        },
-        "EphemeralStorage": {
           "Size": 2048
         }
       }
