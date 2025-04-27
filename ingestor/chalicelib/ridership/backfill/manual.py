@@ -10,7 +10,7 @@ For when we need to backfill ridership data with manual file paths.
 
 Example usage:
 
-python -m chalicelib.ridership.backfill.manual --subway-file /path/to/subway/file --bus-file /path/to/bus/file --cr-file /path/to/cr/file
+python -m ingestor.chalicelib.ridership.backfill.manual --subway-file /path/to/subway/file --bus-file /path/to/bus/file --cr-file /path/to/cr/file
 
 """
 

@@ -28,6 +28,7 @@ unofficial_cr_labels_map = {
     "Framingham/Worcester": "CR-Worcester",
     "Franklin/Foxboro": "CR-Franklin",
     "Middleborough/Lakeville": "CR-Middleborough",
+    "Fall.River/New.Bedford": "CR-NewBedford",
     "Lowell": "CR-Lowell",
     "Haverhill": "CR-Haverhill",
     "Kingston": "CR-Kingston",
