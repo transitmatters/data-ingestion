@@ -52,7 +52,10 @@ def parse_restriction_row_to_entry(row: Dict[str, str]) -> Union[None, SpeedRest
     except ValueError:
         from_stop_id = row["Loc_GTFS_Stop_ID"].strip()
         to_stop_id = None
+    branch = row["Branch"].strip()
     line_raw = row["Line"].replace("Line", "").strip()
+    if "Mattapan" in branch:
+        line_raw = "Mattapan"
     date = datetime.strptime(row["Calendar_Date"], "%Y-%m-%d").date()
     reported = datetime.strptime(row["Date_Restriction_Reported"], "%Y-%m-%d").date()
     speed_mph = int(row["Restriction_Speed_MPH"].replace("mph", "").strip())
