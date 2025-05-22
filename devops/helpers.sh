@@ -7,9 +7,23 @@ function shrink {
     zip -d -qq cfn/layer-deployment.zip '**/LICENSE*'
     zip -d -qq cfn/layer-deployment.zip '**/AUTHOR*'
     zip -d -qq cfn/layer-deployment.zip '**/NOTICE*'
+    zip -d -qq cfn/layer-deployment.zip '**/*.md'
+    zip -d -qq cfn/layer-deployment.zip '**/*.c'
+    zip -d -qq cfn/layer-deployment.zip '**/*.cpp'
+    zip -d -qq cfn/layer-deployment.zip '**/*.h'
+    zip -d -qq cfn/layer-deployment.zip '**/*.pyx'
+    zip -d -qq cfn/layer-deployment.zip '**/*.pxd'
     zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/numpy*/tests/**/*
     zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/pandas*/tests/**/*
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/pandas/tests/**/*
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/pandas/_libs/tslibs/src/datetime/*
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/pandas/io/formats/templates/*
     zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/examples/*
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/sqlalchemy*/testing/**/*
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/sqlalchemy/dialects/oracle/**/*
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/sqlalchemy/dialects/mssql/**/*
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/sqlalchemy/dialects/mysql/**/*
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/sqlalchemy/dialects/postgresql/**/*
     zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/*/zoneinfo/Africa/*
     zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/*/zoneinfo/Asia/*
     zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/*/zoneinfo/Atlantic/*

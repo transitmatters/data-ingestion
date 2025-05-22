@@ -51,7 +51,7 @@ def format_ridership_csv(
     holidays = cal.holidays(start=df[date_key].min(), end=df[date_key].max())
 
     # mark as holiday and weekday
-    df["holiday"] = df[date_key].dt.date.astype("datetime64").isin(holidays.date)
+    df["holiday"] = df[date_key].dt.date.astype("datetime64[ns]").isin(holidays.date)
     df["weekday"] = df[date_key].dt.dayofweek
 
     # define peak, mark weekdays, convert service date back
@@ -99,7 +99,7 @@ def format_subway_data(path_to_csv_file: str):
     holidays = cal.holidays(start=df["servicedate"].min(), end=df["servicedate"].max())
 
     # mark as holiday and weekday
-    df["holiday"] = df["servicedate"].dt.date.astype("datetime64").isin(holidays.date)
+    df["holiday"] = df["servicedate"].dt.date.astype("datetime64[ns]").isin(holidays.date)
     df["weekday"] = df["servicedate"].dt.dayofweek
 
     # define peak, mark weekdays, convert service date back

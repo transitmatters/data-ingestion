@@ -31,5 +31,5 @@ def month_range(start, end):
     # So we generate a daily date_range and then resample it down (summing 0s as a no-op in the process) so it aligns.
     dates = pd.date_range(start, end, freq="1D", inclusive="both")
     series = pd.Series(0, index=dates)
-    months = series.resample("1M").sum().index
+    months = series.resample("ME").sum().index
     return months
