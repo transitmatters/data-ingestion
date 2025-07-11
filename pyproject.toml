@@ -19,15 +19,15 @@ mbta-gtfs-sqlite = "^1.1.1"
 boxsdk = "^3.14.0"
 openpyxl = "^3.1.5"
 dynamodb-json = "^1.4.2"
-datadog_lambda = "6.110.0"
+datadog_lambda = "6.111.0"
 tqdm = "^4.67.1"
 click = "^8.2.1"
 
 [tool.poetry.group.dev.dependencies]
 chalice = "~1.32.0"
-flake8 = "^7.2.0"
+flake8 = "^7.3.0"
 black = "^25.1.0"
-pytest = "~8.4.0"
+pytest = "~8.4.1"
 
 [tool.poetry.requires-plugins]
 poetry-plugin-export = ">=1.9.0"
