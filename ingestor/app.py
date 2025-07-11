@@ -108,12 +108,12 @@ def update_time_predictions(event):
     predictions.update_predictions()
 
 
-# 8:00am UTC -> 3:00/4:00am ET every day
-@app.schedule(Cron(0, 8, "*", "*", "?", "*"))
+# 8:00am UTC -> 3:00/4:00am ET and 11:00pm UTC -> 7:00/6:00pm ET every day
+@app.schedule(Cron(0, "8,23", "*", "*", "?", "*"))
 def update_gtfs(event):
     today = datetime.now()
-    last_week = (today - timedelta(days=7)).date()
-    gtfs.ingest_gtfs_feeds_to_dynamo_and_s3(date_range=(last_week, today.date()))
+    three_days_ago = (today - timedelta(days=3)).date()
+    gtfs.ingest_gtfs_feeds_to_dynamo_and_s3(date_range=(three_days_ago, today.date()))
 
 
 # 4:40am UTC -> 2:40/3:40am ET every day

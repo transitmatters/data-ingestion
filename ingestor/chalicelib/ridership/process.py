@@ -141,26 +141,27 @@ def format_subway_data(path_to_csv_file: str):
 
 
 def format_bus_data(path_to_excel_file: str):
-    # read data, ignore first sheet and row
+    # read data - new format doesn't need skiprows
     df = pd.read_excel(
         path_to_excel_file,
-        sheet_name="Ridership by Route",
-        skiprows=2,
+        sheet_name="Weekly by Route",
         keep_default_na=False,
-        na_values=["N/A", "999999"],
+        na_values=["N/A", "999999", "NULL"],
     )
 
-    # rename unnamed data
-    df = df.rename(columns={"Route": "route"})
-    # cast empty values to 0
-    df = df.replace(to_replace="", value=0)
-    # melt to get into long format
-    df = pd.melt(df, id_vars=["route"], var_name="date", value_name="count")
-    # change datetime to date
-    df["date"] = pd.to_datetime(
-        df["date"],
-        infer_datetime_format=True,
-    ).dt.date.astype(str)
+    # Check if this is the new format (has WeekStartDay, Route, TotalRiders columns)
+    if "WeekStartDay" in df.columns and "Route" in df.columns and "TotalRiders" in df.columns:
+        # New format - data is already in the right structure
+        df = df.rename(columns={"Route": "route", "WeekStartDay": "date", "TotalRiders": "count"})
+        # cast empty/NULL values to 0
+        df = df.replace(to_replace=["", "NULL"], value=0)
+        # Convert route numbers to strings to match GTFS format
+        df["route"] = df["route"].astype(str)
+        # change datetime to date
+        df["date"] = pd.to_datetime(
+            df["date"],
+            infer_datetime_format=True,
+        ).dt.date.astype(str)
 
     # get list of bus routes
     routelist = list(set(df["route"].tolist()))
