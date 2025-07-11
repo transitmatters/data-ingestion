@@ -7,34 +7,34 @@ license = "MIT"
 package-mode = false
 
 [tool.poetry.dependencies]
-python = "~3.12"
-requests = "^2.32.3"
+python = "~3.13"
+requests = "^2.32.4"
 pytz = "^2025.2"
-boto3 = "~1.38.19"
-numpy = "^2.2.6"
-pandas = "^2.2.3"
-geopy = "^2.2.0"
-python-dotenv = "^1.1.0"
+boto3 = "~1.38.33"
+numpy = "^2.3.1"
+pandas = "^2.3.1"
+geopy = "^2.4.1"
+python-dotenv = "^1.1.1"
 mbta-gtfs-sqlite = "^1.1.1"
-boxsdk = "^3.13.0"
+boxsdk = "^3.14.0"
 openpyxl = "^3.1.5"
 dynamodb-json = "^1.4.2"
-datadog_lambda = "6.109.0"
-tqdm = "^4.66.5"
-click = "^8.2.0"
+datadog_lambda = "6.110.0"
+tqdm = "^4.67.1"
+click = "^8.2.1"
 
 [tool.poetry.group.dev.dependencies]
-chalice = "~1.31.4"
+chalice = "~1.32.0"
 flake8 = "^7.2.0"
 black = "^25.1.0"
-pytest = "~8.3.5"
+pytest = "~8.4.0"
 
 [tool.poetry.requires-plugins]
-poetry-plugin-export = "^1.9.0"
+poetry-plugin-export = ">=1.9.0"
 
 [tool.black]
 line-length = 120
-target-version = ['py311']
+target-version = ['py313']
 
 [build-system]
 requires = ["poetry-core>=2.0.0"]
