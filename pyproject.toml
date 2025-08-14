@@ -8,11 +8,11 @@ package-mode = false
 
 [tool.poetry.dependencies]
 python = "~3.12"
-requests = "^2.32.3"
+requests = "^2.32.4"
 pytz = "^2025.2"
 boto3 = "~1.38.19"
 numpy = "~2.2.6"
-pandas = "^2.2.3"
+pandas = "~2.2.3"
 geopy = "^2.2.0"
 python-dotenv = "^1.1.0"
 mbta-gtfs-sqlite = "^1.1.1"
@@ -21,7 +21,7 @@ openpyxl = "^3.1.5"
 dynamodb-json = "^1.4.2"
 datadog_lambda = "8.113.0"
 tqdm = "^4.66.5"
-click = "^8.2.0"
+click = "^8.2.1"
 
 [tool.poetry.group.dev.dependencies]
 chalice = "~1.32.0"
@@ -34,7 +34,7 @@ poetry-plugin-export = "^1.9.0"
 
 [tool.black]
 line-length = 120
-target-version = ['py311']
+target-version = ['py312']
 
 [build-system]
 requires = ["poetry-core>=2.0.0"]
