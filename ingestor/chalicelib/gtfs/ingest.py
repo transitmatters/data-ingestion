@@ -160,7 +160,7 @@ def ingest_feeds(
 def ingest_gtfs_feeds_to_dynamo_and_s3(
     date_range: Union[None, Tuple[date, date]] = None,
     feed_key: Union[None, str] = None,
-    local_archive_path: str = None,
+    local_archive_path: str | None = None,
     boto3_session=None,
     force_rebuild_feeds: bool = False,
 ):

@@ -3,7 +3,7 @@ from mbta_gtfs_sqlite.models import Route
 
 from ..gtfs.utils import bucket_by
 from .box import download_latest_ridership_files
-from .arcgis import cr_update_cache
+from .arcgis import cr_update_cache, ferry_update_cache
 from .dynamo import ingest_ridership_to_dynamo
 from .gtfs import get_routes_by_line_id
 from .process import get_ridership_by_route_id
@@ -31,8 +31,9 @@ def get_ridership_by_line_id(
 def ingest_ridership_data():
     routes = get_routes_by_line_id()
     cr_update_cache()
-    subway_file, bus_file, cr_file = download_latest_ridership_files()
-    ridership_by_route_id = get_ridership_by_route_id(subway_file, bus_file, cr_file)
+    ferry_update_cache()
+    subway_file, bus_file, cr_file, ferry_file = download_latest_ridership_files()
+    ridership_by_route_id = get_ridership_by_route_id(subway_file, bus_file, cr_file, ferry_file)
     ridership_by_line_id = get_ridership_by_line_id(ridership_by_route_id, routes)
     ingest_ridership_to_dynamo(ridership_by_line_id)
 

@@ -34,6 +34,17 @@ unofficial_cr_labels_map = {
     "Kingston": "CR-Kingston",
 }
 
+unofficial_ferry_labels_map = {
+    # Ferry
+    "Charlestown Ferry": "Boat-F4",
+    "Hingham/Hull Ferry": "Boat-F1",
+    "East Boston Ferry": "Boat-EastBoston",
+    "Lynn Ferry": "Boat-Lynn",
+    "Winthrop Ferry": "Boat-F6",
+    "Quincy Ferry": "Boat-F7",
+    "Winthrop/Quincy Ferry": "Boat-F8",
+}
+
 
 def format_ridership_csv(
     path_to_csv_file: str,
@@ -189,10 +200,25 @@ def format_cr_data(path_to_ridershp_file: str):
     return ridership_by_route
 
 
+def format_ferry_data(path_to_ridershp_file: str):
+    ridership_by_route = format_ridership_csv(
+        path_to_csv_file=path_to_ridershp_file,
+        date_key="actual_departure",
+        route_key="route_id",
+        count_key="pax_on",
+        route_ids_map=unofficial_ferry_labels_map,
+    )
+    return ridership_by_route
+
+
 def get_ridership_by_route_id(
-    path_to_subway_file: str | None, path_to_bus_file: str | None, path_to_cr_file: str | None
+    path_to_subway_file: str | None,
+    path_to_bus_file: str | None,
+    path_to_cr_file: str | None,
+    path_to_ferry_file: str | None,
 ):
     subway = format_subway_data(path_to_subway_file) if path_to_subway_file else {}
     bus = format_bus_data(path_to_bus_file) if path_to_bus_file else {}
     cr = format_cr_data(path_to_cr_file) if path_to_cr_file else {}
-    return {**subway, **bus, **cr}
+    ferry = format_ferry_data(path_to_ferry_file) if path_to_ferry_file else {}
+    return {**subway, **bus, **cr, **ferry}
