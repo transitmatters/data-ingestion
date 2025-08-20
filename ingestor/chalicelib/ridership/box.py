@@ -10,6 +10,7 @@ import requests
 
 from .config import (
     CR_RIDERSHIP_ARCGIS_URL,
+    FERRY_RIDERSHIP_ARCGIS_URL,
     RIDERSHIP_BOX_URL,
     RIDERSHIP_BUS_XLSX_REGEX,
     RIDERSHIP_SUBWAY_CSV_REGEX,
@@ -46,7 +47,7 @@ def get_file_matching_date_pattern(files: List[File], pattern: Pattern):
 
 def download_latest_ridership_files(
     require_matching_dates=False,
-) -> Tuple[str, str]:
+) -> Tuple[str, str, str, str]:
     client = get_box_client()
     folder = client.get_shared_item(RIDERSHIP_BOX_URL)
     files = list(folder.get_items())
@@ -67,6 +68,7 @@ def download_latest_ridership_files(
         subway_tmp_path = NamedTemporaryFile().name
         bus_tmp_path = NamedTemporaryFile().name
         cr_tmp_path = NamedTemporaryFile().name
+        ferry_tmp_path = NamedTemporaryFile().name
         with open(subway_tmp_path, "wb") as file:
             subway_file.download_to(file)
         with open(bus_tmp_path, "wb") as file:
@@ -74,5 +76,8 @@ def download_latest_ridership_files(
         with open(cr_tmp_path, "wb") as file:
             req = requests.get(CR_RIDERSHIP_ARCGIS_URL)
             file.write(req.content)
-        return subway_tmp_path, bus_tmp_path, cr_tmp_path
+        with open(ferry_tmp_path, "wb") as file:
+            req = requests.get(FERRY_RIDERSHIP_ARCGIS_URL)
+            file.write(req.content)
+        return subway_tmp_path, bus_tmp_path, cr_tmp_path, ferry_tmp_path
     raise Exception("Could not find ridership data files")

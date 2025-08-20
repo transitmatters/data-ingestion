@@ -23,11 +23,7 @@ def get_total_service_minutes(trips: List[Trip]):
 
 
 def is_valid_route_id(route_id: str):
-    return (
-        not route_id.startswith("Shuttle")
-        and not route_id.startswith("Boat")
-        and route_id != "602"  # 602 is a Green Line shuttle
-    )
+    return not route_id.startswith("Shuttle") and route_id != "602"  # 602 is a Green Line shuttle
 
 
 def bucket_by(
