@@ -167,6 +167,7 @@ def alert_type(alert: Alert):
         or "auto that was blocking" in alert["text"].lower()
         or "auto blocking the track" in alert["text"].lower()
         or "auto was removed from the track" in alert["text"].lower()
+        or "accident blocking the tracks" in alert["text"].lower()
     ):
         return "car_traffic"
 
@@ -225,7 +226,6 @@ def process_requests(requests: List[AlertsRequest], lines=constants.ALL_LINES):
         all_data[line] = []
 
     for request in requests:
-        print(request.route, request.date)
         data = process_single_day(request)
         if data is not None and len(data) != 0:
             total_delay, delay_by_type = process_delay_time(data)
@@ -264,6 +264,6 @@ def update_table(start_date: date, end_date: date, lines=constants.ALL_LINES):
 
 
 if __name__ == "__main__":
-    start_date = date(2024, 6, 1)
-    end_date = date(2024, 12, 20)
+    start_date = date(2025, 6, 1)
+    end_date = date(2025, 8, 10)
     update_table(start_date, end_date, constants.ALL_LINES)
