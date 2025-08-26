@@ -1,6 +1,9 @@
+from tempfile import NamedTemporaryFile
+from typing import Tuple
 import requests
 
-from .config import CR_UPDATE_CACHE_URL, FERRY_UPDATE_CACHE_URL
+from .config import CR_RIDERSHIP_ARCGIS_URL,CR_UPDATE_CACHE_URL, FERRY_UPDATE_CACHE_URL
+
 
 
 def cr_update_cache():
@@ -19,3 +22,11 @@ def ferry_update_cache():
     where the cache isn't updated automatically.
     """
     requests.get(FERRY_UPDATE_CACHE_URL)
+
+def download_latest_ridership_files() -> Tuple[None, None, str]:
+    cr_tmp_path = NamedTemporaryFile().name
+
+    with open(cr_tmp_path, "wb") as file:
+        req = requests.get(CR_RIDERSHIP_ARCGIS_URL, timeout=15)
+        file.write(req.content)
+    return None, None, cr_tmp_path

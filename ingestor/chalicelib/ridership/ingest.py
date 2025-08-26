@@ -2,8 +2,7 @@ from typing import Dict
 from mbta_gtfs_sqlite.models import Route
 
 from ..gtfs.utils import bucket_by
-from .box import download_latest_ridership_files
-from .arcgis import cr_update_cache, ferry_update_cache
+from .arcgis import cr_update_cache, download_latest_ridership_files, ferry_update_cache
 from .dynamo import ingest_ridership_to_dynamo
 from .gtfs import get_routes_by_line_id
 from .process import get_ridership_by_route_id
