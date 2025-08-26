@@ -21,6 +21,6 @@ def download_latest_ridership_files() -> Tuple[None, None, str]:
     cr_tmp_path = NamedTemporaryFile().name
 
     with open(cr_tmp_path, "wb") as file:
-        req = requests.get(CR_RIDERSHIP_ARCGIS_URL, timeout=5)
+        req = requests.get(CR_RIDERSHIP_ARCGIS_URL, timeout=15)
         file.write(req.content)
     return None, None, cr_tmp_path
