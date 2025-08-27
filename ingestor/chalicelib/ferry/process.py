@@ -92,6 +92,8 @@ def format_ferry_csv(
 
     # Convert To Boston/From Boston to Inbound/Outbound Values
     df["travel_direction"] = df["travel_direction"].replace(inbound_outbound)
+    # Convert direction_id to integer to ensure outputs are integers
+    df["travel_direction"] = df["travel_direction"].astype("Int64")
     # Replace terminal values with GTFS Approved Values
     df["departure_terminal"] = df["departure_terminal"].replace(station_mapping)
     df["arrival_terminal"] = df["arrival_terminal"].replace(station_mapping)
