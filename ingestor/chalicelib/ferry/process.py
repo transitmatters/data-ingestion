@@ -1,6 +1,7 @@
 import pandas as pd
 from zoneinfo import ZoneInfo
 from .disk import write_event, CSV_FIELDS
+from .load_constants import load_constants, add_stop_sequence_to_dataframe
 
 EASTERN_TIME = ZoneInfo("US/Eastern")
 
@@ -126,6 +127,10 @@ def format_ferry_csv(
     arrival_events = arrival_events[CSV_FIELDS]
     departure_events = departure_events[CSV_FIELDS]
     events = pd.concat([arrival_events, departure_events])
+
+    # Load route constants and add stop sequence information
+    route_dicts = load_constants()
+    events = add_stop_sequence_to_dataframe(events, route_dicts)
 
     return events
 
