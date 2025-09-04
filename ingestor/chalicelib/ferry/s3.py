@@ -11,7 +11,7 @@ s3 = boto3.client("s3")
 
 S3_BUCKET = "tm-mbta-performance"
 
-S3_DATA_TEMPLATE = "Events-live/{relative_path}.gz"
+S3_DATA_TEMPLATE = "Events/{relative_path}.gz"
 
 
 def _compress_and_upload_file(fp: str):
