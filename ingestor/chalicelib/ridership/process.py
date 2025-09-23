@@ -2,6 +2,7 @@ from typing import Dict, Union
 import pandas as pd
 import numpy as np
 from pandas.tseries.holiday import USFederalHolidayCalendar
+from tempfile import NamedTemporaryFile
 
 
 unofficial_labels_map = {
@@ -36,6 +37,14 @@ unofficial_cr_labels_map = {
 
 unofficial_ferry_labels_map = {
     # Ferry
+    "F1": "Boat-F1",
+    "F2H": "Boat-F1",
+    "F3": "Boat-EastBoston",
+    "F4": "Boat-F4",
+    "F5": "Boat-Lynn",
+    "F6": "Boat-F6",
+    "F7": "Boat-F7",
+    "F8": "Boat-F8",
     "Charlestown Ferry": "Boat-F4",
     "Hingham/Hull Ferry": "Boat-F1",
     "East Boston Ferry": "Boat-EastBoston",
@@ -44,6 +53,28 @@ unofficial_ferry_labels_map = {
     "Quincy Ferry": "Boat-F7",
     "Winthrop/Quincy Ferry": "Boat-F8",
 }
+
+
+def pre_process_csv(
+    path_to_csv_file: str,
+    date_key: str,
+    route_key: str,
+    count_key: str,
+):
+    df = pd.read_csv(path_to_csv_file, usecols=[date_key, route_key, count_key])
+    df[date_key] = pd.to_datetime(df[date_key], format="mixed", errors="coerce")
+    df = df.dropna(subset=[date_key])
+    df["Year"] = df[date_key].dt.year
+    df["Week"] = df[date_key].dt.isocalendar().week
+    df[date_key] = df[date_key].dt.strftime("%Y-%m-%d")
+
+    grouped_df = df.groupby(["Year", "Week", route_key])[count_key].agg("sum").reset_index()
+    grouped_df[date_key] = pd.to_datetime(
+        grouped_df["Year"].astype(str) + grouped_df["Week"].astype(str) + "1", format="%Y%W%w"
+    )
+    tmp_path = NamedTemporaryFile().name
+    grouped_df.to_csv(tmp_path, index=False)
+    return tmp_path
 
 
 def format_ridership_csv(
@@ -171,7 +202,7 @@ def format_bus_data(path_to_excel_file: str):
         # change datetime to date
         df["date"] = pd.to_datetime(
             df["date"],
-            infer_datetime_format=True,
+            format="mixed",
         ).dt.date.astype(str)
 
     # get list of bus routes
@@ -202,8 +233,14 @@ def format_cr_data(path_to_ridershp_file: str):
 
 
 def format_ferry_data(path_to_ridershp_file: str):
-    ridership_by_route = format_ridership_csv(
+    preprocess = pre_process_csv(
         path_to_csv_file=path_to_ridershp_file,
+        date_key="actual_departure",
+        route_key="route_id",
+        count_key="pax_on",
+    )
+    ridership_by_route = format_ridership_csv(
+        path_to_csv_file=preprocess,
         date_key="actual_departure",
         route_key="route_id",
         count_key="pax_on",
