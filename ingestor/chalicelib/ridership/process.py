@@ -58,10 +58,18 @@ unofficial_ferry_labels_map = {
 def pre_process_csv(
     path_to_csv_file: str,
     date_key: str,
-    route_key: str,
+    route_key: str | None,
     count_key: str,
+    route_name: str | None = None,
 ):
-    df = pd.read_csv(path_to_csv_file, usecols=[date_key, route_key, count_key])
+
+    if route_key is None and route_name is not None:
+        route_key = "Route"
+        df = pd.read_csv(path_to_csv_file, usecols=[date_key, count_key])
+        df[route_key] = route_name
+    else:
+        df = pd.read_csv(path_to_csv_file, usecols=[date_key, route_key, count_key])
+
     df[date_key] = pd.to_datetime(df[date_key], format="mixed", errors="coerce")
     df = df.dropna(subset=[date_key])
     df["Year"] = df[date_key].dt.year
@@ -232,9 +240,9 @@ def format_cr_data(path_to_ridershp_file: str):
     return ridership_by_route
 
 
-def format_ferry_data(path_to_ridershp_file: str):
+def format_ferry_data(path_to_ridership_file: str):
     preprocess = pre_process_csv(
-        path_to_csv_file=path_to_ridershp_file,
+        path_to_csv_file=path_to_ridership_file,
         date_key="actual_departure",
         route_key="route_id",
         count_key="pax_on",
@@ -249,14 +257,34 @@ def format_ferry_data(path_to_ridershp_file: str):
     return ridership_by_route
 
 
+def format_the_ride_data(path_to_ridership_file: str):
+    preprocess = pre_process_csv(
+        path_to_csv_file=path_to_ridership_file,
+        date_key="Date",
+        route_key=None,
+        route_name="RIDE",
+        count_key="Completed_Trips",
+    )
+    ridership_by_route = format_ridership_csv(
+        path_to_csv_file=preprocess,
+        date_key="Date",
+        route_key="Route",
+        count_key="Completed_Trips",
+    )
+    return ridership_by_route
+
+
 def get_ridership_by_route_id(
     path_to_subway_file: str | None,
     path_to_bus_file: str | None,
     path_to_cr_file: str | None,
     path_to_ferry_file: str | None,
+    path_to_ride_file: str | None,
 ):
     subway = format_subway_data(path_to_subway_file) if path_to_subway_file else {}
     bus = format_bus_data(path_to_bus_file) if path_to_bus_file else {}
     cr = format_cr_data(path_to_cr_file) if path_to_cr_file else {}
     ferry = format_ferry_data(path_to_ferry_file) if path_to_ferry_file else {}
-    return {**subway, **bus, **cr, **ferry}
+    ride = format_the_ride_data(path_to_ride_file) if path_to_ride_file else {}
+
+    return {**subway, **bus, **cr, **ferry, **ride}
