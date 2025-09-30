@@ -20,11 +20,14 @@ if __name__ == "__main__":
     parser.add_argument("--bus-file", required=False, help="Path to bus ridership file")
     parser.add_argument("--cr-file", required=False, help="Path to commuter rail ridership file")
     parser.add_argument("--ferry-file", required=False, help="Path to ferry ridership file")
+    parser.add_argument("--theride-file", required=False, help="Path to The RIDE ridership file")
 
     args = parser.parse_args()
 
     routes = get_routes_by_line_id()
 
-    ridership_by_route_id = get_ridership_by_route_id(args.subway_file, args.bus_file, args.cr_file, args.ferry_file)
+    ridership_by_route_id = get_ridership_by_route_id(
+        args.subway_file, args.bus_file, args.cr_file, args.ferry_file, args.theride_file
+    )
     ridership_by_line_id = get_ridership_by_line_id(ridership_by_route_id, routes)
     ingest_ridership_to_dynamo(ridership_by_line_id)
