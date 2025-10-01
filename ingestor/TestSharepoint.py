@@ -1,5 +1,4 @@
 import requests
-import re
 import json
 
 
@@ -14,9 +13,11 @@ def get_sharepoint_folder_contents_anonymous(share_url):
         List of dictionaries containing file information, or None on error
     """
     session = requests.Session()
-    session.headers.update({
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-    })
+    session.headers.update(
+        {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        }
+    )
 
     # Follow the sharing link
     response = session.get(share_url, allow_redirects=True)
@@ -29,7 +30,7 @@ def get_sharepoint_folder_contents_anonymous(share_url):
 
     # Extract g_listData which contains the file list
     # Find the start of g_listData
-    start_marker = 'g_listData = '
+    start_marker = "g_listData = "
     start_pos = html.find(start_marker)
 
     if start_pos == -1:
@@ -50,7 +51,7 @@ def get_sharepoint_folder_contents_anonymous(share_url):
             escape_next = False
             continue
 
-        if char == '\\':
+        if char == "\\":
             escape_next = True
             continue
 
@@ -59,9 +60,9 @@ def get_sharepoint_folder_contents_anonymous(share_url):
             continue
 
         if not in_string:
-            if char == '{':
+            if char == "{":
                 brace_count += 1
-            elif char == '}':
+            elif char == "}":
                 brace_count -= 1
                 if brace_count == 0:
                     json_end = i + 1
@@ -72,19 +73,19 @@ def get_sharepoint_folder_contents_anonymous(share_url):
     try:
         list_data = json.loads(json_str)
 
-        if 'ListData' not in list_data or 'Row' not in list_data['ListData']:
+        if "ListData" not in list_data or "Row" not in list_data["ListData"]:
             print("Unexpected g_listData structure")
             return None
 
         files = []
-        for item in list_data['ListData']['Row']:
+        for item in list_data["ListData"]["Row"]:
             file_info = {
-                'name': item.get('FileLeafRef'),
-                'url': item.get('FileRef'),
-                'size': item.get('File_x0020_Size'),
-                'modified': item.get('Modified'),
-                'is_folder': item.get('FSObjType') == '1',
-                'id': item.get('ID'),
+                "name": item.get("FileLeafRef"),
+                "url": item.get("FileRef"),
+                "size": item.get("File_x0020_Size"),
+                "modified": item.get("Modified"),
+                "is_folder": item.get("FSObjType") == "1",
+                "id": item.get("ID"),
             }
             files.append(file_info)
 
@@ -113,7 +114,7 @@ def download_sharepoint_file_anonymous(session, file_ref, output_path):
     response = session.get(download_url)
 
     if response.status_code == 200:
-        with open(output_path, 'wb') as f:
+        with open(output_path, "wb") as f:
             f.write(response.content)
         print(f"Downloaded: {output_path}")
         return True
@@ -135,6 +136,7 @@ def get_folder_by_path(session, folder_path):
     """
     # Construct the URL to view that specific folder
     from urllib.parse import quote
+
     base_url = "https://mbta.sharepoint.com/sites/PublicData/Shared%20Documents/Forms/AllItems.aspx"
     folder_url = f"{base_url}?id={quote(folder_path)}&p=true&ga=1"
 
@@ -145,8 +147,12 @@ def get_folder_by_path(session, folder_path):
 
     html = response.text
 
+    # Optional to inspect the HTML file
+    # with open("test.html", "w") as file:
+    #     file.write(html)
+
     # Extract g_listData
-    start_marker = 'g_listData = '
+    start_marker = "g_listData = "
     start_pos = html.find(start_marker)
 
     if start_pos == -1:
@@ -165,7 +171,7 @@ def get_folder_by_path(session, folder_path):
             escape_next = False
             continue
 
-        if char == '\\':
+        if char == "\\":
             escape_next = True
             continue
 
@@ -174,9 +180,9 @@ def get_folder_by_path(session, folder_path):
             continue
 
         if not in_string:
-            if char == '{':
+            if char == "{":
                 brace_count += 1
-            elif char == '}':
+            elif char == "}":
                 brace_count -= 1
                 if brace_count == 0:
                     json_end = i + 1
@@ -187,18 +193,18 @@ def get_folder_by_path(session, folder_path):
     try:
         list_data = json.loads(json_str)
 
-        if 'ListData' not in list_data or 'Row' not in list_data['ListData']:
+        if "ListData" not in list_data or "Row" not in list_data["ListData"]:
             return None
 
         files = []
-        for item in list_data['ListData']['Row']:
+        for item in list_data["ListData"]["Row"]:
             file_info = {
-                'name': item.get('FileLeafRef'),
-                'url': item.get('FileRef'),
-                'size': item.get('File_x0020_Size'),
-                'modified': item.get('Modified'),
-                'is_folder': item.get('FSObjType') == '1',
-                'id': item.get('ID'),
+                "name": item.get("FileLeafRef"),
+                "url": item.get("FileRef"),
+                "size": item.get("File_x0020_Size"),
+                "modified": item.get("Modified"),
+                "is_folder": item.get("FSObjType") == "1",
+                "id": item.get("ID"),
             }
             files.append(file_info)
 
@@ -229,8 +235,8 @@ def list_all_files_recursive(session, folder_path, indent=0):
     prefix = "  " * indent
 
     for file in files:
-        file_type = "Folder" if file['is_folder'] else "File"
-        size = file.get('size') or 0
+        file_type = "Folder" if file["is_folder"] else "File"
+        size = file.get("size") or 0
         # Convert size to int if it's a string
         if isinstance(size, str):
             try:
@@ -240,9 +246,9 @@ def list_all_files_recursive(session, folder_path, indent=0):
 
         print(f"{prefix}[{file_type}] {file['name']} - {size:,} bytes")
 
-        if file['is_folder']:
+        if file["is_folder"]:
             # Recursively explore subfolder
-            subfiles = list_all_files_recursive(session, file['url'], indent + 1)
+            subfiles = list_all_files_recursive(session, file["url"], indent + 1)
             all_files.extend(subfiles)
         else:
             all_files.append(file)
@@ -266,8 +272,8 @@ def main():
         # Recursively list all files
         all_files = []
         for file in files:
-            file_type = "Folder" if file['is_folder'] else "File"
-            size = file.get('size') or 0
+            file_type = "Folder" if file["is_folder"] else "File"
+            size = file.get("size") or 0
             if isinstance(size, str):
                 try:
                     size = int(size)
@@ -275,22 +281,22 @@ def main():
                     size = 0
             print(f"[{file_type}] {file['name']} - {size:,} bytes")
 
-            if file['is_folder']:
-                subfiles = list_all_files_recursive(session, file['url'], 1)
+            if file["is_folder"]:
+                subfiles = list_all_files_recursive(session, file["url"], 1)
                 all_files.extend(subfiles)
             else:
                 all_files.append(file)
 
-        print(f"\n=== Summary ===")
+        print("\n=== Summary ===")
         print(f"Total files found: {len(all_files)}")
 
         # Example: Download the first file
         if all_files:
-            print(f"\n--- Download Example ---")
+            print("\n--- Download Example ---")
             file = all_files[0]
             output_path = f"/tmp/{file['name']}"
             print(f"Downloading {file['name']} to {output_path}...")
-            download_sharepoint_file_anonymous(session, file['url'], output_path)
+            download_sharepoint_file_anonymous(session, file["url"], output_path)
     else:
         print("No files found or error occurred")
 
