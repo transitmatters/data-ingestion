@@ -12,8 +12,8 @@ CR_UPDATE_CACHE_URL = "https://hub.arcgis.com/api/download/v1/items/e2635c945f5b
 
 FERRY_UPDATE_CACHE_URL = "https://hub.arcgis.com/api/download/v1/items/ae21643bbe60488db8520cc694f882aa/csv?redirect=false&layers=0&updateCache=true"
 
-FERRY_RIDERSHIP_ARCGIS_URL = "https://hub.arcgis.com/api/v3/datasets/ae21643bbe60488db8520cc694f882aa_0/downloads/data?format=csv&spatialRefId=4326&where=1%3D1"
+FERRY_RIDERSHIP_ARCGIS_URL = "https://opendata.arcgis.com/api/v3/datasets/ae21643bbe60488db8520cc694f882aa_0/downloads/data?format=csv&spatialRefId=4326&where=1%3D1"
 
 THE_RIDE_UPDATE_CACHE_URL = "https://hub.arcgis.com/api/download/v1/items/e93e4e4820ca4719b3c4134ae0865053/csv?redirect=false&layers=0&updateCache=true"
 
-THE_RIDE_RIDERSHIP_ARCGIS_URL = "https://hub.arcgis.com/api/v3/datasets/e93e4e4820ca4719b3c4134ae0865053/downloads/data?format=csv&spatialRefId=4326&where=1%3D1"
+THE_RIDE_RIDERSHIP_ARCGIS_URL = "https://opendata.arcgis.com/api/v3/datasets/e93e4e4820ca4719b3c4134ae0865053_0/downloads/data?format=csv&spatialRefId=4326&where=1%3D1"
