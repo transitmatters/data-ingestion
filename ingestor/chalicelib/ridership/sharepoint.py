@@ -4,6 +4,9 @@ import re
 import logging
 from tempfile import NamedTemporaryFile
 from urllib.parse import quote
+from datetime import date
+from re import Pattern
+from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -14,14 +17,11 @@ BUS_SHARE_URL = "https://mbta.sharepoint.com/:f:/s/PublicData/Eh1G_O3dog9Eh_EfCq
 
 
 class SharepointConnection:
-    def __init__(
-        self, user_agent: str = DEFAULT_USER_AGENT, base_url=BASE_URL, prefix="mbta", share_url=SUBWAY_SHARE_URL
-    ) -> None:
+    def __init__(self, user_agent: str = DEFAULT_USER_AGENT, base_url=BASE_URL, prefix="mbta") -> None:
         self.session = self.setup_session(user_agent)
         self.base_url = base_url
         self.all_files = []
         self.prefix = prefix
-        self.share_url = share_url
 
     def setup_session(self, user_agent: str) -> requests.Session:
         session = requests.Session()
@@ -141,13 +141,12 @@ class SharepointConnection:
         files = self.parse_g_data(html)
         return files
 
-    def list_all_files_recursive(self, folder_path, indent=0):
+    def list_all_files_recursive(self, folder_path):
         """
         Recursively list all files in a folder and its subfolders.
 
         Args:
             folder_path: Server-relative path to start from
-            indent: Indentation level for display
 
         Returns:
             List of all files (not folders) found
@@ -156,7 +155,6 @@ class SharepointConnection:
         if not files:
             return []
         all_files = []
-        prefix = "  " * indent
 
         for file in files:
             file_type = "Folder" if file["is_folder"] else "File"
@@ -168,11 +166,11 @@ class SharepointConnection:
                 except (ValueError, TypeError):
                     size = 0
 
-            logger.info(f"{prefix}[{file_type}] {file['name']} - {size:,} bytes")
+            logger.debug(f"[{file_type}] {file['name']} - {size:,} bytes")
 
             if file["is_folder"]:
                 # Recursively explore subfolder
-                subfiles = self.list_all_files_recursive(file["url"], indent + 1)
+                subfiles = self.list_all_files_recursive(file["url"])
                 all_files.extend(subfiles)
             else:
                 all_files.append(file)
@@ -209,9 +207,9 @@ class SharepointConnection:
         Downloads files from Sharepoint matching a regex pattern.
 
         Args:
-            file_regex (str): Regular expression pattern to match against filenames. If None, uses default patterns based on bus_data.
+            file_regex (str or Pattern): Regular expression pattern to match against filenames. If None, uses default patterns based on bus_data.
             share_url (str): SharePoint sharing URL to download from. If None, uses default URLs based on bus_data.
-            target_date (str): Takes format 2025.09.30, specifies which file to download. Used for default subway data regex. Optional for Bus data, required for Subway Data when file_regex is None.
+            target_date (date): Date object specifying which file to download. Used for default subway data pattern matching. Optional for Bus data, required for Subway Data when file_regex is None.
             bus_data (bool): Whether to download Bus Data (True) or Subway Data (False). Only used when file_regex is None.
 
         Returns:
@@ -222,25 +220,19 @@ class SharepointConnection:
             if bus_data:
                 share_url = BUS_SHARE_URL
             else:
-                if target_date or file_regex:
-                    share_url = SUBWAY_SHARE_URL
-                else:
-                    logger.error("If downloading Subway data, please specify target date or file_regex.")
-                    return None
+                share_url = SUBWAY_SHARE_URL
 
-        # Determine file regex pattern
+        # Determine file pattern
         if file_regex is None:
             # Use default patterns
             if bus_data:
-                file_regex = r"^MBTA Bus Weekly Ridership\.xlsx$"
+                file_regex = re.compile(r"^MBTA Bus Weekly Ridership\.xlsx$")
             else:
-                if target_date:
-                    # Create a more specific regex that includes the date
-                    date_pattern = target_date.replace(".", r"\.")  # Escape dots for regex
-                    file_regex = rf".*{date_pattern}.* MBTA Gated Station Validations by line\.csv$"
-                else:
-                    logger.error("If downloading Subway data without file_regex, please specify target_date.")
-                    return None
+                # Create a pattern that matches the date format in filenames
+                # Expected format: YYYY.MM.DD MBTA Gated Station Validations by line.csv
+                file_regex = re.compile(r"(\d{4})\.(\d{2})\.(\d{2}) MBTA Gated Station Validations by line\.csv$")
+        elif isinstance(file_regex, str):
+            file_regex = re.compile(file_regex)
 
         files = self.get_sharepoint_folder_contents_anonymous(share_url)
 
@@ -256,33 +248,101 @@ class SharepointConnection:
                         size = 0
 
                 if file["is_folder"]:
-                    subfiles = self.list_all_files_recursive(file["url"], 1)
+                    subfiles = self.list_all_files_recursive(file["url"])
                     all_files.extend(subfiles)
                 else:
                     all_files.append(file)
 
             if all_files:
-                logger.info("--- Download Example ---")
                 output_path = NamedTemporaryFile().name
 
-                # Find files matching the regex
-                matching_files = [file for file in all_files if re.search(file_regex, file["name"], re.IGNORECASE)]
-
-                if matching_files:
-                    file = matching_files[0]  # Take the first match
-                    logger.info(f"Downloading {file['name']} to {output_path}...")
-                    self.download_sharepoint_file_anonymous(file["url"], output_path)
-                    return output_path
+                # If we have a pattern with capture groups (date pattern), use date matching
+                if isinstance(file_regex, Pattern) and file_regex.groups >= 3:
+                    result = get_file_matching_date_pattern(all_files, file_regex, target_date)
+                    if result:
+                        file, file_date = result
+                        logger.info(f"Downloading {file['name']} (date: {file_date}) to {output_path}...")
+                        self.download_sharepoint_file_anonymous(file["url"], output_path)
+                        return output_path
+                    else:
+                        if target_date:
+                            logger.warning(f"No files found matching pattern with target date: {target_date}")
+                        else:
+                            logger.warning(f"No files found matching date pattern: {file_regex}")
+                        return None
                 else:
-                    logger.warning(f"No files found matching pattern: {file_regex}")
-                    return None
+                    # Find files matching the regex (original behavior)
+                    matching_files = [file for file in all_files if file_regex.search(file["name"])]
+
+                    if matching_files:
+                        file = matching_files[0]  # Take the first match
+                        logger.info(f"Downloading {file['name']} to {output_path}...")
+                        self.download_sharepoint_file_anonymous(file["url"], output_path)
+                        return output_path
+                    else:
+                        logger.warning(f"No files found matching pattern: {file_regex}")
+                        return None
 
         else:
             logger.error("No files found or error occurred")
             return None
 
 
+def get_file_matching_date_pattern(files: List[dict], pattern: Pattern, target_date: Optional[date] = None):
+    """
+    Find a file matching a date pattern and extract the date from its name.
+
+    Args:
+        files: List of file dictionaries with 'name' key
+        pattern: Compiled regex pattern with three capture groups for year, month, day
+        target_date: Specific date to match. If None, returns the newest matching file.
+
+    Returns:
+        Tuple of (file_dict, date) if match found, None otherwise
+    """
+    newest_file = None
+    newest_date = None
+
+    for file in files:
+        match = pattern.match(file["name"])
+        if match:
+            year = match[1]
+            month = match[2]
+            day = match[3]
+            file_date = date(year=int(year), month=int(month), day=int(day))
+
+            # If target_date is specified, only return files that match it
+            if target_date is not None:
+                if file_date == target_date:
+                    return file, file_date
+            else:
+                # Track the newest file
+                if newest_date is None or file_date > newest_date:
+                    newest_file = file
+                    newest_date = file_date
+
+    # Return the newest file if target_date was None
+    if target_date is None and newest_file is not None:
+        return newest_file, newest_date
+
+    return None
+
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     sharepoint = SharepointConnection()
-    sharepoint.fetch_sharepoint_file(target_date="2025.09.30", bus_data=False)
+
+    # Example 1: Download newest subway file
+    print("\n=== Example 1: Download newest subway file ===")
+    newest_subway = sharepoint.fetch_sharepoint_file(bus_data=False)
+    print(f"Downloaded newest subway file to: {newest_subway}")
+
+    # Example 2: Download subway file for specific date
+    print("\n=== Example 2: Download subway file for specific date ===")
+    specific_date_subway = sharepoint.fetch_sharepoint_file(target_date=date(2025, 9, 30), bus_data=False)
+    print(f"Downloaded subway file for 2025-09-30 to: {specific_date_subway}")
+
+    # Example 3: Download bus data
+    print("\n=== Example 3: Download bus data ===")
+    bus_file = sharepoint.fetch_sharepoint_file(bus_data=True)
+    print(f"Downloaded bus file to: {bus_file}")
