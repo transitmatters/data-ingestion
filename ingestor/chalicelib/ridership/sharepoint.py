@@ -319,17 +319,20 @@ def fetch_sharepoint_file(target_date=None, bus_data=True):
                 download_sharepoint_file_anonymous(session, file["url"], output_path)
                 return output_path
             else:
-                # Create a more specific regex that includes the date
-                date_pattern = target_date.replace(".", r"\.")  # Escape dots for regex
-                specific_regex = rf".*{date_pattern}.* MBTA Gated Station Validations by line\.csv$"  # Match files containing the date and ending in .csv
+                if target_date:
+                    # Create a more specific regex that includes the date
+                    date_pattern = target_date.replace(".", r"\.")  # Escape dots for regex
+                    specific_regex = rf".*{date_pattern}.* MBTA Gated Station Validations by line\.csv$"  # Match files containing the date and ending in .csv
 
-                matching_files = [file for file in all_files if re.search(specific_regex, file["name"], re.IGNORECASE)]
+                    matching_files = [
+                        file for file in all_files if re.search(specific_regex, file["name"], re.IGNORECASE)
+                    ]
 
-                if matching_files:
-                    file = matching_files[0]  # Take the first match
-                    print(f"Downloading {file['name']} to {output_path}...")
-                    download_sharepoint_file_anonymous(session, file["url"], output_path)
-                    return output_path
+                    if matching_files:
+                        file = matching_files[0]  # Take the first match
+                        print(f"Downloading {file['name']} to {output_path}...")
+                        download_sharepoint_file_anonymous(session, file["url"], output_path)
+                        return output_path
 
     else:
         print("No files found or error occurred")
