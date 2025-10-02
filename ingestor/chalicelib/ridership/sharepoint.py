@@ -2,6 +2,7 @@ import requests
 import json
 import re
 from tempfile import NamedTemporaryFile
+from urllib.parse import quote
 
 
 def get_sharepoint_folder_contents_anonymous(share_url):
@@ -137,7 +138,6 @@ def get_folder_by_path(session, folder_path):
         List of file info dictionaries
     """
     # Construct the URL to view that specific folder
-    from urllib.parse import quote
 
     base_url = "https://mbta.sharepoint.com/sites/PublicData/Shared%20Documents/Forms/AllItems.aspx"
     folder_url = f"{base_url}?id={quote(folder_path)}&p=true&ga=1"
