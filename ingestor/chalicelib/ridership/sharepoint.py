@@ -1,5 +1,7 @@
 import requests
 import json
+import re
+from tempfile import NamedTemporaryFile
 
 
 def get_sharepoint_folder_contents_anonymous(share_url):
@@ -256,9 +258,88 @@ def list_all_files_recursive(session, folder_path, indent=0):
     return all_files
 
 
+def fetch_sharepoint_file(target_date=None, bus_data=True):
+    """
+    Downloads the ridership files from Sharepoint.
+
+    Args:
+        target_date (str): Takes format 2025.09.30, specifies which file to download. Optional for Bus data, required for Subway Data.
+        bus_data (bool): Whether to download Bus Data (True) or Subway Data (False).
+
+    Returns:
+        str: Path to named Temporary File with data.
+    """
+    if bus_data:
+        share_url = "https://mbta.sharepoint.com/:f:/s/PublicData/Eh1G_O3dog9Eh_EfCqsJZ9EBb6BIgjP-ovWMwdLpwuDnjw"
+    else:
+        if target_date:
+            # SharePoint 'anyone with the link' URL
+            share_url = "https://mbta.sharepoint.com/:f:/s/PublicData/ElfNM8viGx5Out070Rg7tTABH1wLLEdwh69nIOb4J3Nt8w"
+        else:
+            print("If downloading Subway data, please specify target date.")
+            return None
+
+    # print("Fetching folder contents using anonymous access...")
+    # print(f"Share URL: {share_url}\n")
+
+    result = get_sharepoint_folder_contents_anonymous(share_url)
+
+    if result:
+        files, session = result
+        # print(f"Found {len(files)} items in root:\n")
+
+        # Recursively list all files
+        all_files = []
+        for file in files:
+            # file_type = "Folder" if file["is_folder"] else "File"
+            size = file.get("size") or 0
+            if isinstance(size, str):
+                try:
+                    size = int(size)
+                except (ValueError, TypeError):
+                    size = 0
+            # print(f"[{file_type}] {file['name']} - {size:,} bytes")
+
+            if file["is_folder"]:
+                subfiles = list_all_files_recursive(session, file["url"], 1)
+                all_files.extend(subfiles)
+            else:
+                all_files.append(file)
+
+        # print("\n=== Summary ===")
+        # print(f"Total files found: {len(all_files)}")
+
+        if all_files:
+            print("\n--- Download Example ---")
+            output_path = NamedTemporaryFile().name
+            if bus_data:
+                idx = all_files.index("MBTA Bus Weekly Ridership.xlsx")
+                file = all_files[idx]
+                print(f"Downloading {file['name']} to {output_path}...")
+                download_sharepoint_file_anonymous(session, file["url"], output_path)
+                return output_path
+            else:
+                # Create a more specific regex that includes the date
+                date_pattern = target_date.replace(".", r"\.")  # Escape dots for regex
+                specific_regex = rf".*{date_pattern}.* MBTA Gated Station Validations by line\.csv$"  # Match files containing the date and ending in .csv
+
+                matching_files = [file for file in all_files if re.search(specific_regex, file["name"], re.IGNORECASE)]
+
+                if matching_files:
+                    file = matching_files[0]  # Take the first match
+                    print(f"Downloading {file['name']} to {output_path}...")
+                    download_sharepoint_file_anonymous(session, file["url"], output_path)
+                    return output_path
+
+    else:
+        print("No files found or error occurred")
+        return None
+
+
 def main():
     # SharePoint 'anyone with the link' URL
-    share_url = "https://mbta.sharepoint.com/:f:/s/PublicData/ElfNM8viGx5Out070Rg7tTABH1wLLEdwh69nIOb4J3Nt8w"
+    # share_url = "https://mbta.sharepoint.com/:f:/s/PublicData/ElfNM8viGx5Out070Rg7tTABH1wLLEdwh69nIOb4J3Nt8w"
+    share_url = "https://mbta.sharepoint.com/:f:/s/PublicData/Eh1G_O3dog9Eh_EfCqsJZ9EBb6BIgjP-ovWMwdLpwuDnjw"
 
     print("Fetching folder contents using anonymous access...")
     print(f"Share URL: {share_url}\n")
@@ -302,4 +383,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    fetch_sharepoint_file("2025.09.30", False)
