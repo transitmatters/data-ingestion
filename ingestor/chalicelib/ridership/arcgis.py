@@ -2,7 +2,6 @@ from tempfile import NamedTemporaryFile
 from typing import Tuple
 import requests
 from sharepoint import SharepointConnection
-from datetime import date
 from .config import (
     CR_UPDATE_CACHE_URL,
     FERRY_UPDATE_CACHE_URL,
