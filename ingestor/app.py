@@ -125,10 +125,18 @@ def update_trip_metrics(event):
 # 8:30am UTC -> 3:30/4:30am ET every Monday and Tuesday
 # There's shouldn't be any benefit to running it more frequently.
 @app.schedule(Cron(30, 8, "?", "*", "MON,TUE", "*"))
-def update_alert_delays(event):
+def update_weekly_alert_delays(event):
     today = datetime.now()
     one_week_ago = (today - timedelta(days=15)).date()
-    delays.update_table(one_week_ago, today.date())
+    delays.update_weekly_from_daily(one_week_ago, today.date())
+
+
+# for daily delay uploads
+@app.schedule(Cron(30, 8, "*", "*", "?", "*"))
+def update_daily_alert_delays(event):
+    today = datetime.now()
+    yesterday = (today - timedelta(days=1)).date()
+    delays.update_table(yesterday, today.date())
 
 
 # Manually triggered lambda for populating daily trip metric tables. Only needs to be ran once.

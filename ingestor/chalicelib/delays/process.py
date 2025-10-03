@@ -1,6 +1,7 @@
 from datetime import date, timedelta
 from decimal import Decimal
 import json
+from boto3.dynamodb.conditions import Key
 import re
 from typing import List
 from urllib.parse import urlencode
@@ -9,10 +10,11 @@ import pandas as pd
 import requests
 
 from chalicelib import constants, dynamo
-from chalicelib.delays.aggregate import group_weekly_data
+from chalicelib.delays.aggregate import group_weekly_data, group_daily_data
 from chalicelib.delays.types import Alert, AlertsRequest
 
-TABLE_NAME = "AlertDelaysWeekly"
+WEEKLY_TABLE_NAME = "AlertDelaysWeekly"
+DAILY_TABLE_NAME = "AlertDelaysDaily"
 
 
 def generate_requests(start_date: date, end_date: date, lines=constants.ALL_LINES) -> List[AlertsRequest]:
@@ -227,16 +229,36 @@ def process_requests(requests: List[AlertsRequest], lines=constants.ALL_LINES):
 
     for request in requests:
         data = process_single_day(request)
+        # Initializing at 0 regardless of condition
+        total_delay = 0
+        delay_by_type = {
+            "disabled_vehicle": 0,
+            "signal_problem": 0,
+            "power_problem": 0,
+            "door_problem": 0,
+            "brake_problem": 0,
+            "switch_problem": 0,
+            "track_issue": 0,
+            "mechanical_problem": 0,
+            "track_work": 0,
+            "car_traffic": 0,
+            "police_activity": 0,
+            "medical_emergency": 0,
+            "fire": 0,
+            "flooding": 0,
+            "other": 0,
+        }
         if data is not None and len(data) != 0:
             total_delay, delay_by_type = process_delay_time(data)
-            all_data[request.route].append(
-                {
-                    "date": request.date.isoformat(),
-                    "line": request.route,
-                    "total_delay_time": total_delay,
-                    "delay_by_type": delay_by_type,
-                }
-            )
+        # We should always append zero records just in case
+        all_data[request.route].append(
+            {
+                "date": request.date.isoformat(),
+                "line": request.route,
+                "total_delay_time": total_delay,
+                "delay_by_type": delay_by_type,
+            }
+        )
 
     df_data = {}
     for line in lines:
@@ -249,6 +271,56 @@ def process_requests(requests: List[AlertsRequest], lines=constants.ALL_LINES):
     return df_data
 
 
+# Added by Icebox00
+def get_daily_data_for_week(start_date: date, end_date: date, lines=constants.ALL_LINES):
+    """
+    Query daily data from DynamoDB for weekly aggregation.
+    Done as opposed to performing another API call for weekly aggregation.
+    Also guarantees complete info for every day.
+    """
+    daily_records = []
+
+    for line in lines:
+        # Convert dates to ISO format strings to match DynamoDB storage format
+        start_date_str = start_date.isoformat()
+        end_date_str = end_date.isoformat()
+
+        # Query DynamoDB for this line and date range
+        params = {
+            "KeyConditionExpression": Key("line").eq(line)
+            & Key("date").between(start_date_str, end_date_str)  # Use string format
+        }
+        try:
+            line_data = dynamo.query_dynamo(params, DAILY_TABLE_NAME)
+            daily_records.extend(line_data)
+        except Exception as e:
+            print(f"Error querying {line}: {e}")
+
+    return daily_records
+
+
+def update_weekly_from_daily(start_date: date, end_date: date, lines=constants.ALL_LINES):
+    """
+    Update weekly table by aggregating daily data from DynamoDB.
+    Avoids another api call.
+    """
+
+    # Get daily data from DynamoDB instead of API
+    daily_records = get_daily_data_for_week(start_date, end_date, lines)
+
+    # Convert to DataFrame and process
+    df = pd.DataFrame(daily_records)
+    df["date"] = pd.to_datetime(df["date"])
+    df.set_index("date", inplace=True)
+
+    # Aggregate weekly for each line
+    weekly_data = []
+    for line, line_df in df.groupby("line"):
+        weekly_data.extend(group_weekly_data(line_df, start_date.isoformat()))
+
+    dynamo.dynamo_batch_write(json.loads(json.dumps(weekly_data), parse_float=Decimal), WEEKLY_TABLE_NAME)
+
+
 def update_table(start_date: date, end_date: date, lines=constants.ALL_LINES):
     """
     Update the table with rapid transit data
@@ -258,12 +330,13 @@ def update_table(start_date: date, end_date: date, lines=constants.ALL_LINES):
 
     grouped_data = []
     for line, df in all_data.items():
-        grouped_data.extend(group_weekly_data(df, start_date.isoformat()))
+        grouped_data.extend(group_daily_data(df, start_date.isoformat()))
+    dynamo.dynamo_batch_write(json.loads(json.dumps(grouped_data), parse_float=Decimal), DAILY_TABLE_NAME)
 
-    dynamo.dynamo_batch_write(json.loads(json.dumps(grouped_data), parse_float=Decimal), TABLE_NAME)
 
-
+# Testing daily updates. Using random dates. Feel free to change and uncomment as needed.
 if __name__ == "__main__":
-    start_date = date(2025, 6, 1)
-    end_date = date(2025, 8, 10)
-    update_table(start_date, end_date, constants.ALL_LINES)
+    start_date = date(2025, 9, 15)
+    end_date = date(2025, 9, 21)
+    # update_table(start_date, end_date, constants.ALL_LINES)
+    # update_weekly_from_daily(start_date, end_date, constants.ALL_LINES)
