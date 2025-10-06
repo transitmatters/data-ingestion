@@ -1,7 +1,7 @@
 from tempfile import NamedTemporaryFile
 from typing import Tuple
 import requests
-
+from sharepoint import SharepointConnection
 from .config import (
     CR_UPDATE_CACHE_URL,
     FERRY_UPDATE_CACHE_URL,
@@ -39,10 +39,14 @@ def ride_update_cache():
     requests.get(THE_RIDE_UPDATE_CACHE_URL)
 
 
-def download_latest_ridership_files() -> Tuple[None, None, str, str, str]:
+def download_latest_ridership_files() -> Tuple[str | None, str | None, str | None, str | None, str | None]:
+    sharepoint = SharepointConnection()
+
     cr_tmp_path = NamedTemporaryFile().name
     ferry_tmp_path = NamedTemporaryFile().name
     ride_tmp_path = NamedTemporaryFile().name
+    subway_tmp_path = sharepoint.fetch_sharepoint_file(bus_data=False)
+    bus_tmp_path = sharepoint.fetch_sharepoint_file(bus_data=True)
 
     with open(cr_tmp_path, "wb") as file:
         req = requests.get(CR_RIDERSHIP_ARCGIS_URL, timeout=15)
@@ -53,4 +57,4 @@ def download_latest_ridership_files() -> Tuple[None, None, str, str, str]:
     with open(ride_tmp_path, "wb") as file:
         req = requests.get(THE_RIDE_RIDERSHIP_ARCGIS_URL)
         file.write(req.content)
-    return None, None, cr_tmp_path, ferry_tmp_path, ride_tmp_path
+    return subway_tmp_path, bus_tmp_path, cr_tmp_path, ferry_tmp_path, ride_tmp_path
