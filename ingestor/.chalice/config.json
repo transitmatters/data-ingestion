@@ -106,7 +106,12 @@
           "lambda_memory_size": 256,
           "lambda_timeout": 90
         },
-        "update_alert_delays": {
+        "update_weekly_alert_delays": {
+          "iam_policy_file": "policy-alert-delays.json",
+          "lambda_memory_size": 256,
+          "lambda_timeout": 300
+        },
+        "update_daily_alert_delays": {
           "iam_policy_file": "policy-alert-delays.json",
           "lambda_memory_size": 256,
           "lambda_timeout": 300

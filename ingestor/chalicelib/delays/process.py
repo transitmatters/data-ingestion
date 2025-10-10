@@ -195,23 +195,8 @@ def process_delay_time(alerts: List[Alert]):
                 }
             )
     total_delay = 0
-    delay_by_type = {
-        "disabled_vehicle": 0,
-        "signal_problem": 0,
-        "power_problem": 0,
-        "door_problem": 0,
-        "brake_problem": 0,
-        "switch_problem": 0,
-        "track_issue": 0,
-        "mechanical_problem": 0,
-        "track_work": 0,
-        "car_traffic": 0,
-        "police_activity": 0,
-        "medical_emergency": 0,
-        "fire": 0,
-        "flooding": 0,
-        "other": 0,
-    }
+    delay_by_type = constants.DELAY_BY_TYPE.copy()
+
     for delay in delays:
         if (delay is None) or (len(delay) == 0):
             continue
@@ -231,23 +216,8 @@ def process_requests(requests: List[AlertsRequest], lines=constants.ALL_LINES):
         data = process_single_day(request)
         # Initializing at 0 regardless of condition
         total_delay = 0
-        delay_by_type = {
-            "disabled_vehicle": 0,
-            "signal_problem": 0,
-            "power_problem": 0,
-            "door_problem": 0,
-            "brake_problem": 0,
-            "switch_problem": 0,
-            "track_issue": 0,
-            "mechanical_problem": 0,
-            "track_work": 0,
-            "car_traffic": 0,
-            "police_activity": 0,
-            "medical_emergency": 0,
-            "fire": 0,
-            "flooding": 0,
-            "other": 0,
-        }
+        delay_by_type = constants.DELAY_BY_TYPE.copy()
+
         if data is not None and len(data) != 0:
             total_delay, delay_by_type = process_delay_time(data)
         # We should always append zero records just in case
@@ -271,7 +241,6 @@ def process_requests(requests: List[AlertsRequest], lines=constants.ALL_LINES):
     return df_data
 
 
-# Added by Icebox00
 def get_daily_data_for_week(start_date: date, end_date: date, lines=constants.ALL_LINES):
     """
     Query daily data from DynamoDB for weekly aggregation.

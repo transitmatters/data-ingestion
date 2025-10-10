@@ -122,9 +122,10 @@ def update_trip_metrics(event):
     trip_metrics.ingest_recent_trip_metrics(lookback_days=7)
 
 
-# 8:30am UTC -> 3:30/4:30am ET every Monday and Tuesday
+# 8:30am UTC -> 3:45/4:45am ET every Monday and Tuesday
 # There's shouldn't be any benefit to running it more frequently.
-@app.schedule(Cron(30, 8, "?", "*", "MON,TUE", "*"))
+# Runs 15 minutes after the daily update
+@app.schedule(Cron(45, 8, "?", "*", "MON,TUE", "*"))
 def update_weekly_alert_delays(event):
     today = datetime.now()
     one_week_ago = (today - timedelta(days=15)).date()
