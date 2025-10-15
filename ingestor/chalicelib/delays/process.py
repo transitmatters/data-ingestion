@@ -17,7 +17,6 @@ import spacy
 from spacy.matcher import PhraseMatcher
 from rapidfuzz import fuzz
 
-TABLE_NAME = "AlertDelaysWeekly"
 WEEKLY_TABLE_NAME = "AlertDelaysWeekly"
 DAILY_TABLE_NAME = "AlertDelaysDaily"
 
