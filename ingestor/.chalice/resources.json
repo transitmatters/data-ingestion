@@ -199,7 +199,28 @@
         }
       }
     },
-    "UpdateAlertDelays": {
+    "UpdateWeeklyAlertDelays": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "Environment": {
+          "Variables": {
+            "DD_API_KEY": {
+              "Ref": "DDApiKey"
+            },
+            "DD_VERSION": {
+              "Ref": "GitVersion"
+            },
+            "DD_TAGS": {
+              "Ref": "DDTags"
+            },
+            "DD_GIT_REPOSITORY_URL": {
+              "Ref": "DDGitRepositoryUrl"
+            }
+          }
+        }
+      }
+    },
+    "UpdateDailyAlertDelays": {
       "Type": "AWS::Serverless::Function",
       "Properties": {
         "Environment": {
@@ -459,6 +480,39 @@
       "Type": "AWS::DynamoDB::Table",
       "Properties": {
         "TableName": "AlertDelaysWeekly",
+        "KeySchema": [
+          {
+            "AttributeName": "line",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "date",
+            "KeyType": "RANGE"
+          }
+        ],
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "line",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "date",
+            "AttributeType": "S"
+          }
+        ],
+        "BillingMode": "PAY_PER_REQUEST",
+        "Tags": [
+          {
+            "Key": "service",
+            "Value": "t-performance-dash"
+          }
+        ]
+      }
+    },
+    "AlertDelaysDailyDB": {
+      "Type": "AWS::DynamoDB::Table",
+      "Properties": {
+        "TableName": "AlertDelaysDaily",
         "KeySchema": [
           {
             "AttributeName": "line",

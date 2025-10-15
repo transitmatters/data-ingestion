@@ -452,5 +452,22 @@ ALERT_PATTERNS = {
         "auto blocking the track",
         "auto was removed from the track",
         "accident blocking the tracks",
-    ],
+    ],}
+# Initializing all Delay types at 0 for processing
+DELAY_BY_TYPE = {
+    "disabled_vehicle": 0,
+    "signal_problem": 0,
+    "power_problem": 0,
+    "door_problem": 0,
+    "brake_problem": 0,
+    "switch_problem": 0,
+    "track_issue": 0,
+    "mechanical_problem": 0,
+    "track_work": 0,
+    "car_traffic": 0,
+    "police_activity": 0,
+    "medical_emergency": 0,
+    "fire": 0,
+    "flooding": 0,
+    "other": 0,
 }
