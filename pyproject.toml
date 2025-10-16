@@ -22,6 +22,9 @@ dynamodb-json = "^1.4.2"
 datadog_lambda = "8.114.0"
 tqdm = "^4.67.1"
 click = "^8.2.1"
+spacy = "^3.8.7"
+rapidfuzz = "^3.14.1"
+en-core-web-sm = {url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl"}
 
 [tool.poetry.group.dev.dependencies]
 chalice = "~1.32.0"
