@@ -258,8 +258,8 @@ def update_weekly_from_daily(start_date: date, end_date: date, lines=constants.A
     weekly_data = []
     for line, line_df in df.groupby("line"):
         weekly_data.extend(group_weekly_data(line_df, start_date.isoformat()))
-    print(weekly_data)
-    # dynamo.dynamo_batch_write(json.loads(json.dumps(weekly_data), parse_float=Decimal), WEEKLY_TABLE_NAME)
+
+    dynamo.dynamo_batch_write(json.loads(json.dumps(weekly_data), parse_float=Decimal), WEEKLY_TABLE_NAME)
 
 
 def update_table(start_date: date, end_date: date, lines=constants.ALL_LINES):
@@ -278,7 +278,7 @@ def update_table(start_date: date, end_date: date, lines=constants.ALL_LINES):
 
 # Testing daily updates. Using random dates. Feel free to change and uncomment as needed.
 if __name__ == "__main__":
-    start_date = date(2025, 10, 12)
-    end_date = date(2025, 10, 27)
-    # update_table(start_date, end_date, ["CR-Middleborough", "CR-NewBedford"])
-    update_weekly_from_daily(start_date, end_date, constants.ALL_LINES)
+    start_date = date(2025, 3, 16)
+    end_date = date(2025, 3, 31)
+    # update_table(start_date, end_date, constants.ALL_LINES)
+    # update_weekly_from_daily(start_date, end_date, constants.ALL_LINES)
