@@ -13,7 +13,30 @@ ALL_ROUTES: list[tuple[str, str | None]] = [
     ("line-green", "e"),
     ("line-mattapan", None),
 ]
-ALL_LINES: list[str] = ["Red", "Orange", "Blue", "Green-B", "Green-C", "Green-D", "Green-E", "Mattapan"]
+ALL_LINES: list[str] = [
+    "Red",
+    "Orange",
+    "Blue",
+    "Green-B",
+    "Green-C",
+    "Green-D",
+    "Green-E",
+    "Mattapan",
+    "CR-Fairmount",
+    "CR-NewBedford",
+    "CR-Fitchburg",
+    "CR-Worcester",
+    "CR-Franklin",
+    "CR-Greenbush",
+    "CR-Haverhill",
+    "CR-Kingston",
+    "CR-Lowell",
+    "CR-Middleborough",
+    "CR-Needham",
+    "CR-Newburyport",
+    "CR-Providence",
+]
+
 STATIONS = stations.STATIONS
 
 TERMINI_NEW = {
@@ -268,8 +291,12 @@ RIDERSHIP_KEYS = {
     "line-green": "line-Green",
     "line-mattapan": "line-Mattapan",
 }
+
+# Foxborough tends to have irregular service
+# Middleborough was replaced by New Bedford on March 24, 2025 (2025-03-24)
 COMMUTER_RAIL_LINES = [
     "CR-Fairmount",
+    "CR-NewBedford",
     "CR-Fitchburg",
     "CR-Worcester",
     "CR-Franklin",
@@ -281,11 +308,13 @@ COMMUTER_RAIL_LINES = [
     "CR-Needham",
     "CR-Newburyport",
     "CR-Providence",
+    "CR-Foxborough",
 ]
 
 DATE_FORMAT = "%Y-%m-%dT%H:%M:%S"
 DATE_FORMAT_BACKEND = "%Y-%m-%d"
 GLX_EXTENSION_DATE = datetime.strptime("2023-03-19", DATE_FORMAT_BACKEND).date()
+CR_MIDDLEBOROUGH_DISCONTINUED = datetime.strptime("2025-03-24", DATE_FORMAT_BACKEND).date()
 TODAY = datetime.now().date()
 
 ONE_WEEK_AGO_STRING = (TODAY - timedelta(weeks=1)).strftime(DATE_FORMAT_BACKEND)
