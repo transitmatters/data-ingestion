@@ -289,7 +289,7 @@
     "UpdateRidership": {
       "Type": "AWS::Serverless::Function",
       "Properties": {
-        "Description": "Ingests and saves MBTA ridership numbers from the Box link",
+        "Description": "Ingests and saves MBTA ridership numbers from the Sharepoint link",
         "Environment": {
           "Variables": {
             "DD_API_KEY": {
