@@ -281,4 +281,4 @@ if __name__ == "__main__":
     start_date = date(2025, 11, 9)
     end_date = date(2025, 11, 17)
     # update_table(start_date, end_date, constants.ALL_LINES)
-    update_weekly_from_daily(start_date, end_date, constants.ALL_LINES)
+    # update_weekly_from_daily(start_date, end_date, constants.ALL_LINES)
