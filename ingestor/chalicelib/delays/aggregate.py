@@ -47,7 +47,6 @@ def group_weekly_data(df: pd.DataFrame, start_date: str):
     return df_weekly.to_dict(orient="records")
 
 
-# Added by Icebox00 (temporary note)
 def group_daily_data(df: pd.DataFrame, start_date: str):
     # Formats daily data on delays for Dynamo
 
