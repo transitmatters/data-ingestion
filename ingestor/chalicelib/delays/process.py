@@ -130,7 +130,7 @@ def alert_type(alert: Alert):
     if best_match_type:
         return best_match_type
 
-    print(alert["valid_from"], alert["text"].lower())
+    # print(alert["valid_from"], alert["text"].lower())
     return "other"
 
 
@@ -205,6 +205,12 @@ def process_requests(requests: List[AlertsRequest], lines=constants.ALL_LINES):
     df_data = {}
     for line in lines:
         df = pd.DataFrame(all_data[line])
+
+        # FIX: this skips over empty dataframes, which only occur if the line is inactive
+        # Note: active lines with no data still get appended with zeroes
+        if df.empty:
+            continue
+
         df = df.join(pd.json_normalize(df["delay_by_type"]))
         df.drop(columns=["delay_by_type"], inplace=True)
         df["date"] = pd.to_datetime(df["date"])
@@ -259,7 +265,7 @@ def update_weekly_from_daily(start_date: date, end_date: date, lines=constants.A
     for line, line_df in df.groupby("line"):
         weekly_data.extend(group_weekly_data(line_df, start_date.isoformat()))
 
-    dynamo.dynamo_batch_write(json.loads(json.dumps(weekly_data, default=str), parse_float=Decimal), WEEKLY_TABLE_NAME)
+    dynamo.dynamo_batch_write(json.loads(json.dumps(weekly_data, default=int), parse_float=Decimal), WEEKLY_TABLE_NAME)
 
 
 def update_table(start_date: date, end_date: date, lines=constants.ALL_LINES):
@@ -279,6 +285,6 @@ def update_table(start_date: date, end_date: date, lines=constants.ALL_LINES):
 # Testing daily updates. Using random dates. Feel free to change and uncomment as needed.
 if __name__ == "__main__":
     start_date = date(2025, 11, 9)
-    end_date = date(2025, 11, 17)
+    end_date = date(2025, 11, 24)
     # update_table(start_date, end_date, constants.ALL_LINES)
     # update_weekly_from_daily(start_date, end_date, constants.ALL_LINES)
