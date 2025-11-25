@@ -1,8 +1,9 @@
-import boto3
 from datetime import date
+from typing import TypedDict
+
+import boto3
 from boto3.dynamodb.conditions import Key
 from dynamodb_json import json_util as ddb_json
-from typing import TypedDict
 
 # Create a DynamoDB resource
 dynamodb = boto3.resource("dynamodb")

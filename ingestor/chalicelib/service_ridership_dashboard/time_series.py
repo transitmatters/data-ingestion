@@ -1,9 +1,9 @@
-from typing import TypeVar, Callable, Optional
 from datetime import date, timedelta
+from typing import Callable, Optional, TypeVar
 
-from .util import date_range, date_to_string
 from .config import FILL_DATE_RANGES
 from .types import WeeklyMedianTimeSeries
+from .util import date_range, date_to_string
 
 Entry = TypeVar("Entry")
 EntryDict = dict[date, Entry]

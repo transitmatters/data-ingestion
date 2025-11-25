@@ -1,9 +1,10 @@
 import json
+
 import boto3
 from boto3.dynamodb.conditions import Key
-from chalicelib import s3
 from dynamodb_json import json_util as ddb_json
-from chalicelib import constants
+
+from chalicelib import constants, s3
 
 dynamodb = boto3.resource("dynamodb")
 

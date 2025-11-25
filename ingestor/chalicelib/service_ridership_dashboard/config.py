@@ -1,4 +1,5 @@
 from datetime import date
+
 from pytz import timezone
 
 # Lower bound for time series and GTFS feeds

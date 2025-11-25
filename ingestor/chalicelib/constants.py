@@ -1,5 +1,6 @@
 from datetime import date, datetime, timedelta
 from decimal import Decimal
+
 from . import stations
 
 ALL_ROUTES: list[tuple[str, str | None]] = [

@@ -1,8 +1,9 @@
-from datetime import datetime
 import os
+from datetime import datetime
+
 from tqdm import tqdm
 
-from .ingest import ingest_trip_metrics, get_date_ranges
+from .ingest import get_date_ranges, ingest_trip_metrics
 
 START_DATE = datetime.strptime(os.environ["BACKFILL_START_DATE"], "%Y-%m-%d").date()
 END_DATE = datetime.strptime(os.environ["BACKFILL_END_DATE"], "%Y-%m-%d").date()

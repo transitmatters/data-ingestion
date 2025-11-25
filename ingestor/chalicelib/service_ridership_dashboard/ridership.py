@@ -1,8 +1,9 @@
 from dataclasses import dataclass
 from datetime import date
+
 from tqdm import tqdm
 
-from .queries import query_ridership, RidershipRow
+from .queries import RidershipRow, query_ridership
 from .util import date_from_string
 
 

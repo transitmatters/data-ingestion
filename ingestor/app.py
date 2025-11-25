@@ -1,22 +1,23 @@
-from chalice import Chalice, Cron, ConvertToMiddleware
 import json
-from datetime import date, timedelta, datetime
-from datadog_lambda.wrapper import datadog_lambda_wrapper
+from datetime import date, datetime, timedelta
+
+from chalice import Chalice, ConvertToMiddleware, Cron
 from chalicelib import (
+    agg_speed_tables,
     alerts,
     bluebikes,
-    daily_speeds,
     constants,
-    agg_speed_tables,
-    gtfs,
-    ridership,
+    daily_speeds,
     delays,
-    speed_restrictions,
-    predictions,
+    gtfs,
     landing,
-    trip_metrics,
+    predictions,
+    ridership,
     service_ridership_dashboard,
+    speed_restrictions,
+    trip_metrics,
 )
+from datadog_lambda.wrapper import datadog_lambda_wrapper
 
 app = Chalice(app_name="ingestor")
 

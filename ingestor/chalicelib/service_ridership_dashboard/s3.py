@@ -1,9 +1,10 @@
-import boto3
 import json
 from datetime import date
 
-from .util import date_to_string
+import boto3
+
 from .types import DashJSON
+from .util import date_to_string
 
 bucket = boto3.resource("s3").Bucket("tm-service-ridership-dashboard")
 

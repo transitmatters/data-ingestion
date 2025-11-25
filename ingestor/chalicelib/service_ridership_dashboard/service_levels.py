@@ -1,10 +1,11 @@
 from dataclasses import dataclass
 from datetime import date
+
 from tqdm import tqdm
 
-from .queries import query_scheduled_service, ScheduledServiceRow
 from .gtfs import RoutesByLine
-from .util import bucket_by, index_by, date_range, date_to_string
+from .queries import ScheduledServiceRow, query_scheduled_service
+from .util import bucket_by, date_range, date_to_string, index_by
 
 
 @dataclass

@@ -1,5 +1,5 @@
+from datetime import date, datetime, timedelta
 from typing import Tuple
-from datetime import datetime, date, timedelta
 
 
 def date_from_string(date_str):

@@ -28,6 +28,5 @@ Make sure you're in the root of the repo, and fire away:
 
 ```
 cd data-ingestion
-poetry shell
-python -m ingestor.chalicelib.gtfs.backfill.main
+uv run python -m ingestor.chalicelib.gtfs.backfill.main
 ```

@@ -1,11 +1,12 @@
 import datetime
-import sys
-from geopy import distance
 import json
+import sys
+
 import numpy as np
 import pandas as pd
 import pytz
 import requests
+from geopy import distance
 
 from chalicelib import s3
 

@@ -1,12 +1,13 @@
-import requests
-import zipfile
 import csv
-import boto3
-from pathlib import PurePath
-from datetime import date, datetime
+import zipfile
 from dataclasses import dataclass
+from datetime import date, datetime
 from io import BytesIO, TextIOWrapper
-from typing import Union, Tuple, List, Dict, Iterator
+from pathlib import PurePath
+from typing import Dict, Iterator, List, Tuple, Union
+
+import boto3
+import requests
 
 CSV_ZIP_URL = "https://www.arcgis.com/sharing/rest/content/items/d73ed67e4cc84a84b818ea2c5caef696/data"
 

@@ -1,11 +1,11 @@
 from datetime import date
 
-from .util import date_to_string
-from .types import LineData, SummaryData
 from .time_series import (
-    merge_weekly_median_time_series,
     get_latest_weekly_median_time_series_entry,
+    merge_weekly_median_time_series,
 )
+from .types import LineData, SummaryData
+from .util import date_to_string
 
 
 def _line_is_cancelled(line: LineData) -> bool:

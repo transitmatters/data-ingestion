@@ -1,7 +1,7 @@
-from typing import Optional
 from datetime import date, timedelta
+from typing import Optional
 
-from .service_levels import ServiceLevelsEntry, ServiceLevelsByDate
+from .service_levels import ServiceLevelsByDate, ServiceLevelsEntry
 from .types import ServiceSummary, ServiceSummaryForDay
 
 

@@ -1,8 +1,11 @@
 {
-  "python.formatting.blackPath": ".venv/bin/black",
-  "python.formatting.provider": "black",
   "editor.formatOnSave": true,
   "[python]": {
-    "editor.defaultFormatter": "ms-python.black-formatter"
-  }
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.codeActionsOnSave": {
+      "source.fixAll.ruff": "explicit",
+      "source.organizeImports.ruff": "explicit"
+    }
+  },
+  "ruff.enable": true
 }

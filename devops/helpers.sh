@@ -76,3 +76,27 @@ function shrink {
     zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/y*/*
     zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/z*/*
 }
+
+# Check if the layer deployment package is under the maximum size
+function check_package_size {
+    local zipfile="${1:-cfn/layer-deployment.zip}"
+    local maximumsize=79100000
+    
+    if [ ! -f "$zipfile" ]; then
+        echo "Error: $zipfile not found"
+        exit 1
+    fi
+    
+    actualsize=$(wc -c <"$zipfile")
+    difference=$(expr $actualsize - $maximumsize)
+    
+    echo "$zipfile is $actualsize bytes"
+    
+    if [ $actualsize -ge $maximumsize ]; then
+        echo ""
+        echo "$zipfile is over $maximumsize bytes. Shrink the package by $difference bytes to be able to deploy"
+        exit 1
+    fi
+    
+    echo "$zipfile is under the maximum size of $maximumsize bytes, by $difference bytes"
+}
