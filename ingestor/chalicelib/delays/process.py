@@ -38,14 +38,30 @@ def generate_requests(start_date: date, end_date: date, lines=constants.ALL_LINE
     while current_date <= end_date:
         date_ranges.append(current_date)
         current_date += timedelta(days=1)
+
     for current_date in date_ranges:
         for line in lines:
+            if not is_line_active(line, current_date):
+                continue
             request = AlertsRequest(
                 route=line,
                 date=current_date,
             )
             reqs.append(request)
     return reqs
+
+
+def is_line_active(line: str, check_date: date) -> bool:
+    """
+    Check if a line was active on a given date
+    """
+    if line == "CR-Middleborough":
+        return check_date < constants.CR_MIDDLEBOROUGH_DISCONTINUED
+    elif line == "CR-NewBedford":
+        return check_date >= constants.CR_MIDDLEBOROUGH_DISCONTINUED
+
+    # Remains active for lines without cutoff dates
+    return True
 
 
 def process_single_day(request: AlertsRequest):
@@ -66,7 +82,13 @@ def process_single_day(request: AlertsRequest):
 
 
 def alert_is_delay(alert: Alert):
-    return "delays" in alert["text"].lower() and "minutes" in alert["text"].lower()
+    text = alert["text"].lower()
+    return (
+        ("delays" in text and "minutes" in text)  # Original subway pattern
+        or "minutes late" in text  # New commuter rail patterns
+        or "minutes behind schedule" in text
+        or "behind schedule" in text
+    )
 
 
 def alert_type(alert: Alert):
@@ -108,36 +130,51 @@ def alert_type(alert: Alert):
     if best_match_type:
         return best_match_type
 
-    print(alert["valid_from"], alert["text"].lower())
+    # print(alert["valid_from"], alert["text"].lower())
     return "other"
 
 
 def process_delay_time(alerts: List[Alert]):
     delays = []
+
+    patterns = [
+        r"delays of about \d+ minutes",  # For subway lines (non-CR)
+        r"delays of up to \d+ minutes",
+        r"\d+ minutes late",  # These 4 are for Commuter Rail
+        r"\d+ minutes behind schedule",
+        r"\d+\s*-\s*\d+ minutes behind schedule",  # \s* just in case there is extra spacing in the message
+        r"\d+\s*-\s*\d+ minutes late",
+    ]
+
     for alert in alerts:
         if not alert_is_delay(alert):
             continue
-        delay_time = re.findall(r"delays of about \d+ minutes", alert["text"].lower())
-        if (delay_time is None) or (len(delay_time) == 0):
-            # try another pattern, since the first one didn't match
-            # less accurate, but better than nothing
-            delay_time = re.findall(r"delays of up to \d+ minutes", alert["text"].lower())
-        if (delay_time is not None) and (len(delay_time) != 0):
-            delays.append(
-                {
-                    "delay_time": delay_time[0],
-                    "alert_type": alert_type(alert),
-                }
-            )
+
+        # 1st Case
+        for pattern in patterns:
+            delay_time = re.findall(pattern, alert["text"].lower())
+            if delay_time:
+                delays.append(
+                    {
+                        "delay_time": delay_time[0],
+                        "alert_type": alert_type(alert),
+                    }
+                )
+                break
+
     total_delay = 0
     delay_by_type = constants.DELAY_BY_TYPE.copy()
 
     for delay in delays:
         if (delay is None) or (len(delay) == 0):
             continue
+
         res = list(map(int, re.findall(r"\d+", delay["delay_time"])))
-        total_delay += res[0]
-        delay_by_type[delay["alert_type"]] += res[0]
+        if res:
+            delay_minutes = max(res)  # Take highest number for ranges
+            total_delay += delay_minutes
+            delay_by_type[delay["alert_type"]] += delay_minutes
+
     return total_delay, delay_by_type
 
 
@@ -168,6 +205,12 @@ def process_requests(requests: List[AlertsRequest], lines=constants.ALL_LINES):
     df_data = {}
     for line in lines:
         df = pd.DataFrame(all_data[line])
+
+        # FIX: this skips over empty dataframes, which only occur if the line is inactive
+        # Note: active lines with no data still get appended with zeroes
+        if df.empty:
+            continue
+
         df = df.join(pd.json_normalize(df["delay_by_type"]))
         df.drop(columns=["delay_by_type"], inplace=True)
         df["date"] = pd.to_datetime(df["date"])
@@ -222,7 +265,7 @@ def update_weekly_from_daily(start_date: date, end_date: date, lines=constants.A
     for line, line_df in df.groupby("line"):
         weekly_data.extend(group_weekly_data(line_df, start_date.isoformat()))
 
-    dynamo.dynamo_batch_write(json.loads(json.dumps(weekly_data), parse_float=Decimal), WEEKLY_TABLE_NAME)
+    dynamo.dynamo_batch_write(json.loads(json.dumps(weekly_data, default=int), parse_float=Decimal), WEEKLY_TABLE_NAME)
 
 
 def update_table(start_date: date, end_date: date, lines=constants.ALL_LINES):
@@ -235,12 +278,13 @@ def update_table(start_date: date, end_date: date, lines=constants.ALL_LINES):
     grouped_data = []
     for line, df in all_data.items():
         grouped_data.extend(group_daily_data(df, start_date.isoformat()))
+
     dynamo.dynamo_batch_write(json.loads(json.dumps(grouped_data), parse_float=Decimal), DAILY_TABLE_NAME)
 
 
 # Testing daily updates. Using random dates. Feel free to change and uncomment as needed.
 if __name__ == "__main__":
-    start_date = date(2025, 9, 15)
-    end_date = date(2025, 9, 21)
+    start_date = date(2025, 11, 9)
+    end_date = date(2025, 11, 24)
     # update_table(start_date, end_date, constants.ALL_LINES)
     # update_weekly_from_daily(start_date, end_date, constants.ALL_LINES)
