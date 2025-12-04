@@ -19,24 +19,18 @@ dependencies = [
     "datadog_lambda~=8.116.0",
     "tqdm>=4.67.1,<5",
     "click>=8.2.1,<9",
-    "spacy>=3.8.7,<4",
-    "rapidfuzz>=3.14.1,<4",
-    "en-core-web-sm",
 ]
 
 [dependency-groups]
 dev = [
     "chalice~=1.32.0",
-    "ruff>=0.14.5",
+    "ruff>=0.14.6",
     "pytest~=9.0.1",
     "pre-commit>=4.4.0",
 ]
 
 [tool.uv]
 package = false
-
-[tool.uv.sources]
-en-core-web-sm = { url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl" }
 
 [build-system]
 requires = ["hatchling"]
