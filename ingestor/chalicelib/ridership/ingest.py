@@ -1,4 +1,5 @@
 from typing import Dict
+
 from mbta_gtfs_sqlite.models import Route
 
 from ..gtfs.utils import bucket_by
