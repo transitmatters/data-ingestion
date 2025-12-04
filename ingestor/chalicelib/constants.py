@@ -391,6 +391,7 @@ ALERT_PATTERNS = {
         "switch problem",
         "switch issue",
         "witch problem",
+        "witch issue",
         "switching issue",
     ],
     "brake_problem": [

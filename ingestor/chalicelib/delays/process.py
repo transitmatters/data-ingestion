@@ -1,34 +1,20 @@
+import json
+import re
 from datetime import date, timedelta
 from decimal import Decimal
-import json
-from boto3.dynamodb.conditions import Key
-import re
 from typing import List
 from urllib.parse import urlencode
 
 import pandas as pd
 import requests
+from boto3.dynamodb.conditions import Key
 
 from chalicelib import constants, dynamo
-from chalicelib.delays.aggregate import group_weekly_data, group_daily_data
+from chalicelib.delays.aggregate import group_daily_data, group_weekly_data
 from chalicelib.delays.types import Alert, AlertsRequest
-
-import spacy
-from spacy.matcher import PhraseMatcher
-from rapidfuzz import fuzz
 
 WEEKLY_TABLE_NAME = "AlertDelaysWeekly"
 DAILY_TABLE_NAME = "AlertDelaysDaily"
-
-# Load SpaCy model and initialize PhraseMatcher
-nlp = spacy.load("en_core_web_sm")
-matcher = PhraseMatcher(nlp.vocab, attr="LOWER")
-
-
-# Add patterns to matcher
-for alert_type_label, patterns in constants.ALERT_PATTERNS.items():
-    patterns_docs = [nlp.make_doc(text) for text in patterns]
-    matcher.add(alert_type_label, patterns_docs)
 
 
 def generate_requests(start_date: date, end_date: date, lines=constants.ALL_LINES) -> List[AlertsRequest]:
@@ -93,42 +79,12 @@ def alert_is_delay(alert: Alert):
 
 def alert_type(alert: Alert):
     text_lower = alert["text"].lower()
-    doc = nlp(text_lower)
 
-    # First try exact phrase matching
-    matches = matcher(doc)
-    if matches:
-        match_id, _, _ = matches[0]
-        return nlp.vocab.strings[match_id]
-
-    # If no exact match, use lemmatization and fuzzy matching for misspellings
-    # Create lemmatized version of the text
-    lemmatized_text = " ".join([token.lemma_ for token in doc])
-
-    # Try fuzzy matching against patterns with similarity threshold
-    best_match_score = 0
-    best_match_type = None
-    threshold = 85  # Adjust this threshold as needed (0-100)
-
+    # Check each alert type pattern
     for alert_type_label, patterns in constants.ALERT_PATTERNS.items():
         for pattern in patterns:
-            # Check fuzzy match on original text
-            score = fuzz.partial_ratio(pattern, text_lower)
-            if score > best_match_score and score >= threshold:
-                best_match_score = score
-                best_match_type = alert_type_label
-
-            # Also check fuzzy match on lemmatized text
-            pattern_doc = nlp(pattern)
-            lemmatized_pattern = " ".join([token.lemma_ for token in pattern_doc])
-            score = fuzz.partial_ratio(lemmatized_pattern, lemmatized_text)
-            # Update best match if this score is better than current best and meets threshold
-            if score > best_match_score and score >= threshold:
-                best_match_score = score
-                best_match_type = alert_type_label
-
-    if best_match_type:
-        return best_match_type
+            if pattern in text_lower:
+                return alert_type_label
 
     # print(alert["valid_from"], alert["text"].lower())
     return "other"
