@@ -1,16 +1,18 @@
-from decimal import Decimal
+import concurrent.futures
 import json
-import numpy as np
-from chalicelib import constants, dynamo
-from chalice import BadRequestError
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from decimal import Decimal
 from typing import Literal
-from boto3.dynamodb.conditions import Key
+
 import boto3
-from dynamodb_json import json_util as ddb_json
+import numpy as np
 import pandas as pd
-import concurrent.futures
+from boto3.dynamodb.conditions import Key
+from chalice import BadRequestError
+from dynamodb_json import json_util as ddb_json
+
+from chalicelib import constants, dynamo
 
 dynamodb = boto3.resource("dynamodb")
 

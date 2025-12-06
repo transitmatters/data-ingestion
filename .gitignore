@@ -6,3 +6,5 @@
 feeds
 .envrc
 .cursor
+.ruff_cache
+.venv

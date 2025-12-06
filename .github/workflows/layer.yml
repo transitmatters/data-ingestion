@@ -1,0 +1,83 @@
+name: layer-deployment
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+jobs:
+  check-layer-size:
+    runs-on: ubuntu-latest
+    # Only run for PRs from the same repository (not forks) to protect secrets
+    if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name == 'push'
+    strategy:
+      matrix:
+        python-version: ["3.13"]
+    env:
+      AWS_PROFILE: transitmatters
+      AWS_DEFAULT_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      MBTA_V3_API_KEY: ${{ secrets.MBTA_V3_API_KEY }}
+      YANKEE_API_KEY: ${{ secrets.YANKEE_API_KEY }}
+      DD_API_KEY: ${{ secrets.DD_API_KEY }}
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Generate AWS profile
+        run: |
+          mkdir ~/.aws
+          cat >> ~/.aws/credentials << EOF
+          [$AWS_PROFILE]
+          aws_access_key_id = $AWS_ACCESS_KEY_ID
+          aws_secret_access_key = $AWS_SECRET_ACCESS_KEY
+          EOF
+
+      - name: Sync dependencies
+        run: uv sync --group dev
+
+      - name: Export requirements
+        run: uv export --no-hashes --no-dev > ingestor/requirements.txt
+
+      - name: Package lambda layer
+        run: |
+          cd ingestor
+          uv run chalice package --stage prod --merge-template .chalice/resources.json cfn/
+
+      - name: Shrink deployment package and check size
+        run: |
+          cd ingestor
+
+          # Check size before shrinking
+          actualsize=$(wc -c <"cfn/layer-deployment.zip")
+          echo "Package size before shrinking: $actualsize bytes"
+
+          # Shrink the package
+          source ../devops/helpers.sh
+          echo "Shrinking deployment package..."
+          shrink
+
+          # Check size after shrinking
+          newsize=$(wc -c <"cfn/layer-deployment.zip")
+          echo "Package size after shrinking: $newsize bytes"
+          diffsize=$(($actualsize - $newsize))
+          echo "Size reduction: $diffsize bytes"
+
+      - name: Verify package size is under limit
+        run: |
+          cd ingestor
+          source ../devops/helpers.sh
+          check_package_size

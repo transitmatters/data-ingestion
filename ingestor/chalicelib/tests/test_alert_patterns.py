@@ -1,5 +1,5 @@
-from ingestor.chalicelib.delays.process import alert_type
-from ingestor.chalicelib.delays.types import Alert
+from chalicelib.delays.process import alert_type
+from chalicelib.delays.types import Alert
 
 test_cases = [
     ("Red Line experiencing delays of about 10 minutes due to a disabled train at Davis", "disabled_vehicle"),

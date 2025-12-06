@@ -1,9 +1,11 @@
-from datetime import date, timedelta, datetime
-from decimal import Decimal
 import json
+from datetime import date, datetime, timedelta
+from decimal import Decimal
 from urllib.parse import urlencode
-from chalicelib import dynamo, constants
+
 import requests
+
+from chalicelib import constants, dynamo
 
 
 def is_valid_entry(item, expected_entries, date):

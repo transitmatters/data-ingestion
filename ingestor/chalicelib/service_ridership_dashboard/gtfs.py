@@ -1,11 +1,11 @@
-import boto3
-from typing import Optional
 from tempfile import TemporaryDirectory
+from typing import Optional
+
+import boto3
 from mbta_gtfs_sqlite import MbtaGtfsArchive
-from mbta_gtfs_sqlite.models import Route, Line
+from mbta_gtfs_sqlite.models import Line, Route
 
 from ..gtfs.utils import bucket_by, index_by
-
 from .config import IGNORE_LINE_IDS
 
 RoutesByLine = dict[Line, Route]

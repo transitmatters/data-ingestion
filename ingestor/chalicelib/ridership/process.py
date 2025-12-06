@@ -62,7 +62,6 @@ def pre_process_csv(
     count_key: str,
     route_name: str | None = None,
 ):
-
     if route_key is None and route_name is not None:
         route_key = "Route"
         df = pd.read_csv(path_to_csv_file, usecols=[date_key, count_key])

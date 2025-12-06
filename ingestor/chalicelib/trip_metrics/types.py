@@ -1,6 +1,6 @@
 from dataclasses import dataclass
-from typing import Tuple, TypedDict, Literal, List
 from datetime import date
+from typing import List, Literal, Tuple, TypedDict
 
 StopPair = Tuple[str, str]
 PeakType = Literal["all", "off_peak", "am_peak", "pm_peak"]

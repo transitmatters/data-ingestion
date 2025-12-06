@@ -1,7 +1,9 @@
-from itertools import chain
 import sys
-from chalicelib import s3
+from itertools import chain
+
 from botocore.exceptions import ClientError
+
+from chalicelib import s3
 
 ROUTE_DEFINITIONS = {
     "Red": {"labels": range(1900, 2152), "core_stations": [70077, 70078]},  # Downtown Crossing
@@ -24,9 +26,7 @@ def parse_vehicle_label(label):
 
 def train_runs(route, date):
     spec = ROUTE_DEFINITIONS[route]
-    api_data = (
-        []
-    )  # TODO: This used to be a call to MbtaPerformanceAPI.get_train_data, but that function no longer exists
+    api_data = []  # TODO: This used to be a call to MbtaPerformanceAPI.get_train_data, but that function no longer exists
     events = sum([stop["events"] for stop in api_data], [])
     departures = filter(lambda event: event["event_type"] in EVENT_DEPARTURE, events)
     by_trip_id = {event["trip_id"]: event for event in departures}  # Just in case a single trip gets a DEP and a PRD

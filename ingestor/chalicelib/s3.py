@@ -1,8 +1,9 @@
-import boto3
 import io
-import pandas as pd
-import zlib
 import time
+import zlib
+
+import boto3
+import pandas as pd
 
 s3 = boto3.client("s3")
 cloudfront = boto3.client("cloudfront")

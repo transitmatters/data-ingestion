@@ -1,10 +1,10 @@
 import json
 
 import requests
+from botocore.exceptions import ClientError
 
 from chalicelib import s3
 from chalicelib.date_utils import get_current_service_date
-from botocore.exceptions import ClientError
 
 BUCKET = "tm-mbta-performance"
 

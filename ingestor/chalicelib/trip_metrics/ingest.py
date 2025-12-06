@@ -1,16 +1,15 @@
-import requests
 import json
-import pandas as pd
-from datetime import timedelta, date
-from decimal import Decimal
-from urllib.parse import urlencode
-from typing import List
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import date, timedelta
+from decimal import Decimal
+from typing import List
+from urllib.parse import urlencode
 
+import pandas as pd
+import requests
 
-from .. import constants
-from .. import dynamo
-from .types import AggTravelTimesRequest, AggTravelTimesResponse, PeakType, DirectionType
+from .. import constants, dynamo
+from .types import AggTravelTimesRequest, AggTravelTimesResponse, DirectionType, PeakType
 
 KEYS_TO_KEEP = ["25%", "50%", "75%", "count", "max", "mean", "min", "std"]
 

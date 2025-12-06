@@ -1,20 +1,21 @@
-from typing import Dict, Optional, Tuple
-import requests
 import json
-import boto3
-from .keys import YANKEE_API_KEY
-from botocore.exceptions import ClientError
+from dataclasses import dataclass
 from datetime import datetime
 from tempfile import TemporaryDirectory
-from geopy import distance
+from typing import Dict, List, Optional, Tuple
+
+import boto3
+import requests
+from botocore.exceptions import ClientError
 from ddtrace import tracer
-from dataclasses import dataclass
+from geopy import distance
+from mbta_gtfs_sqlite import MbtaGtfsArchive
+from mbta_gtfs_sqlite.models import RoutePattern, RoutePatternTypicality, ShapePoint, Stop, Trip
+from sqlalchemy.orm import Session
+
 from chalicelib import dynamo, s3
 
-from typing import List
-from sqlalchemy.orm import Session
-from mbta_gtfs_sqlite import MbtaGtfsArchive
-from mbta_gtfs_sqlite.models import RoutePattern, RoutePatternTypicality, Trip, ShapePoint, Stop
+from .keys import YANKEE_API_KEY
 
 ShapeDict = Dict[str, List[ShapePoint]]
 Coords = Tuple[float, float]

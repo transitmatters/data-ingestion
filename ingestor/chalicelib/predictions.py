@@ -1,10 +1,11 @@
-import io
-import requests
 import csv
-import boto3
-from datetime import date, datetime
+import io
 from dataclasses import dataclass
-from typing import Union, Tuple, List, Dict, Iterator
+from datetime import date, datetime
+from typing import Dict, Iterator, List, Tuple, Union
+
+import boto3
+import requests
 
 CSV_URL = "https://massdot.maps.arcgis.com/sharing/rest/content/items/155ab68df00145cabddfb90377201b0e/data"
 

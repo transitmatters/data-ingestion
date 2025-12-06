@@ -1,5 +1,6 @@
 from datetime import date, datetime, timedelta
 from decimal import Decimal
+
 from . import stations
 
 ALL_ROUTES: list[tuple[str, str | None]] = [
@@ -390,6 +391,7 @@ ALERT_PATTERNS = {
         "switch problem",
         "switch issue",
         "witch problem",
+        "witch issue",
         "switching issue",
     ],
     "brake_problem": [
