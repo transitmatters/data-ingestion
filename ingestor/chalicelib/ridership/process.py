@@ -1,9 +1,9 @@
-from typing import Dict, Union
-import pandas as pd
-import numpy as np
-from pandas.tseries.holiday import USFederalHolidayCalendar
 from tempfile import NamedTemporaryFile
+from typing import Dict, Union
 
+import numpy as np
+import pandas as pd
+from pandas.tseries.holiday import USFederalHolidayCalendar
 
 unofficial_labels_map = {
     "SL1": "741",
@@ -30,6 +30,7 @@ unofficial_cr_labels_map = {
     "Franklin/Foxboro": "CR-Franklin",
     "Middleborough/Lakeville": "CR-Middleborough",
     "Fall.River/New.Bedford": "CR-NewBedford",
+    "Fall River/New Bedford": "CR-NewBedford",
     "Lowell": "CR-Lowell",
     "Haverhill": "CR-Haverhill",
     "Kingston": "CR-Kingston",
@@ -45,6 +46,7 @@ unofficial_ferry_labels_map = {
     "F6": "Boat-F6",
     "F7": "Boat-F7",
     "F8": "Boat-F8",
+    "F9": "Boat-F9",
     "Charlestown Ferry": "Boat-F4",
     "Hingham/Hull Ferry": "Boat-F1",
     "East Boston Ferry": "Boat-EastBoston",
@@ -231,7 +233,7 @@ def format_bus_data(path_to_excel_file: str):
 def format_cr_data(path_to_ridershp_file: str):
     ridership_by_route = format_ridership_csv(
         path_to_csv_file=path_to_ridershp_file,
-        date_key="service_date",
+        date_key="servicedate",
         route_key="line",
         count_key="estimated_boardings",
         route_ids_map=unofficial_cr_labels_map,
