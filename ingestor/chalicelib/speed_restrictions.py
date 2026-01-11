@@ -13,6 +13,18 @@ CSV_ZIP_URL = "https://www.arcgis.com/sharing/rest/content/items/d73ed67e4cc84a8
 
 EntryKey = Tuple[str, date]
 
+DATE_FORMATS = ["%Y-%m-%d", "%m/%d/%y", "%m/%d/%Y"]
+
+
+def parse_date(date_string: str) -> date:
+    """Parse a date string, trying multiple formats."""
+    for fmt in DATE_FORMATS:
+        try:
+            return datetime.strptime(date_string, fmt).date()
+        except ValueError:
+            continue
+    raise ValueError(f"Unable to parse date: {date_string}")
+
 
 @dataclass
 class SpeedRestrictionEntry:
@@ -57,8 +69,8 @@ def parse_restriction_row_to_entry(row: Dict[str, str]) -> Union[None, SpeedRest
     line_raw = row["Line"].replace("Line", "").strip()
     if "Mattapan" in branch:
         line_raw = "Mattapan"
-    date = datetime.strptime(row["Calendar_Date"], "%Y-%m-%d").date()
-    reported = datetime.strptime(row["Date_Restriction_Reported"], "%Y-%m-%d").date()
+    date = parse_date(row["Calendar_Date"])
+    reported = parse_date(row["Date_Restriction_Reported"])
     speed_mph = int(row["Restriction_Speed_MPH"].replace("mph", "").strip())
     track_feet = int(float(row["Restriction_Distance_Feet"]))
     status = row["Restriction_Status"].lower()
