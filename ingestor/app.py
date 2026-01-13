@@ -62,8 +62,8 @@ def bb_calc_daily_stats(event):
     bluebikes.calc_daily_stats(yesterday)
 
 
-# Runs every 5 minutes from either 4 AM -> 1:55AM or 5 AM -> 2:55 AM depending on DST
-@app.schedule(Cron("0/5", "0-6,9-23", "*", "*", "?", "*"))
+# Runs every 30 minutes from either 4 AM -> 1:55AM or 5 AM -> 2:55 AM depending on DST
+@app.schedule(Cron("0/30", "0-6,9-23", "*", "*", "?", "*"))
 def update_delivered_trip_metrics(event):
     today = datetime.now()
     """ Update yesterdays entry until 4/5 am (9 AM UTC)"""
