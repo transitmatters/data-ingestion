@@ -10,10 +10,24 @@ BUCKET = "tm-mbta-performance"
 
 
 def key(day):
+    """Builds the S3 key for a day's alert data.
+
+    Args:
+        day: The service date.
+
+    Returns:
+        The S3 key string for the compressed alerts JSON.
+    """
     return f"Alerts/v3/{str(day)}.json.gz"
 
 
 def save_v3_alerts():
+    """Fetches current MBTA V3 alerts and appends them to today's alert file in S3.
+
+    Downloads the existing alert data for the current service date (if any),
+    merges in newly fetched alerts by ID, and uploads the updated set back
+    to S3.
+    """
     r_s = requests.get("https://api-v3.mbta.com/alerts")
     alerts = r_s.json()
 

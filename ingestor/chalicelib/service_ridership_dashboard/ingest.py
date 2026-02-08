@@ -25,6 +25,15 @@ debug_file_name = parent_dir / "dash.json"
 
 
 def get_line_kind(route_ids: list[str], line_id: str) -> LineKind:
+    """Determine the kind of transit line based on route IDs and line ID.
+
+    Args:
+        route_ids: A list of route identifiers associated with the line.
+        line_id: The MBTA line identifier.
+
+    Returns:
+        The LineKind classification (e.g., "bus", "regional-rail", "red").
+    """
     if line_id.startswith("line-Boat"):
         return "boat"
     if any((r for r in route_ids if r.lower().startswith("cr-"))):
@@ -40,6 +49,15 @@ def create_service_regimes(
     service_levels: ServiceLevelsByDate,
     date: date,
 ) -> ServiceRegimes:
+    """Create service regime summaries for current, one year ago, and baseline periods.
+
+    Args:
+        service_levels: A dictionary mapping dates to service level entries.
+        date: The reference date for computing service regimes.
+
+    Returns:
+        A ServiceRegimes dict with current, oneYearAgo, and baseline summaries.
+    """
     return {
         "current": summarize_weekly_service_around_date(
             date=date,
@@ -62,6 +80,17 @@ def create_line_data(
     service_levels: dict[date, ServiceLevelsEntry],
     ridership: dict[date, RidershipEntry],
 ) -> LineData:
+    """Build a LineData dictionary containing service and ridership history for a line.
+
+    Args:
+        start_date: The start date of the data range.
+        end_date: The end date of the data range.
+        service_levels: A dictionary mapping dates to service level entries for this line.
+        ridership: A dictionary mapping dates to ridership entries for this line.
+
+    Returns:
+        A LineData dict with line metadata, ridership history, service history, and regimes.
+    """
     [latest_service_levels_date, *_] = sorted(service_levels.keys(), reverse=True)
     service_level_entry = service_levels[latest_service_levels_date]
     return {
@@ -100,6 +129,15 @@ def create_service_ridership_dash_json(
     write_to_s3: bool = True,
     include_only_line_ids: Optional[list[str]] = None,
 ):
+    """Generate the complete service ridership dashboard JSON and optionally upload to S3.
+
+    Args:
+        start_date: The start date for the dashboard data range.
+        end_date: The end date for the dashboard data range.
+        write_debug_files: Whether to write a local debug JSON file.
+        write_to_s3: Whether to upload the resulting JSON to S3.
+        include_only_line_ids: If provided, only include these line IDs in the output.
+    """
     print(
         f"Creating service ridership dashboard JSON for {start_date} to {end_date} "
         + f"{'for lines ' + ', '.join(include_only_line_ids) if include_only_line_ids else ''}"
@@ -157,6 +195,15 @@ def create_service_ridership_dash_json_command(
     s3: bool = False,
     lines: Optional[str] = None,
 ):
+    """CLI command to create the service ridership dashboard JSON.
+
+    Args:
+        start: Start date string for the dashboard.
+        end: End date string for the dashboard.
+        debug: Whether to write a local debug JSON file.
+        s3: Whether to upload the resulting JSON to S3.
+        lines: Comma-separated list of line names to include (without "line-" prefix).
+    """
     create_service_ridership_dash_json(
         start_date=date_from_string(start),
         end_date=date_from_string(end),

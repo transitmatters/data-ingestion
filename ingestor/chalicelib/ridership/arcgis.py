@@ -40,6 +40,15 @@ def ride_update_cache():
 
 
 def download_latest_ridership_files() -> Tuple[str | None, str | None, str | None, str | None, str | None]:
+    """Download the latest ridership files for all transit modes.
+
+    Fetches subway and bus data from SharePoint, and commuter rail, ferry,
+    and The RIDE data from ArcGIS.
+
+    Returns:
+        Tuple of file paths (subway, bus, commuter rail, ferry, The RIDE),
+        where each element may be None if the download failed.
+    """
     sharepoint = SharepointConnection()
 
     cr_tmp_path = NamedTemporaryFile().name
