@@ -52,7 +52,7 @@ class RouteDateTotals:
     has_service_exceptions: bool
 
     @property
-    def timestamp(self):
+    def timestamp(self) -> float:
         """Compute a Unix timestamp from the date at midnight.
 
         Returns:

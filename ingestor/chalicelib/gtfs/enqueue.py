@@ -3,7 +3,7 @@ import json
 from typing import List
 
 
-def enqueue_feed_keys_to_sqs(feed_keys: List[str], force_rebuild_feeds: bool = False):
+def enqueue_feed_keys_to_sqs(feed_keys: List[str], force_rebuild_feeds: bool = False) -> None:
     """Send GTFS feed keys to an SQS queue for asynchronous ingestion.
 
     Args:

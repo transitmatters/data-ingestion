@@ -25,7 +25,7 @@ from .models import SessionModels, RouteDateTotals
 
 
 def load_session_models(session: Session) -> SessionModels:
-    """Load all GTFS models from a SQLAlchemy session into indexed containers.
+    """Query all GTFS models from a SQLAlchemy session and index them into dicts keyed by ID.
 
     Args:
         session: A SQLAlchemy session connected to a GTFS SQLite database.
@@ -121,7 +121,7 @@ def ingest_feed_to_dynamo(
     session: Session,
     start_date: date,
     end_date: date,
-):
+) -> None:
     """Compute and write scheduled service totals to DynamoDB for a date range.
 
     Args:
@@ -155,7 +155,7 @@ def ingest_feeds(
     start_date: date,
     end_date: date,
     force_rebuild_feeds: bool = False,
-):
+) -> None:
     """Process a list of GTFS feeds by building/downloading them and ingesting to DynamoDB.
 
     Each feed is either built locally, downloaded from S3, or reused if already
@@ -208,9 +208,9 @@ def ingest_gtfs_feeds_to_dynamo_and_s3(
     date_range: Union[None, Tuple[date, date]] = None,
     feed_key: Union[None, str] = None,
     local_archive_path: str | None = None,
-    boto3_session=None,
+    boto3_session: boto3.Session | None = None,
     force_rebuild_feeds: bool = False,
-):
+) -> None:
     """Orchestrate the full GTFS ingestion pipeline from archive to DynamoDB and S3.
 
     Either a date_range or a feed_key must be provided to identify which feeds
