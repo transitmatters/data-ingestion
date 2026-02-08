@@ -118,7 +118,8 @@ def date_range(start_date: date, end_date: date) -> Generator[date, None, None]:
 
 
 def get_service_ids_for_date_to_has_exceptions(models: "SessionModels", today: date) -> dict[str, bool]:
-    """Determine which service IDs are active on a given date and whether they have exceptions.
+    """Reports a dict of service IDs that are active on the given date mapped to a boolean indicating if
+    there are any exceptions for that service on that date.
 
     Args:
         models: The SessionModels containing calendar services and exceptions.
