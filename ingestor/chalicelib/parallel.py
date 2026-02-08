@@ -18,6 +18,7 @@ def make_parallel(single_func, THREAD_COUNT=5):
         A function that takes an iterable as its first argument and returns
         a flat list of all results.
     """
+
     def parallel_func(iterable, *args, **kwargs):
         futures = []
         with ThreadPoolExecutor(max_workers=THREAD_COUNT) as executor:
