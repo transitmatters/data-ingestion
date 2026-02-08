@@ -24,7 +24,7 @@ from .utils import (
 from .models import SessionModels, RouteDateTotals
 
 
-def load_session_models(session: Session):
+def load_session_models(session: Session) -> SessionModels:
     """Load all GTFS models from a SQLAlchemy session into indexed containers.
 
     Args:
@@ -50,7 +50,7 @@ def load_session_models(session: Session):
     )
 
 
-def create_gl_route_date_totals(totals: List[RouteDateTotals]):
+def create_gl_route_date_totals(totals: List[RouteDateTotals]) -> RouteDateTotals:
     """Aggregate Green Line branch totals into a single combined Green Line total.
 
     Args:
@@ -78,7 +78,7 @@ def create_gl_route_date_totals(totals: List[RouteDateTotals]):
     )
 
 
-def create_route_date_totals(today: date, models: SessionModels):
+def create_route_date_totals(today: date, models: SessionModels) -> List[RouteDateTotals]:
     """Create scheduled service totals for all valid routes on a given date.
 
     Args:

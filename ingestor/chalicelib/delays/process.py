@@ -101,7 +101,7 @@ def alert_is_delay(alert: Alert):
     """Determines if an alert describes a delay based on text patterns.
 
     Args:
-        alert: An Alert dict with a "text" field.
+        alert: An Alert as defined in delays/types.py.
 
     Returns:
         True if the alert text matches known delay patterns.
@@ -119,7 +119,7 @@ def alert_type(alert: Alert):
     """Classifies an alert into a delay type based on text pattern matching.
 
     Args:
-        alert: An Alert dict with a "text" field.
+        alert: An Alert as defined in delays/types.py.
 
     Returns:
         A string identifying the delay type (e.g. "signal_problem", "other").
@@ -140,7 +140,7 @@ def process_delay_time(alerts: List[Alert]):
     """Extracts total delay minutes and per-type breakdown from a list of alerts.
 
     Args:
-        alerts: A list of Alert dicts for a single day.
+        alerts: A list of Alert objects for a single day
 
     Returns:
         A tuple of (total_delay_minutes, delay_by_type_dict).
