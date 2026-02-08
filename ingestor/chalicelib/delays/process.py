@@ -18,6 +18,16 @@ DAILY_TABLE_NAME = "AlertDelaysDaily"
 
 
 def generate_requests(start_date: date, end_date: date, lines=constants.ALL_LINES) -> List[AlertsRequest]:
+    """Generates AlertsRequest objects for each line and date in the range.
+
+    Args:
+        start_date: The start date (inclusive).
+        end_date: The end date (inclusive).
+        lines: List of line identifiers to generate requests for.
+
+    Returns:
+        A list of AlertsRequest objects for active lines in the date range.
+    """
     reqs = []
     date_ranges = []
     current_date = start_date
@@ -38,8 +48,17 @@ def generate_requests(start_date: date, end_date: date, lines=constants.ALL_LINE
 
 
 def is_line_active(line: str, check_date: date) -> bool:
-    """
-    Check if a line was active on a given date
+    """Checks if a line was active on a given date.
+
+    Handles line discontinuation dates (e.g. CR-Middleborough replaced
+    by CR-NewBedford).
+
+    Args:
+        line: The line identifier.
+        check_date: The date to check.
+
+    Returns:
+        True if the line was active on the given date.
     """
     if line == "CR-Middleborough":
         return check_date < constants.CR_MIDDLEBOROUGH_DISCONTINUED
@@ -51,6 +70,17 @@ def is_line_active(line: str, check_date: date) -> bool:
 
 
 def process_single_day(request: AlertsRequest):
+    """Fetches alert data for a single day and route from the Data Dashboard API.
+
+    Args:
+        request: An AlertsRequest specifying the route and date.
+
+    Returns:
+        The parsed JSON alert data for the day.
+
+    Raises:
+        requests.exceptions.HTTPError: If the API returns a non-200 status.
+    """
     params = {
         "route": request.route,
     }
@@ -68,6 +98,14 @@ def process_single_day(request: AlertsRequest):
 
 
 def alert_is_delay(alert: Alert):
+    """Determines if an alert describes a delay based on text patterns.
+
+    Args:
+        alert: An Alert as defined in delays/types.py.
+
+    Returns:
+        True if the alert text matches known delay patterns.
+    """
     text = alert["text"].lower()
     return (
         ("delays" in text and "minutes" in text)  # Original subway pattern
@@ -78,6 +116,14 @@ def alert_is_delay(alert: Alert):
 
 
 def alert_type(alert: Alert):
+    """Classifies an alert into a delay type based on text pattern matching.
+
+    Args:
+        alert: An Alert as defined in delays/types.py.
+
+    Returns:
+        A string identifying the delay type (e.g. "signal_problem", "other").
+    """
     text_lower = alert["text"].lower()
 
     # Check each alert type pattern
@@ -91,6 +137,14 @@ def alert_type(alert: Alert):
 
 
 def process_delay_time(alerts: List[Alert]):
+    """Extracts total delay minutes and per-type breakdown from a list of alerts.
+
+    Args:
+        alerts: A list of Alert objects for a single day
+
+    Returns:
+        A tuple of (total_delay_minutes, delay_by_type_dict).
+    """
     delays = []
 
     patterns = [
@@ -135,7 +189,15 @@ def process_delay_time(alerts: List[Alert]):
 
 
 def process_requests(requests: List[AlertsRequest], lines=constants.ALL_LINES):
-    # process all requests
+    """Processes all alert requests and returns DataFrames of delay data per line.
+
+    Args:
+        requests: A list of AlertsRequest objects to process.
+        lines: List of line identifiers to organize results by.
+
+    Returns:
+        A dict mapping line identifiers to DataFrames with delay breakdowns.
+    """
     all_data = {}
     for line in lines:
         all_data[line] = []
@@ -176,10 +238,18 @@ def process_requests(requests: List[AlertsRequest], lines=constants.ALL_LINES):
 
 
 def get_daily_data_for_week(start_date: date, end_date: date, lines=constants.ALL_LINES):
-    """
-    Query daily data from DynamoDB for weekly aggregation.
-    Done as opposed to performing another API call for weekly aggregation.
-    Also guarantees complete info for every day.
+    """Queries daily delay data from DynamoDB for weekly aggregation.
+
+    Uses stored daily records rather than making additional API calls,
+    ensuring complete data for every day.
+
+    Args:
+        start_date: The start date of the range.
+        end_date: The end date of the range.
+        lines: List of line identifiers to query.
+
+    Returns:
+        A list of daily delay record dicts from DynamoDB.
     """
     daily_records = []
 
@@ -203,9 +273,12 @@ def get_daily_data_for_week(start_date: date, end_date: date, lines=constants.AL
 
 
 def update_weekly_from_daily(start_date: date, end_date: date, lines=constants.ALL_LINES):
-    """
-    Update weekly table by aggregating daily data from DynamoDB.
-    Avoids another api call.
+    """Updates the weekly delay table by aggregating daily DynamoDB records.
+
+    Args:
+        start_date: The start date of the range.
+        end_date: The end date of the range.
+        lines: List of line identifiers to update.
     """
 
     # Get daily data from DynamoDB instead of API
@@ -225,8 +298,12 @@ def update_weekly_from_daily(start_date: date, end_date: date, lines=constants.A
 
 
 def update_table(start_date: date, end_date: date, lines=constants.ALL_LINES):
-    """
-    Update the table with rapid transit data
+    """Fetches alerts from the API and updates the daily delay table in DynamoDB.
+
+    Args:
+        start_date: The start date of the range.
+        end_date: The end date of the range.
+        lines: List of line identifiers to process.
     """
     alert_requests = generate_requests(start_date, end_date, lines)
     all_data = process_requests(alert_requests, lines)

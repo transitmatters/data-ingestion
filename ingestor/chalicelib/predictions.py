@@ -24,6 +24,11 @@ class PredictionAccuracyEntry:
     num_accurate_predictions: str
 
     def to_json(self):
+        """Converts this entry to a JSON-serializable dict.
+
+        Returns:
+            A dict with all fields, date formatted as ISO string.
+        """
         return {
             "weekly": self.weekly.isoformat(),
             "mode": self.mode,
@@ -35,10 +40,19 @@ class PredictionAccuracyEntry:
         }
 
     def entry_key(self) -> EntryKey:
+        """Returns the (week, route_id) key used for grouping entries."""
         return (self.weekly, self.route_id)
 
 
 def bucket_entries_by_key(entries: Iterator[PredictionAccuracyEntry]) -> Dict[EntryKey, List[PredictionAccuracyEntry]]:
+    """Groups prediction accuracy entries by their (week, route_id) key.
+
+    Args:
+        entries: An iterator of PredictionAccuracyEntry objects.
+
+    Returns:
+        A dict mapping EntryKey tuples to lists of entries.
+    """
     buckets = {}
     for entry in entries:
         key = entry.entry_key()
@@ -49,6 +63,14 @@ def bucket_entries_by_key(entries: Iterator[PredictionAccuracyEntry]) -> Dict[En
 
 
 def parse_prediction_row_to_entry(row: Dict[str, str]) -> Union[None, PredictionAccuracyEntry]:
+    """Parses a CSV row into a PredictionAccuracyEntry.
+
+    Args:
+        row: A dict from csv.DictReader with prediction accuracy fields.
+
+    Returns:
+        A PredictionAccuracyEntry, or None if the row is invalid.
+    """
     weekly = datetime.strptime(row["weekly"][:10], "%Y-%m-%d").date()
     num_predictions = int(row["num_predictions"])
     num_accurate_predictions = int(row["num_accurate_predictions"])
@@ -67,6 +89,11 @@ def parse_prediction_row_to_entry(row: Dict[str, str]) -> Union[None, Prediction
 
 
 def load_prediction_entries() -> Iterator[PredictionAccuracyEntry]:
+    """Downloads and parses prediction accuracy data from the MassDOT ArcGIS CSV.
+
+    Yields:
+        PredictionAccuracyEntry objects parsed from the CSV rows.
+    """
     req = requests.get(CSV_URL)
 
     # Weirdly the csv starts with 3 strange chars
@@ -79,6 +106,7 @@ def load_prediction_entries() -> Iterator[PredictionAccuracyEntry]:
 
 
 def update_predictions():
+    """Fetches prediction accuracy data and writes it to the TimePredictions DynamoDB table."""
     entries = load_prediction_entries()
     buckets = bucket_entries_by_key(entries)
     dynamodb = boto3.resource("dynamodb")

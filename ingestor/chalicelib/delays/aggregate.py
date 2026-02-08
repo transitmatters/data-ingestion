@@ -4,6 +4,15 @@ import pandas as pd
 
 
 def group_monthly_data(df: pd.DataFrame, start_date: str):
+    """Resamples daily delay data into monthly aggregates.
+
+    Args:
+        df: A DataFrame indexed by datetime with delay type columns.
+        start_date: Start date string; drops the first month if incomplete.
+
+    Returns:
+        A DataFrame with monthly summed delay data.
+    """
     # TODO: Aggregate the sub values
     df_monthly = df.groupby("line").resample("M").sum()
     df_monthly = df_monthly.fillna(0)
@@ -15,6 +24,15 @@ def group_monthly_data(df: pd.DataFrame, start_date: str):
 
 
 def group_weekly_data(df: pd.DataFrame, start_date: str):
+    """Resamples daily delay data into weekly (Mon-Sun) aggregates.
+
+    Args:
+        df: A DataFrame indexed by datetime with delay type columns.
+        start_date: Start date string used for period alignment.
+
+    Returns:
+        A list of weekly aggregate dicts with delay breakdowns.
+    """
     # Group from Monday - Sunday
     df_weekly = df.resample("W-SUN").agg(
         {
@@ -48,7 +66,15 @@ def group_weekly_data(df: pd.DataFrame, start_date: str):
 
 
 def group_daily_data(df: pd.DataFrame, start_date: str):
-    # Formats daily data on delays for Dynamo
+    """Resamples and formats delay data at daily granularity for DynamoDB.
+
+    Args:
+        df: A DataFrame indexed by datetime with delay type columns.
+        start_date: Start date string (currently unused but kept for consistency).
+
+    Returns:
+        A list of daily delay dicts with breakdowns by type.
+    """
 
     df_daily = df.resample("D").agg(
         {

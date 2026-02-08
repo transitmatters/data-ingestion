@@ -29,6 +29,7 @@ app.register_middleware(ConvertToMiddleware(datadog_lambda_wrapper))
 # Runs every 15 minutes from either 4 AM -> 1:55AM or 5 AM -> 2:55 AM depending on DST
 @app.schedule(Cron("0/15", "0-6,9-23", "*", "*", "?", "*"))
 def store_current_alerts(event):
+    """Fetches and stores current MBTA V3 alerts to S3."""
     alerts.save_v3_alerts()
 
 
@@ -46,18 +47,21 @@ def store_current_alerts(event):
 # STORE BLUEBIKES FEED
 @app.schedule(Cron("0/5", "*", "*", "*", "?", "*"))
 def bb_store_station_status(event):
+    """Stores current Bluebikes station status snapshot to S3."""
     bluebikes.store_station_status()
 
 
 # 10am UTC -> 6am EST
 @app.schedule(Cron(0, 10, "*", "*", "?", "*"))
 def bb_store_station_info(event):
+    """Stores daily Bluebikes station info to S3."""
     bluebikes.store_station_info()
 
 
 # 6am UTC -> 2am EDT
 @app.schedule(Cron(0, 6, "*", "*", "?", "*"))
 def bb_calc_daily_stats(event):
+    """Calculates daily Bluebikes rideability statistics for yesterday."""
     yesterday = date.today() - timedelta(days=1)
     bluebikes.calc_daily_stats(yesterday)
 
@@ -65,8 +69,8 @@ def bb_calc_daily_stats(event):
 # Runs every 30 minutes from either 4 AM -> 1:55AM or 5 AM -> 2:55 AM depending on DST
 @app.schedule(Cron("0/30", "0-6,9-23", "*", "*", "?", "*"))
 def update_delivered_trip_metrics(event):
+    """Updates daily trip metrics for today (or yesterday before 9 AM UTC)."""
     today = datetime.now()
-    """ Update yesterdays entry until 4/5 am (9 AM UTC)"""
     if today.hour < 9:
         today = today - timedelta(days=1)
     daily_speeds.update_daily_table(today.date())
@@ -76,6 +80,7 @@ def update_delivered_trip_metrics(event):
 # Update weekly and monthly tables. At 2/3 AM EST and also after we have updated yesterday's data.
 @app.schedule(Cron(10, "7,12", "*", "*", "?", "*"))
 def update_agg_trip_metrics(event):
+    """Updates weekly and monthly aggregate trip metric tables."""
     agg_speed_tables.update_tables("weekly")
     agg_speed_tables.update_tables("monthly")
 
@@ -84,6 +89,7 @@ def update_agg_trip_metrics(event):
 # The MBTA cleans up their data the next day (we suspect sometime after 4 AM). Update yesterday's data after this (and 2 days ago to be safe).
 @app.schedule(Cron(0, 12, "*", "*", "?", "*"))
 def update_delivered_trip_metrics_yesterday(event):
+    """Re-updates trip metrics for yesterday and two days ago after MBTA data cleanup."""
     today = datetime.now()
     yesterday = (today - timedelta(days=1)).date()
     two_days_ago = (today - timedelta(days=2)).date()
@@ -94,24 +100,28 @@ def update_delivered_trip_metrics_yesterday(event):
 # 7:10am UTC -> 2:10/3:10am ET every day
 @app.schedule(Cron(10, 7, "*", "*", "?", "*"))
 def update_ridership(event):
+    """Ingests the latest ridership data into DynamoDB."""
     ridership.ingest_ridership_data()
 
 
 # 7:20am UTC -> 2:20/3:20am ET every weekday
 @app.schedule(Cron(20, 7, "?", "*", "MON-FRI", "*"))
 def update_speed_restrictions(event):
+    """Updates speed restrictions from ArcGIS data for the last 2 months."""
     speed_restrictions.update_speed_restrictions(max_lookback_months=2)
 
 
 # 7:30am UTC -> 2:30/3:30am ET every day
 @app.schedule(Cron(30, 7, "*", "*", "?", "*"))
 def update_time_predictions(event):
+    """Updates prediction accuracy data from MassDOT ArcGIS."""
     predictions.update_predictions()
 
 
 # 8:00am UTC -> 3:00/4:00am ET and 11:00pm UTC -> 7:00/6:00pm ET every day
 @app.schedule(Cron(0, "8,23", "*", "*", "?", "*"))
 def update_gtfs(event):
+    """Ingests GTFS feeds from the last 3 days into DynamoDB and S3."""
     today = datetime.now()
     three_days_ago = (today - timedelta(days=3)).date()
     gtfs.ingest_gtfs_feeds_to_dynamo_and_s3(date_range=(three_days_ago, today.date()))
@@ -120,6 +130,7 @@ def update_gtfs(event):
 # 4:40am UTC -> 2:40/3:40am ET every day
 @app.schedule(Cron(40, 7, "*", "*", "?", "*"))
 def update_trip_metrics(event):
+    """Ingests trip metrics for the last 7 days."""
     trip_metrics.ingest_recent_trip_metrics(lookback_days=7)
 
 
@@ -128,6 +139,7 @@ def update_trip_metrics(event):
 # Runs 15 minutes after the daily update
 @app.schedule(Cron(45, 8, "?", "*", "MON,TUE", "*"))
 def update_weekly_alert_delays(event):
+    """Aggregates daily delay data into weekly totals for the last 15 days."""
     today = datetime.now()
     one_week_ago = (today - timedelta(days=15)).date()
     delays.update_weekly_from_daily(one_week_ago, today.date())
@@ -136,6 +148,7 @@ def update_weekly_alert_delays(event):
 # for daily delay uploads
 @app.schedule(Cron(30, 8, "*", "*", "?", "*"))
 def update_daily_alert_delays(event):
+    """Processes yesterday's alerts and updates the daily delay table."""
     today = datetime.now()
     yesterday = (today - timedelta(days=1)).date()
     delays.update_table(yesterday, today.date())
@@ -144,6 +157,12 @@ def update_daily_alert_delays(event):
 # Manually triggered lambda for populating daily trip metric tables. Only needs to be ran once.
 @app.lambda_function()
 def populate_delivered_trip_metrics(params, context):
+    """Backfills the DeliveredTripMetrics table for all routes from 2016 to now.
+
+    Args:
+        params: Lambda function parameters (unused).
+        context: Lambda context object (unused).
+    """
     start_date = datetime.strptime("2016-01-15", constants.DATE_FORMAT_BACKEND)
     end_date = datetime.now()
     for route in constants.ALL_ROUTES:
@@ -153,6 +172,12 @@ def populate_delivered_trip_metrics(params, context):
 # Manually triggered lambda for populating monthly or weekly tables. Only needs to be ran once.
 @app.lambda_function()
 def populate_agg_delivered_trip_metrics(params, context):
+    """Backfills monthly and weekly aggregate trip metric tables for all lines.
+
+    Args:
+        params: Lambda function parameters (unused).
+        context: Lambda context object (unused).
+    """
     for line in constants.LINES:
         print(f"Populating monthly and weekly aggregate trip metrics for {line}")
         agg_speed_tables.populate_table(line, "monthly")
@@ -164,6 +189,7 @@ def populate_agg_delivered_trip_metrics(params, context):
 # No need to run on weekends
 @app.schedule(Cron(0, 9, "?", "*", "MON-FRI", "*"))
 def store_landing_data(event):
+    """Uploads trip metrics and ridership data for the landing page to S3."""
     print(
         f"Uploading ridership and trip metric data for landing page from {constants.NINETY_DAYS_AGO_STRING} to {constants.ONE_WEEK_AGO_STRING}"
     )
@@ -176,4 +202,5 @@ def store_landing_data(event):
 # 9:00 UTC -> 4:30/5:30am ET every day (after GTFS and ridership have been ingested)
 @app.schedule(Cron(30, 9, "*", "*", "?", "*"))
 def update_service_ridership_dashboard(event):
+    """Generates and uploads the service ridership dashboard JSON."""
     service_ridership_dashboard.create_service_ridership_dash_json()

@@ -15,6 +15,14 @@ KEYS_TO_KEEP = ["25%", "50%", "75%", "count", "max", "mean", "min", "std"]
 
 
 def create_dataframe(dicts) -> pd.DataFrame:
+    """Create a typed DataFrame from a list of dictionaries.
+
+    Args:
+        dicts: A list of dictionaries containing travel time data.
+
+    Returns:
+        A pandas DataFrame with enforced column types for travel time metrics.
+    """
     return pd.DataFrame(
         dicts,
         {
@@ -38,6 +46,17 @@ def create_dataframe(dicts) -> pd.DataFrame:
 
 
 def request_agg_travel_time(request: AggTravelTimesRequest) -> AggTravelTimesResponse:
+    """Fetch aggregated travel time data from the Data Dashboard backend API.
+
+    Args:
+        request: An AggTravelTimesRequest specifying the route, stops, and date range.
+
+    Returns:
+        A list of aggregated travel time entries grouped by date.
+
+    Raises:
+        requests.exceptions.HTTPError: If the API returns a non-success status code.
+    """
     params = {
         "from_stop": request.stop_pair[0],
         "to_stop": request.stop_pair[1],
@@ -55,6 +74,21 @@ def request_agg_travel_time(request: AggTravelTimesRequest) -> AggTravelTimesRes
 
 
 def get_date_ranges(start_date: date, end_date: date, max_range_size: int, breakpoint_dates: List[date] = []):
+    """Split a date range into smaller sub-ranges respecting a max size and breakpoints.
+
+    Divides the range [start_date, end_date] into chunks no larger than
+    max_range_size days, further splitting at any breakpoint dates that fall
+    within a chunk.
+
+    Args:
+        start_date: The start of the overall date range.
+        end_date: The end of the overall date range.
+        max_range_size: The maximum number of days in each sub-range.
+        breakpoint_dates: Dates at which ranges must be split (e.g. service changes).
+
+    Returns:
+        A list of (start, end) date tuples representing the sub-ranges.
+    """
     naive_ranges = []
     current_date = start_date
     while current_date < end_date:
@@ -80,6 +114,19 @@ def generate_requests(
     end_date: date,
     max_date_range_size: int = 50,
 ) -> List[AggTravelTimesRequest]:
+    """Generate all aggregated travel time API requests for a date range.
+
+    Builds requests for every route, direction, and terminal-inclusivity
+    combination across all date sub-ranges.
+
+    Args:
+        start_date: The start of the date range to query.
+        end_date: The end of the date range to query.
+        max_date_range_size: Maximum number of days per API request chunk.
+
+    Returns:
+        A list of AggTravelTimesRequest objects covering all route/direction combos.
+    """
     reqs = []
     date_ranges = get_date_ranges(start_date, end_date, max_date_range_size, [constants.GLX_EXTENSION_DATE])
     for start_date, end_date in date_ranges:
@@ -106,6 +153,15 @@ def load_travel_time_dataframe(
     start_date: date,
     end_date: date,
 ) -> pd.DataFrame:
+    """Load aggregated travel time data into a DataFrame using concurrent API requests.
+
+    Args:
+        start_date: The start of the date range to fetch.
+        end_date: The end of the date range to fetch.
+
+    Returns:
+        A DataFrame containing travel time metrics with route and stop metadata.
+    """
     reqs = generate_requests(start_date, end_date)
     df_dicts = []
     with ThreadPoolExecutor(max_workers=4) as executor:
@@ -128,6 +184,20 @@ def load_travel_time_dataframe(
 
 
 def get_df_entry_for_direction_and_exclusivity(df: pd.DataFrame, direction: DirectionType, includes_terminals: bool):
+    """Extract a single row from the DataFrame for a given direction and terminal inclusivity.
+
+    Filters the DataFrame and returns a dictionary of statistical keys prefixed
+    with the direction and inclusivity label.
+
+    Args:
+        df: A DataFrame of travel time data for a single route and date.
+        direction: The direction to filter on ("0" or "1").
+        includes_terminals: Whether to filter for terminal-inclusive data.
+
+    Returns:
+        A dictionary of prefixed metric keys and values, or None if no matching
+        row exists.
+    """
     entry = df[(df["direction"] == direction) & (df["includes_terminals"] == includes_terminals)]
     prefix = f"dir_{direction}_{'inclusive' if includes_terminals else 'exclusive'}"
     if entry.empty:
@@ -138,6 +208,15 @@ def get_df_entry_for_direction_and_exclusivity(df: pd.DataFrame, direction: Dire
 
 
 def prepare_dict_for_dynamo(row_dict):
+    """Convert numeric values in a dictionary to Decimal types for DynamoDB compatibility.
+
+    Args:
+        row_dict: A dictionary of metric data with potential float and int values.
+
+    Returns:
+        A new dictionary with floats rounded to 2 decimal places and converted
+        to Decimal, ints converted to Decimal, and other values unchanged.
+    """
     res = {}
     for key, value in row_dict.items():
         if isinstance(value, float):
@@ -150,6 +229,16 @@ def prepare_dict_for_dynamo(row_dict):
 
 
 def ingest_trip_metrics(start_date: date, end_date: date):
+    """Fetch, transform, and write trip metrics to DynamoDB for a date range.
+
+    Loads travel time data, filters to the "all" peak period, aggregates
+    metrics by route and date across directions and terminal inclusivity,
+    and batch-writes the results to the DeliveredTripMetricsExtended table.
+
+    Args:
+        start_date: The start of the date range to ingest.
+        end_date: The end of the date range to ingest.
+    """
     df = load_travel_time_dataframe(start_date, end_date)
     df = df[df["peak"] == "all"]
     # get all dates
@@ -179,6 +268,11 @@ def ingest_trip_metrics(start_date: date, end_date: date):
 
 
 def ingest_recent_trip_metrics(lookback_days: int = 1):
+    """Ingest trip metrics for the most recent days.
+
+    Args:
+        lookback_days: Number of days before today to start ingesting from.
+    """
     end = date.today()
     start = end - timedelta(days=lookback_days)
     ingest_trip_metrics(start, end)

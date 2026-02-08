@@ -36,7 +36,15 @@ class TripsByLineParams:
 
 
 def populate_table(line: Line, range: Range, start_date: str = "2016-01-01"):
-    """Populate weekly or monthly aggregate speed table for a given line. Ran manually as a lambda in AWS console"""
+    """Populates a weekly or monthly aggregate speed table for a line.
+
+    Intended to be run manually as a Lambda from the AWS console.
+
+    Args:
+        line: The line identifier (e.g. "line-red").
+        range: The aggregation range ("weekly" or "monthly").
+        start_date: The start date string in YYYY-MM-DD format.
+    """
     print(f"Populating {range} table")
     table = constants.TABLE_MAP[range]
     today = datetime.now().strftime(constants.DATE_FORMAT_BACKEND)
@@ -53,7 +61,11 @@ def populate_table(line: Line, range: Range, start_date: str = "2016-01-01"):
 
 
 def update_tables(range: Range):
-    """Update weekly and monthly speed tables"""
+    """Updates aggregate speed tables for all lines from the current period start.
+
+    Args:
+        range: The aggregation range ("weekly" or "monthly").
+    """
     table = constants.TABLE_MAP[range]
     yesterday = datetime.now() - timedelta(days=1)
     for line in constants.LINES:
@@ -77,12 +89,34 @@ def update_tables(range: Range):
 
 
 def query_daily_trips_on_route(table_name: str, route: str, start_date: str, end_date: str):
+    """Queries daily trip metrics for a single route from DynamoDB.
+
+    Args:
+        table_name: The DynamoDB table name.
+        route: The route key (e.g. "line-red-a").
+        start_date: Start date string (YYYY-MM-DD).
+        end_date: End date string (YYYY-MM-DD).
+
+    Returns:
+        A list of trip metric dicts for the route and date range.
+    """
     table = dynamodb.Table(table_name)
     response = table.query(KeyConditionExpression=Key("route").eq(route) & Key("date").between(start_date, end_date))
     return ddb_json.loads(response["Items"])
 
 
 def query_daily_trips_on_line(table_name: str, line: Line, start_date: str, end_date: str):
+    """Queries daily trip metrics for all routes on a line in parallel.
+
+    Args:
+        table_name: The DynamoDB table name.
+        line: The line identifier (e.g. "line-red").
+        start_date: Start date string (YYYY-MM-DD).
+        end_date: End date string (YYYY-MM-DD).
+
+    Returns:
+        A list of lists, one per route, each containing trip metric dicts.
+    """
     route_keys = constants.LINE_TO_ROUTE_MAP[line]
     with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
         futures = [
@@ -97,6 +131,17 @@ def query_daily_trips_on_line(table_name: str, line: Line, start_date: str, end_
 
 
 def actual_trips_by_line(params: TripsByLineParams):
+    """Fetches and aggregates daily trip metrics for a line.
+
+    Args:
+        params: A dict with "line", "start_date", "end_date", and "agg" keys.
+
+    Returns:
+        A list of aggregated trip metric dicts.
+
+    Raises:
+        BadRequestError: If the line is invalid or parameters are missing.
+    """
     try:
         start_date = params["start_date"]
         end_date = params["end_date"]
@@ -110,7 +155,16 @@ def actual_trips_by_line(params: TripsByLineParams):
 
 
 def aggregate_actual_trips(actual_trips, agg: Range, start_date: str):
-    """Aggregate trips into lines and optionally week/month"""
+    """Aggregates daily trip data by line, optionally grouping by week or month.
+
+    Args:
+        actual_trips: A list of lists of trip metric dicts (one per route).
+        agg: The aggregation level ("daily", "weekly", or "monthly").
+        start_date: Start date string, used to drop incomplete first periods.
+
+    Returns:
+        A list of aggregated trip metric dicts.
+    """
     flat_data = [entry for sublist in actual_trips for entry in sublist]
     df = pd.DataFrame(flat_data)
     df_grouped = group_data_by_date_and_branch(df)
@@ -123,6 +177,15 @@ def aggregate_actual_trips(actual_trips, agg: Range, start_date: str):
 
 
 def group_monthly_data(df: pd.DataFrame, start_date: str):
+    """Resamples daily trip data into monthly aggregates.
+
+    Args:
+        df: A DataFrame indexed by datetime with trip metric columns.
+        start_date: Start date string; drops the first month if incomplete.
+
+    Returns:
+        A list of monthly aggregate dicts.
+    """
     df_monthly = df.resample("M").agg(
         {"miles_covered": np.sum, "count": np.nanmedian, "total_time": np.sum, "line": "min"}
     )
@@ -136,6 +199,15 @@ def group_monthly_data(df: pd.DataFrame, start_date: str):
 
 
 def group_weekly_data(df: pd.DataFrame, start_date: str):
+    """Resamples daily trip data into weekly (Mon-Sun) aggregates.
+
+    Args:
+        df: A DataFrame indexed by datetime with trip metric columns.
+        start_date: Start date string; drops the first week if incomplete.
+
+    Returns:
+        A list of weekly aggregate dicts.
+    """
     # Group from Monday - Sunday
     df_weekly = df.resample("W-SUN").agg(
         {"miles_covered": np.sum, "count": np.nanmedian, "total_time": np.sum, "line": "min"}
@@ -152,7 +224,16 @@ def group_weekly_data(df: pd.DataFrame, start_date: str):
 
 
 def group_data_by_date_and_branch(df: pd.DataFrame):
-    """Convert data from objects with specific route/date/direction to data by date."""
+    """Groups route-level trip data by date, aggregating across branches.
+
+    Marks a date as NaN if any branch is missing data to avoid partial sums.
+
+    Args:
+        df: A DataFrame with route-level trip metrics.
+
+    Returns:
+        A DataFrame indexed by datetime with aggregated line-level metrics.
+    """
     # Set values for date to NaN when any entry for a different branch/direction has miles_covered as nan.
     df.loc[
         df.groupby("date")["miles_covered"].transform(lambda x: (np.isnan(x)).any()),
