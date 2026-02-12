@@ -12,6 +12,14 @@ RoutesByLine = dict[Line, Route]
 
 
 def get_routes_by_line(include_only_line_ids: Optional[list[str]]) -> dict[Line, Route]:
+    """Fetch routes from the latest GTFS feed and group them by their parent line.
+
+    Args:
+        include_only_line_ids: If provided, only include routes belonging to these line IDs.
+
+    Returns:
+        A dictionary mapping Line objects to their associated Route objects.
+    """
     s3 = boto3.resource("s3")
     archive = MbtaGtfsArchive(
         local_archive_path=TemporaryDirectory().name,
