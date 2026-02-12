@@ -49,6 +49,14 @@ class ShuttleTravelTime:
 
 
 def load_bus_positions() -> Optional[List[Dict]]:
+    """Loads the last known bus positions from S3.
+
+    Returns:
+        A list of bus position dicts, or None if no previous positions exist.
+
+    Raises:
+        ClientError: If an S3 error other than NoSuchKey occurs.
+    """
     try:
         data = s3.download(BUCKET, KEY, compressed=False)
         return json.loads(data)
@@ -61,12 +69,28 @@ def load_bus_positions() -> Optional[List[Dict]]:
 
 
 def get_shuttle_stops(session: Session) -> List[Stop]:
+    """Fetches all stops with "Shuttle" in their platform name.
+
+    Args:
+        session: A SQLAlchemy session for the GTFS database.
+
+    Returns:
+        A list of Stop objects for shuttle platforms.
+    """
     return session.query(Stop).filter(Stop.platform_name.contains("Shuttle")).all()
 
 
 def get_shuttle_shapes(
     session: Session,
 ) -> ShapeDict:
+    """Fetches shape points for all active shuttle diversion route patterns.
+
+    Args:
+        session: A SQLAlchemy session for the GTFS database.
+
+    Returns:
+        A dict mapping route IDs to their ordered list of ShapePoints.
+    """
     route_patterns = (
         session.query(RoutePattern)
         .filter(
@@ -104,6 +128,14 @@ def get_shuttle_shapes(
 
 
 def get_session_for_latest_feed() -> Session:
+    """Creates a SQLAlchemy session for the latest GTFS feed.
+
+    Downloads or builds the latest GTFS feed from S3 and returns
+    a SQLite session for querying it.
+
+    Returns:
+        A SQLAlchemy Session connected to the latest GTFS SQLite database.
+    """
     s3 = boto3.resource("s3")
     archive = MbtaGtfsArchive(
         local_archive_path=TemporaryDirectory().name,
@@ -116,6 +148,15 @@ def get_session_for_latest_feed() -> Session:
 
 # https://en.wikipedia.org/wiki/Even%E2%80%93odd_rule
 def is_in_shape(coords: Tuple[float, float], shape: List[ShapePoint]):
+    """Determines if a point is inside a polygon using the even-odd rule.
+
+    Args:
+        coords: A (longitude, latitude) tuple for the point to test.
+        shape: An ordered list of ShapePoints defining the polygon boundary.
+
+    Returns:
+        True if the point is inside or on the boundary of the polygon.
+    """
     x = coords[0]
     y = coords[1]
 
@@ -146,6 +187,11 @@ def is_in_shape(coords: Tuple[float, float], shape: List[ShapePoint]):
 
 
 def save_bus_positions(bus_positions: List[dict]):
+    """Saves current bus positions to S3 as JSON.
+
+    Args:
+        bus_positions: A list of bus position dicts to persist.
+    """
     now_str = datetime.now().strftime(TIME_FORMAT)
     print(f"{now_str}: saving bus positions")
 
@@ -153,6 +199,12 @@ def save_bus_positions(bus_positions: List[dict]):
 
 
 def write_traveltimes_to_dynamo(travel_times: List[Optional[ShuttleTravelTime]]):
+    """Writes shuttle travel times to DynamoDB in batch.
+
+    Args:
+        travel_times: A list of ShuttleTravelTime objects (or None) to write.
+            None entries are filtered out before writing.
+    """
     row_dicts = []
     for travel_time in travel_times:
         if travel_time:
@@ -161,47 +213,17 @@ def write_traveltimes_to_dynamo(travel_times: List[Optional[ShuttleTravelTime]])
 
 
 def get_driving_distance(old_coords: Tuple[float, float], new_coords: Tuple[float, float]) -> Optional[float]:
-    """
-    Calculates the driving distance between two coordinates
+    """Calculates the driving distance between two coordinates.
+
+    Uses the OSRM routing API (http://project-osrm.org/docs/v5.5.1/api/#route-service).
+
     Args:
-        old_coords: first position
-        new_coords: second position
+        old_coords: A (longitude, latitude) tuple for the starting position.
+        new_coords: A (longitude, latitude) tuple for the ending position.
 
     Returns:
-        The distance in miles between the coordinate pairs, or None if the request failed
-
-    Uses the API from http://project-osrm.org/docs/v5.5.1/api/#route-service
-
-    Example response from API:
-        (there's also some other stuff we can ignore)
-    ```json
-    {
-      "code": "Ok",
-      "routes": [
-        {
-          "legs": [
-            {
-              "steps": [],
-              "summary": "",
-              "weight": 263.2,
-              "duration": 260.3,
-              "distance": 1886.8
-            },
-            {
-              "steps": [],
-              "summary": "",
-              "weight": 370.4,
-              "duration": 370.4,
-              "distance": 2845.4
-            }
-          ],
-          "weight_name": "routability",
-          "weight": 633.599999999,
-          "duration": 630.7,
-          "distance": 4732.2
-        }
-    }
-    ```json
+        The driving distance in miles between the coordinate pairs,
+        or None if the API request failed.
     """
     # coords must be in order (longitude, latitude)
     url = f"{OSRM_DISTANCE_API}/{old_coords[0]},{old_coords[1]};{new_coords[0]},{new_coords[1]}?overview=false"
@@ -227,6 +249,22 @@ def get_driving_distance(old_coords: Tuple[float, float], new_coords: Tuple[floa
 # TODO: this function is doing too much, trying to make it chill
 @tracer.wrap()
 def _update_shuttles(last_bus_positions: List[Dict], shuttle_shapes: ShapeDict, shuttle_stops: List[Stop]):
+    """Fetches live bus positions from Samsara and computes travel times.
+
+    For each bus, determines which shuttle route it is on, detects nearby
+    stops, and writes travel times to DynamoDB when a bus arrives at a new stop.
+
+    Args:
+        last_bus_positions: Previously recorded bus position dicts from S3.
+        shuttle_shapes: A dict mapping route IDs to their shape point lists.
+        shuttle_stops: A list of shuttle Stop objects from GTFS.
+
+    Returns:
+        A list of updated bus position dicts.
+
+    Raises:
+        Exception: If the Samsara API returns a non-200 status or unparseable response.
+    """
     url = "https://api.samsara.com/fleet/vehicles/locations"
 
     headers = {"accept": "application/json", "authorization": f"Bearer {YANKEE_API_KEY}"}
@@ -316,6 +354,20 @@ def maybe_create_travel_time(
     last_update_date: Optional[str],
     shuttle_stops: List[Stop],
 ):
+    """Creates a ShuttleTravelTime if the driving distance can be computed.
+
+    Args:
+        name: The bus identifier from Yankee/Samsara.
+        route_id: The detected shuttle route ID (e.g. "Shuttle-AlewifeParkSt").
+        last_detected_stop_id: The stop ID where the bus was previously detected.
+        detected_stop_id: The stop ID where the bus has just arrived.
+        last_update_date: Timestamp string of the previous detection, or None.
+        shuttle_stops: A list of shuttle Stop objects for coordinate lookups.
+
+    Returns:
+        A ShuttleTravelTime if successful, or None if the travel time
+        could not be computed (missing date, coordinates, or distance).
+    """
     # don't write travel times with no start date
     if last_update_date is None:
         print(
@@ -359,14 +411,15 @@ def maybe_create_travel_time(
 
 
 def update_shuttles():
-    """
-    Updates the shuttle travel times table with the travel times, in minutes, of the Yankee
-    Transit shuttles that have been detected as arriving at a stop when this lambda is run.
-    Shuttle routes are detected by checking the GTFS shape in which the shuttle's position is contained
-    in, and distance travelled (driving distance) is calculated by querying the OSRM routing API.
+    """Updates shuttle travel times for Yankee Transit shuttles.
 
-    We persist a record of a shuttle's position to s3 so we know at which station it was previously
-    detected.
+    Detects which shuttles have arrived at a new stop since the last run,
+    computes driving distances via the OSRM routing API, and writes travel
+    times (in minutes) to the ShuttleTravelTimes DynamoDB table.
+
+    Shuttle routes are identified by checking which GTFS shape contains
+    the shuttle's position. Previous positions are persisted to S3 to
+    track stop-to-stop transitions between invocations.
     """
     last_bus_positions = load_bus_positions()
 

@@ -24,6 +24,14 @@ RIDERSHIP_KEY_JSON = "static/landing/ridership.json"
 
 
 def query_landing_trip_metrics_data(line: str):
+    """Queries weekly trip metrics for a line over the last 90 days.
+
+    Args:
+        line: The line identifier (e.g. "line-red").
+
+    Returns:
+        A list of trip metric records for the landing page date range.
+    """
     table = dynamodb.Table("DeliveredTripMetricsWeekly")
     response = table.query(
         KeyConditionExpression=Key("line").eq(line)
@@ -33,6 +41,11 @@ def query_landing_trip_metrics_data(line: str):
 
 
 def get_trip_metrics_data():
+    """Fetches weekly trip metrics for all lines for the landing page.
+
+    Returns:
+        A dict mapping line IDs to their trip metrics data.
+    """
     trip_metrics_object = {}
     for line in constants.LINES:
         data = query_landing_trip_metrics_data(line)
@@ -41,6 +54,13 @@ def get_trip_metrics_data():
 
 
 def get_ridership_data():
+    """Fetches weekly ridership data for all lines and commuter rail.
+
+    Aggregates commuter rail lines into a single "line-commuter-rail" entry.
+
+    Returns:
+        A dict mapping line IDs to their ridership data.
+    """
     ridership_object = {}
     for line in constants.LINES:
         data = query_landing_ridership_data(constants.RIDERSHIP_KEYS[line])
@@ -69,6 +89,14 @@ def get_ridership_data():
 
 
 def query_landing_ridership_data(line: str):
+    """Queries ridership data for a line over the last 90 days.
+
+    Args:
+        line: The ridership line key (e.g. "line-Red").
+
+    Returns:
+        A list of ridership records for the landing page date range.
+    """
     table = dynamodb.Table("Ridership")
     response = table.query(
         KeyConditionExpression=Key("lineId").eq(line)
@@ -78,6 +106,12 @@ def query_landing_ridership_data(line: str):
 
 
 def upload_to_s3(trip_metrics, ridership):
+    """Uploads trip metrics and ridership JSON to all dashboard S3 buckets.
+
+    Args:
+        trip_metrics: JSON string of trip metrics data.
+        ridership: JSON string of ridership data.
+    """
     for bucket in BUCKETS:
         print(f"Uploading to {bucket}")
         s3.upload(bucket, RIDERSHIP_KEY_JSON, ridership, compress=False)
@@ -85,6 +119,7 @@ def upload_to_s3(trip_metrics, ridership):
 
 
 def clear_cache():
+    """Invalidates the CloudFront cache for landing page data across all distributions."""
     for distribution in DISTRIBUTIONS:
         s3.clear_cf_cache(distribution, ["/static/landing/*"])
 

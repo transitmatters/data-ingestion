@@ -9,7 +9,16 @@ from chalicelib import constants, dynamo
 
 
 def is_valid_entry(item, expected_entries, date):
-    """Function to remove traversal time entries which do not have data for each leg of the trip."""
+    """Checks whether a traversal time entry has data for all trip legs.
+
+    Args:
+        item: A speed metrics dict with an "entries" count.
+        expected_entries: The number of trip legs expected.
+        date: The date string, used for logging.
+
+    Returns:
+        True if the entry has sufficient data, False otherwise.
+    """
     if item["entries"] < expected_entries:
         print(f"No speed value for ({date}): Insufficient data.")
         return False
@@ -17,7 +26,16 @@ def is_valid_entry(item, expected_entries, date):
 
 
 def get_agg_tt_api_requests(stops, current_date: date, delta: timedelta):
-    """Create API requests from parameters"""
+    """Builds Data Dashboard API request URLs for aggregate travel times.
+
+    Args:
+        stops: A list of [from_stop, to_stop] pairs.
+        current_date: The start date for the query range.
+        delta: The time delta defining the query range length.
+
+    Returns:
+        A list of fully-formed API URL strings.
+    """
     api_requests = []
     for stop_pair in stops:
         params = {
@@ -32,7 +50,18 @@ def get_agg_tt_api_requests(stops, current_date: date, delta: timedelta):
 
 
 def send_requests(api_requests):
-    """Send API requests to Datadashboard backend."""
+    """Sends API requests to the Data Dashboard backend and aggregates results.
+
+    Args:
+        api_requests: A list of API URL strings to fetch.
+
+    Returns:
+        A dict keyed by service_date with aggregated median, mean, count,
+        and entries values.
+
+    Raises:
+        requests.exceptions.HTTPError: If any request returns a non-200 status.
+    """
     speed_object = {}
     for request in api_requests:
         response = requests.get(request)
@@ -61,7 +90,19 @@ def send_requests(api_requests):
 def format_tt_objects(
     speed_objects, route_metadata, line: str, route: str | None, expected_num_entries, date_range: list[str]
 ):
-    """Remove invalid entries and format for Dynamo."""
+    """Formats speed objects for DynamoDB, filtering out invalid entries.
+
+    Args:
+        speed_objects: A dict of aggregated speed data keyed by date string.
+        route_metadata: Route config dict containing "length" and "stops".
+        line: The line identifier (e.g. "line-red").
+        route: Optional branch identifier (e.g. "a", "b").
+        expected_num_entries: Minimum number of entries for a valid record.
+        date_range: A list of date strings to produce records for.
+
+    Returns:
+        A list of formatted speed object dicts ready for DynamoDB.
+    """
     formatted_speed_objects = []
     if route:
         route_name = f"{line}-{route}"
@@ -90,6 +131,15 @@ def format_tt_objects(
 
 
 def get_date_range_strings(start_date: date, end_date: date):
+    """Generates a list of date strings between two dates (inclusive).
+
+    Args:
+        start_date: The start date.
+        end_date: The end date.
+
+    Returns:
+        A list of "YYYY-MM-DD" formatted date strings.
+    """
     date_range: list[str] = []
     current_date = start_date
     while current_date <= end_date:
@@ -99,7 +149,17 @@ def get_date_range_strings(start_date: date, end_date: date):
 
 
 def populate_daily_table(start_date: datetime, end_date: datetime, line: str, route: str | None):
-    """Populate DeliveredTripMetrics table. Calculates median TTs and trip counts for all days between start and end dates."""
+    """Populates the DeliveredTripMetrics table for a date range.
+
+    Processes the range in 180-day chunks, fetching aggregate travel times
+    from the Data Dashboard API and writing formatted results to DynamoDB.
+
+    Args:
+        start_date: The start datetime for the backfill.
+        end_date: The end datetime for the backfill.
+        line: The line identifier (e.g. "line-red").
+        route: Optional branch identifier (e.g. "a", "b").
+    """
     print(f"populating DeliveredTripMetrics for Line/Route: {line}/{route if route else '(no-route)'}")
     current_date = start_date.date()
     delta = timedelta(days=180)
@@ -129,7 +189,11 @@ def populate_daily_table(start_date: datetime, end_date: datetime, line: str, ro
 
 
 def update_daily_table(date: date):
-    """Update DailySpeed table"""
+    """Updates the DeliveredTripMetrics table for a single date across all routes.
+
+    Args:
+        date: The date to update metrics for.
+    """
     speed_objects = []
     for route in constants.ALL_ROUTES:
         line = route[0]
