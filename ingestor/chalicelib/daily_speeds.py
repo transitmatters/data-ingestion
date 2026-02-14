@@ -5,7 +5,7 @@ from urllib.parse import urlencode
 
 import requests
 
-from chalicelib import constants, dynamo
+from . import constants, dynamo
 
 
 def is_valid_entry(item, expected_entries, date):
