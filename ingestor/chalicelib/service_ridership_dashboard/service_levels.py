@@ -24,16 +24,40 @@ ServiceLevelsByLineId = dict[str, ServiceLevelsByDate]
 
 
 def _divide_by_two_to_get_unidirectional_trip_counts(trip_counts: list[int]):
+    """Halve bidirectional trip counts to get unidirectional counts.
+
+    Args:
+        trip_counts: A list of bidirectional trip counts.
+
+    Returns:
+        A list of trip counts divided by two.
+    """
     return [count / 2 for count in trip_counts]
 
 
 def _get_trip_count_by_hour_totals_for_day(rows_for_day: list[ScheduledServiceRow]) -> list[int]:
+    """Aggregate hourly trip counts across all routes for a single day.
+
+    Args:
+        rows_for_day: A list of scheduled service rows for a single day.
+
+    Returns:
+        A list of unidirectional trip counts per hour for the day.
+    """
     by_hour_counts_for_day: list[list[int]] = [item["byHour"]["totals"] for item in rows_for_day]
     bidirectional_trip_counts = [sum(hour_values) for hour_values in zip(*by_hour_counts_for_day)]
     return _divide_by_two_to_get_unidirectional_trip_counts(bidirectional_trip_counts)
 
 
 def _get_has_service_exception(rows_for_day: list[ScheduledServiceRow]) -> bool:
+    """Check whether any scheduled service row for a day has service exceptions.
+
+    Args:
+        rows_for_day: A list of scheduled service rows for a single day.
+
+    Returns:
+        True if any row has service exceptions, False otherwise.
+    """
     return any(item.get("hasServiceExceptions") for item in rows_for_day)
 
 
@@ -42,6 +66,16 @@ def get_service_level_entries_by_line_id(
     start_date: date,
     end_date: date,
 ) -> ServiceLevelsByLineId:
+    """Query and aggregate service level data for all lines, organized by line ID and date.
+
+    Args:
+        routes_by_line: A dictionary mapping Line objects to their associated routes.
+        start_date: The start date of the query range.
+        end_date: The end date of the query range.
+
+    Returns:
+        A dictionary mapping line IDs to dictionaries of date-to-ServiceLevelsEntry mappings.
+    """
     entries: dict[str, list[ServiceLevelsEntry]] = {}
     for line, routes in (progress := tqdm(routes_by_line.items())):
         entries.setdefault(line.line_id, [])
