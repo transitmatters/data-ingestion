@@ -12,7 +12,7 @@ from boto3.dynamodb.conditions import Key
 from chalice import BadRequestError
 from dynamodb_json import json_util as ddb_json
 
-from chalicelib import constants, dynamo
+from . import constants, dynamo
 
 dynamodb = boto3.resource("dynamodb")
 
