@@ -17,10 +17,24 @@ TZ = pytz.timezone("US/Eastern")
 #################
 # STATION STATUS TO BE PULLED FROM FEED EVERY 5 MINUTES
 def get_station_status_key(date, timestamp):
+    """Builds the S3 key for a station status snapshot.
+
+    Args:
+        date: The date of the snapshot.
+        timestamp: The epoch timestamp of the snapshot.
+
+    Returns:
+        The S3 key string.
+    """
     return f"station_status/{date}/{timestamp}/bluebikes.csv"
 
 
 def get_station_status():
+    """Fetches the current Bluebikes station status from the GBFS feed.
+
+    Returns:
+        The parsed JSON response containing station status data.
+    """
     try:
         resp = requests.get("https://gbfs.bluebikes.com/gbfs/en/station_status.json", timeout=15)
         resp.raise_for_status()
@@ -32,6 +46,7 @@ def get_station_status():
 
 
 def store_station_status():
+    """Fetches current Bluebikes station status and uploads it to S3 as CSV."""
     datajson = get_station_status()
 
     timestamp = datajson.get("last_updated")
@@ -51,10 +66,19 @@ def store_station_status():
 ##################
 # STATION INFO TO BE PULLED FROM FEED DAILY AT 6AM
 def get_station_info_key(date):
+    """Builds the S3 key for a day's station info file.
+
+    Args:
+        date: The date of the station info snapshot.
+
+    Returns:
+        The S3 key string.
+    """
     return f"station_info/{date}/station_info.csv"
 
 
 def store_station_info():
+    """Fetches Bluebikes station and region info and uploads merged data to S3."""
     # get station info
     resp = requests.get("https://gbfs.bluebikes.com/gbfs/en/station_information.json")
 
@@ -80,6 +104,18 @@ def store_station_info():
 # Neighbor stations and ridability calculated daily
 ##################
 def get_distance(df, lat, lon, n_lat, n_lon):
+    """Calculates geodesic distance between two points in a DataFrame row.
+
+    Args:
+        df: A DataFrame row (or Series) containing coordinate columns.
+        lat: Column name for the first point's latitude.
+        lon: Column name for the first point's longitude.
+        n_lat: Column name for the neighbor's latitude.
+        n_lon: Column name for the neighbor's longitude.
+
+    Returns:
+        The distance in kilometers between the two points.
+    """
     loc = (df[lat], df[lon])
     n_loc = (df[n_lat], df[n_lon])
     dist = distance.distance(loc, n_loc).km
@@ -87,9 +123,16 @@ def get_distance(df, lat, lon, n_lat, n_lon):
 
 
 def haversine(lat, lon, n_lat, n_lon):
-    """
-    Distance function impl. from StackOverflow compatible with numpy arrays.
-    Distances are slightly different than geopy, so perhaps we use 405 meters as cutoff to be kind?
+    """Calculates haversine distance compatible with numpy arrays.
+
+    Args:
+        lat: Latitude(s) of the first point(s).
+        lon: Longitude(s) of the first point(s).
+        n_lat: Latitude(s) of the second point(s).
+        n_lon: Longitude(s) of the second point(s).
+
+    Returns:
+        Distance(s) in kilometers between the point pairs.
     """
     radius = 6371.0
     d_lat = np.radians(lat - n_lat)
@@ -101,10 +144,30 @@ def haversine(lat, lon, n_lat, n_lon):
 
 
 def get_neighbor_key(date):
+    """Builds the S3 key for a day's station neighbors file.
+
+    Args:
+        date: The date.
+
+    Returns:
+        The S3 key string.
+    """
     return f"station_info/{date}/station_neighbors.csv"
 
 
 def calc_neighbors(date, exclude=[]):
+    """Calculates neighboring stations within walking distance and uploads to S3.
+
+    Finds all station pairs within 400m, plus the nearest neighbor within
+    600m for each station, and writes the result to S3.
+
+    Args:
+        date: The date to use for fetching station info.
+        exclude: A list of station IDs to exclude (e.g. uninstalled stations).
+
+    Returns:
+        A DataFrame of station neighbor pairs with distances.
+    """
     # get station info
     df = s3.download_csv_as_df(BUCKET, get_station_info_key(date))
 
@@ -137,10 +200,26 @@ def calc_neighbors(date, exclude=[]):
 
 
 def get_rideability_key(date):
+    """Builds the S3 key for a day's rideability data.
+
+    Args:
+        date: The date.
+
+    Returns:
+        The S3 key string.
+    """
     return f"rideability/{date}/rideability.csv"
 
 
 def gather_single_day_data(single_day):
+    """Downloads and concatenates all station status snapshots for a single day.
+
+    Args:
+        single_day: The date to gather data for.
+
+    Returns:
+        A DataFrame containing all station status observations for the day.
+    """
     keys = s3.ls(BUCKET, f"station_status/{single_day}")
     dfs = [s3.download_csv_as_df(BUCKET, key) for key in keys]
     df = pd.concat(dfs)
@@ -150,6 +229,18 @@ def gather_single_day_data(single_day):
 
 # TODO: edge case with valet
 def calc_daily_stats(day):
+    """Calculates daily rideability statistics for all Bluebikes stations.
+
+    Determines what percentage of observations each station was "rideable"
+    (between 10% and 85% full and active) during operating hours (6 AM - 10 PM),
+    accounting for neighboring station availability.
+
+    Args:
+        day: The date to calculate stats for.
+
+    Returns:
+        A DataFrame with per-station rideability scores for the day.
+    """
     df = gather_single_day_data(day)
 
     # find uninstalled stations to exclude from neighbor calculation

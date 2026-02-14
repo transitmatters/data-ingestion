@@ -17,7 +17,17 @@ DATE_FORMATS = ["%Y-%m-%d", "%m/%d/%y", "%m/%d/%Y"]
 
 
 def parse_date(date_string: str) -> date:
-    """Parse a date string, trying multiple formats."""
+    """Parses a date string, trying multiple common formats.
+
+    Args:
+        date_string: A date string in YYYY-MM-DD, M/D/YY, or M/D/YYYY format.
+
+    Returns:
+        The parsed date object.
+
+    Raises:
+        ValueError: If none of the expected formats match.
+    """
     for fmt in DATE_FORMATS:
         try:
             return datetime.strptime(date_string, fmt).date()
@@ -41,6 +51,11 @@ class SpeedRestrictionEntry:
     track_feet: int
 
     def to_json(self):
+        """Converts this entry to a JSON-serializable dict.
+
+        Returns:
+            A dict with camelCase keys suitable for the dashboard API.
+        """
         return {
             "id": self.id,
             "date": self.date.isoformat(),
@@ -56,10 +71,19 @@ class SpeedRestrictionEntry:
         }
 
     def entry_key(self) -> EntryKey:
+        """Returns the (line_id, date) key used for grouping entries."""
         return (self.line_id, self.date)
 
 
 def parse_restriction_row_to_entry(row: Dict[str, str]) -> Union[None, SpeedRestrictionEntry]:
+    """Parses a CSV row into a SpeedRestrictionEntry.
+
+    Args:
+        row: A dict from csv.DictReader with speed restriction fields.
+
+    Returns:
+        A SpeedRestrictionEntry, or None if the restriction is cleared.
+    """
     try:
         [from_stop_id, to_stop_id] = [s.strip() for s in row["Loc_GTFS_Stop_ID"].split("|")]
     except ValueError:
@@ -92,6 +116,14 @@ def parse_restriction_row_to_entry(row: Dict[str, str]) -> Union[None, SpeedRest
 
 
 def bucket_entries_by_key(entries: Iterator[SpeedRestrictionEntry]) -> Dict[EntryKey, List[SpeedRestrictionEntry]]:
+    """Groups speed restriction entries by their (line_id, date) key.
+
+    Args:
+        entries: An iterator of SpeedRestrictionEntry objects.
+
+    Returns:
+        A dict mapping EntryKey tuples to lists of entries.
+    """
     buckets = {}
     for entry in entries:
         key = entry.entry_key()
@@ -102,6 +134,15 @@ def bucket_entries_by_key(entries: Iterator[SpeedRestrictionEntry]) -> Dict[Entr
 
 
 def csv_is_too_old(csv_file_name: str, max_lookback_months: Union[None, int]) -> bool:
+    """Checks whether a CSV file's date prefix is older than the lookback window.
+
+    Args:
+        csv_file_name: The CSV file name with a YYYY-MM date prefix.
+        max_lookback_months: Maximum months to look back, or None for no limit.
+
+    Returns:
+        True if the file is too old to process.
+    """
     if not max_lookback_months:
         return False
     file_name_only = PurePath(csv_file_name).name
@@ -111,6 +152,15 @@ def csv_is_too_old(csv_file_name: str, max_lookback_months: Union[None, int]) ->
 
 
 def load_speed_restriction_entries(max_lookback_days: Union[None, int]) -> Iterator[SpeedRestrictionEntry]:
+    """Downloads and parses speed restriction data from the ArcGIS ZIP archive.
+
+    Args:
+        max_lookback_days: Maximum months to look back for CSV files,
+            or None to process all files.
+
+    Yields:
+        SpeedRestrictionEntry objects for active (non-cleared) restrictions.
+    """
     req = requests.get(CSV_ZIP_URL)
     zip_file = zipfile.ZipFile(BytesIO(req.content))
     for csv_file_name in zip_file.namelist():
@@ -126,6 +176,11 @@ def load_speed_restriction_entries(max_lookback_days: Union[None, int]) -> Itera
 
 
 def update_speed_restrictions(max_lookback_months: Union[None, int]):
+    """Fetches speed restrictions and writes them to the SpeedRestrictions DynamoDB table.
+
+    Args:
+        max_lookback_months: Maximum months to look back, or None for all data.
+    """
     entries = load_speed_restriction_entries(max_lookback_months)
     buckets = bucket_entries_by_key(entries)
     dynamodb = boto3.resource("dynamodb")

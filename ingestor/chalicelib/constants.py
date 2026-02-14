@@ -274,6 +274,22 @@ TERMINI_NEW = {
 
 
 def get_route_metadata(line: str, date: date, include_terminals: bool, route: str | None = None):
+    """Retrieves stop and distance metadata for a given route configuration.
+
+    Accounts for the Green Line Extension (GLX) date when selecting
+    pre- or post-extension terminus configurations.
+
+    Args:
+        line: The line identifier (e.g. "line-red", "line-green").
+        date: The service date, used to select pre/post GLX config.
+        include_terminals: If True, returns terminal-inclusive stops.
+            If False, returns stops excluding terminals with route length.
+        route: Optional branch identifier (e.g. "a", "b"). Required for
+            lines with branches.
+
+    Returns:
+        A dict with "stops" (and optionally "length") for the route.
+    """
     terminals_key = "including_terminals" if include_terminals else "excluding_terminals"
     if line == "line-green":
         if date < GLX_EXTENSION_DATE:
@@ -328,18 +344,34 @@ DD_URL_ALERTS = "https://dashboard-api.labs.transitmatters.org/api/alerts/{date}
 
 
 def commuter_rail_ridership_key(line: str):
+    """Converts a commuter rail line ID to its ridership key format.
+
+    Args:
+        line: A commuter rail line ID (e.g. "CR-Fairmount").
+
+    Returns:
+        The ridership key string (e.g. "line-Fairmount").
+    """
     return f"line-{line[3:]}"
 
 
 def get_monthly_table_update_start():
-    """Get 1st of current month"""
+    """Returns the first day of yesterday's month as a datetime.
+
+    Returns:
+        A datetime representing the 1st of the month containing yesterday.
+    """
     yesterday = datetime.today() - timedelta(days=1)
     first_of_month = datetime(yesterday.year, yesterday.month, 1)
     return first_of_month
 
 
 def get_weekly_table_update_start():
-    """Get Sunday of current week."""
+    """Returns the most recent Monday relative to yesterday.
+
+    Returns:
+        A datetime representing the most recent Monday.
+    """
     yesterday = datetime.now() - timedelta(days=1)
     days_since_monday = yesterday.weekday() % 7
     most_recent_monday = yesterday - timedelta(days=days_since_monday)
