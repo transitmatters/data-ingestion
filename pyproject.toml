@@ -28,7 +28,10 @@ dev = [
     "pytest~=9.0.1",
     "pre-commit>=4.4.0",
 ]
-
+docs = [
+    "mkdocs-material>=9.6",
+    "mkdocstrings[python]>=0.27",
+]
 [tool.uv]
 package = false
 
