@@ -57,7 +57,17 @@ nav:
   - Home: index.md
   - API Reference:
       - GTFS:
-          - Overview: api/gtfs.md
-          - Utils: api/gtfs_utils.md
-          - Ingest: api/gtfs_ingest.md
-          - Enqueue: api/gtfs_enqueue.md
+          - Overview: api/gtfs/gtfs.md
+          - Utils: api/gtfs/utils.md
+          - Ingest: api/gtfs/ingest.md
+          - Enqueue: api/gtfs/enqueue.md
+      - Service Ridership Dashboard:
+          - GTFS: api/service_ridership_dashboard/gtfs.md
+          - Ingest: api/service_ridership_dashboard/ingest.md
+          - Queries: api/service_ridership_dashboard/queries.md
+          - Ridership: api/service_ridership_dashboard/ridership.md
+          - S3: api/service_ridership_dashboard/s3.md
+          - Service Levels: api/service_ridership_dashboard/service_levels.md
+          - Service Summaries: api/service_ridership_dashboard/service_summaries.md
+          - Summary: api/service_ridership_dashboard/summary.md
+          - Time Series: api/service_ridership_dashboard/time_series.md
