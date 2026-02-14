@@ -1,0 +1,63 @@
+site_name: Gobble
+site_description: MBTA real-time event streaming service by TransitMatters
+site_url: https://transitmatters.github.io/gobble
+repo_url: https://github.com/transitmatters/gobble
+repo_name: transitmatters/gobble
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: deep purple
+      accent: amber
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: deep purple
+      accent: amber
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - content.code.copy
+    - navigation.sections
+    - navigation.expand
+    - toc.follow
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - toc:
+      permalink: true
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            show_source: true
+            show_root_heading: true
+            members_order: source
+            docstring_style: google
+
+nav:
+  - Home: index.md
+  - API Reference:
+      - GTFS:
+          - Overview: api/gtfs.md
+          - Utils: api/gtfs_utils.md
+          - Ingest: api/gtfs_ingest.md
+          - Enqueue: api/gtfs_enqueue.md
