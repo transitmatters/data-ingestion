@@ -1,16 +1,16 @@
-site_name: Gobble
-site_description: MBTA real-time event streaming service by TransitMatters
-site_url: https://transitmatters.github.io/gobble
-repo_url: https://github.com/transitmatters/gobble
-repo_name: transitmatters/gobble
+site_name: Data Ingestion
+site_description: Automated data crunching jobs by TransitMatters
+site_url: https://transitmatters.github.io/data-ingestion
+repo_url: https://github.com/transitmatters/data-ingestion
+repo_name: transitmatters/data-ingestion
 
 theme:
   name: material
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default
-      primary: deep purple
-      accent: amber
+      primary: red
+      accent: indigo
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
