@@ -9,9 +9,9 @@ import pandas as pd
 import requests
 from boto3.dynamodb.conditions import Key
 
-from chalicelib import constants, dynamo
-from chalicelib.delays.aggregate import group_daily_data, group_weekly_data
-from chalicelib.delays.types import Alert, AlertsRequest
+from .. import constants, dynamo
+from .aggregate import group_daily_data, group_weekly_data
+from .types import Alert, AlertsRequest
 
 WEEKLY_TABLE_NAME = "AlertDelaysWeekly"
 DAILY_TABLE_NAME = "AlertDelaysDaily"
@@ -202,6 +202,16 @@ def get_daily_data_for_week(start_date: date, end_date: date, lines=constants.AL
     return daily_records
 
 
+def aggregate_commuter_rail_df(df_data: dict[str, pd.DataFrame]) -> pd.DataFrame | None:
+    """Combine all CR-* line DataFrames into a single 'CommuterRail' aggregate."""
+    cr_dfs = [df for line, df in df_data.items() if line.startswith("CR-")]
+    if not cr_dfs:
+        return None
+    cr_combined = pd.concat(cr_dfs)
+    cr_combined["line"] = "CommuterRail"
+    return cr_combined
+
+
 def update_weekly_from_daily(start_date: date, end_date: date, lines=constants.ALL_LINES):
     """
     Update weekly table by aggregating daily data from DynamoDB.
@@ -218,8 +228,15 @@ def update_weekly_from_daily(start_date: date, end_date: date, lines=constants.A
 
     # Aggregate weekly for each line
     weekly_data = []
+    line_dfs = {}
     for line, line_df in df.groupby("line"):
         weekly_data.extend(group_weekly_data(line_df, start_date.isoformat()))
+        line_dfs[line] = line_df
+
+    # Aggregate commuter rail into a single "CommuterRail" entry
+    cr_combined = aggregate_commuter_rail_df(line_dfs)
+    if cr_combined is not None:
+        weekly_data.extend(group_weekly_data(cr_combined, start_date.isoformat()))
 
     dynamo.dynamo_batch_write(json.loads(json.dumps(weekly_data, default=int), parse_float=Decimal), WEEKLY_TABLE_NAME)
 
@@ -235,12 +252,17 @@ def update_table(start_date: date, end_date: date, lines=constants.ALL_LINES):
     for line, df in all_data.items():
         grouped_data.extend(group_daily_data(df, start_date.isoformat()))
 
+    # Aggregate commuter rail into a single "CommuterRail" entry
+    cr_combined = aggregate_commuter_rail_df(all_data)
+    if cr_combined is not None:
+        grouped_data.extend(group_daily_data(cr_combined, start_date.isoformat()))
+
     dynamo.dynamo_batch_write(json.loads(json.dumps(grouped_data), parse_float=Decimal), DAILY_TABLE_NAME)
 
 
 # Testing daily updates. Using random dates. Feel free to change and uncomment as needed.
 if __name__ == "__main__":
-    start_date = date(2025, 11, 9)
-    end_date = date(2025, 11, 24)
-    # update_table(start_date, end_date, constants.ALL_LINES)
-    # update_weekly_from_daily(start_date, end_date, constants.ALL_LINES)
+    start_date = date(2025, 12, 1)
+    end_date = date(2026, 2, 13)
+    update_table(start_date, end_date, constants.ALL_LINES)
+    update_weekly_from_daily(start_date, end_date, constants.ALL_LINES)
