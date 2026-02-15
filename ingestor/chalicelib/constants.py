@@ -284,7 +284,7 @@ def get_route_metadata(line: str, date: date, include_terminals: bool, route: st
     return TERMINI_NEW[line][terminals_key]
 
 
-LINES: list[str] = ["line-red", "line-orange", "line-blue", "line-green", "line-mattapan"]
+LINES: list[str] = ["line-red", "line-orange", "line-blue", "line-green", "line-mattapan", "line-bus"]
 RIDERSHIP_KEYS = {
     "line-red": "line-Red",
     "line-orange": "line-Orange",
@@ -367,6 +367,7 @@ LINE_TO_ROUTE_MAP = {
     "line-blue": ["line-blue"],
     "line-orange": ["line-orange"],
     "line-mattapan": ["line-mattapan"],
+    "line-bus": ["line-bus"],
 }
 
 ALERT_PATTERNS = {

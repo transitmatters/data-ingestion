@@ -101,7 +101,7 @@ def actual_trips_by_line(params: TripsByLineParams):
         start_date = params["start_date"]
         end_date = params["end_date"]
         line = params["line"]
-        if line not in ["line-red", "line-blue", "line-green", "line-orange", "line-mattapan"]:
+        if line not in ["line-red", "line-blue", "line-green", "line-orange", "line-mattapan", "line-bus"]:
             raise BadRequestError("Invalid Line key.")
     except KeyError:
         raise BadRequestError("Missing or invalid parameters.")
@@ -153,11 +153,16 @@ def group_weekly_data(df: pd.DataFrame, start_date: str):
 
 def group_data_by_date_and_branch(df: pd.DataFrame):
     """Convert data from objects with specific route/date/direction to data by date."""
+    # Ensure miles_covered column exists (bus routes don't have distance data)
+    if "miles_covered" not in df.columns:
+        df["miles_covered"] = np.nan
     # Set values for date to NaN when any entry for a different branch/direction has miles_covered as nan.
-    df.loc[
-        df.groupby("date")["miles_covered"].transform(lambda x: (np.isnan(x)).any()),
-        ["count", "total_time", "miles_covered"],
-    ] = np.nan
+    # Only apply this validation when there is some non-NaN miles_covered data (i.e. not bus routes).
+    if df["miles_covered"].notna().any():
+        df.loc[
+            df.groupby("date")["miles_covered"].transform(lambda x: (np.isnan(x)).any()),
+            ["count", "total_time", "miles_covered"],
+        ] = np.nan
     # Aggregate valuues.
     df_grouped = (
         df.groupby("date")

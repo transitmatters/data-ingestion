@@ -6,6 +6,7 @@ from chalicelib import (
     agg_speed_tables,
     alerts,
     bluebikes,
+    bus_speeds,
     constants,
     daily_speeds,
     delays,
@@ -139,6 +140,15 @@ def update_daily_alert_delays(event):
     today = datetime.now()
     yesterday = (today - timedelta(days=1)).date()
     delays.update_table(yesterday, today.date())
+
+
+# 12:30 UTC -> 7:30/8:30am ET every day (after rapid transit metrics finish)
+@app.schedule(Cron(30, 12, "*", "*", "?", "*"))
+def update_bus_trip_metrics(event):
+    today = datetime.now()
+    if today.hour < 9:
+        today = today - timedelta(days=1)
+    bus_speeds.update_bus_daily_table(today.date())
 
 
 # Manually triggered lambda for populating daily trip metric tables. Only needs to be ran once.

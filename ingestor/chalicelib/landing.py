@@ -4,7 +4,7 @@ import boto3
 from boto3.dynamodb.conditions import Key
 from dynamodb_json import json_util as ddb_json
 
-from chalicelib import constants, s3
+from . import constants, s3
 
 dynamodb = boto3.resource("dynamodb")
 
@@ -43,6 +43,8 @@ def get_trip_metrics_data():
 def get_ridership_data():
     ridership_object = {}
     for line in constants.LINES:
+        if line not in constants.RIDERSHIP_KEYS:
+            continue
         data = query_landing_ridership_data(constants.RIDERSHIP_KEYS[line])
         ridership_object[line] = data
 
