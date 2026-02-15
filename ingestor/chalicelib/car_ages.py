@@ -11,12 +11,23 @@ from . import constants
 # Source: roster.transithistory.org, matching transitmatters/new-train-tracker PR #279
 CARRIAGE_AGES: dict[str, dict[str, int]] = {
     "Blue": {"0700-0793": 2008},
-    "Orange": {"1400-1551": 2019},
+    "Orange": {
+        "1400-1415": 2019,  # Initial pilot batch
+        "1416-1429": 2020,
+        "1430-1461": 2021,
+        "1462-1477": 2022,
+        "1478-1505": 2023,
+        "1506-1531": 2024,
+        "1532-1551": 2025,
+    },
     "Red": {
         "1500-1651": 1970,
         "1700-1757": 1988,
         "1800-1885": 1994,
-        "1900-2151": 2020,
+        "1900-1911": 2020,  # Initial pilot batch (2019-2022 deliveries)
+        "1912-1917": 2024,  # Oct 23 - March 24
+        "1918-1933": 2024,
+        "1934-1959": 2025,
     },
     "Green": {
         "3600-3649": 1987,

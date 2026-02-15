@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 
 from tqdm import tqdm
 
-from .. import agg_speed_tables, daily_speeds
+from .. import agg_speed_tables, constants, daily_speeds
 from .ingest import get_date_ranges, ingest_trip_metrics
 
 START_DATE = datetime.strptime(os.environ["BACKFILL_START_DATE"], "%Y-%m-%d").date()
@@ -20,5 +20,7 @@ if __name__ == "__main__":
         current_date = START_DATE + timedelta(days=d)
         daily_speeds.update_daily_table(current_date)
 
-    agg_speed_tables.update_tables("weekly")
-    agg_speed_tables.update_tables("monthly")
+    start_str = START_DATE.strftime("%Y-%m-%d")
+    for line in tqdm(constants.LINES, desc="Rebuilding weekly/monthly aggregates..."):
+        agg_speed_tables.populate_table(line, "weekly", start_str)
+        agg_speed_tables.populate_table(line, "monthly", start_str)
