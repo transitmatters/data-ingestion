@@ -6,6 +6,7 @@ from urllib.parse import urlencode
 import requests
 
 from . import constants, dynamo
+from .car_ages import get_avg_car_age_for_line
 
 
 def is_valid_entry(item, expected_entries, date):
@@ -131,6 +132,14 @@ def populate_daily_table(start_date: datetime, end_date: datetime, line: str, ro
 def update_daily_table(date: date):
     """Update DailySpeed table"""
     speed_objects = []
+
+    # Compute avg_car_age once per line (shared across routes like red-a/red-b)
+    car_ages: dict[str, Decimal | None] = {}
+    for line in constants.LINES:
+        car_ages[line] = get_avg_car_age_for_line(date, line)
+        if car_ages[line] is not None:
+            print(f"Avg car age for {line} on {date}: {car_ages[line]} years")
+
     for route in constants.ALL_ROUTES:
         line = route[0]
         route = route[1]
@@ -151,6 +160,12 @@ def update_daily_table(date: date):
         if len(formatted_speed_object) == 0:
             print("No data for date {date_string}")
             continue
+
+        avg_car_age = car_ages.get(line)
+        if avg_car_age is not None:
+            for obj in formatted_speed_object:
+                obj["avg_car_age"] = avg_car_age
+
         speed_objects.extend(formatted_speed_object)
     print(f"Writing values: {speed_objects}")
     dynamo.dynamo_batch_write(speed_objects, "DeliveredTripMetrics")

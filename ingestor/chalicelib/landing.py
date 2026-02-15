@@ -4,7 +4,7 @@ import boto3
 from boto3.dynamodb.conditions import Key
 from dynamodb_json import json_util as ddb_json
 
-from chalicelib import constants, s3
+from . import constants, s3
 
 dynamodb = boto3.resource("dynamodb")
 
