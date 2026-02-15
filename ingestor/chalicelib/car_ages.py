@@ -52,7 +52,7 @@ LINE_KEY_MAP: dict[str, str] = {
 # We only need consist data, so any stop pair on the line works.
 REPRESENTATIVE_STOP_PAIRS: dict[str, tuple[int, int]] = {
     "line-red": (70061, 70063),  # Alewife -> Davis
-    "line-orange": (70034, 70036),  # Malden Center -> Oak Grove
+    "line-orange": (70003, 70035),  # Green Street -> Malden Center
     "line-blue": (70040, 70042),  # Gov Center -> Aquarium
     "line-green": (70206, 70155),  # North Station -> Copley (trunk, all branches)
     "line-mattapan": (70274, 70264),  # Capen St -> Cedar Grove

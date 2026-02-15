@@ -129,18 +129,20 @@ def populate_daily_table(start_date: datetime, end_date: datetime, line: str, ro
         print("Done")
 
 
-def update_daily_table(date: date):
+def update_daily_table(date: date, routes: list[tuple[str, str | None]] | None = None):
     """Update DailySpeed table"""
     speed_objects = []
+    routes = routes or constants.ALL_ROUTES
 
     # Compute avg_car_age once per line (shared across routes like red-a/red-b)
+    lines_in_scope = set(r[0] for r in routes)
     car_ages: dict[str, Decimal | None] = {}
-    for line in constants.LINES:
+    for line in lines_in_scope:
         car_ages[line] = get_avg_car_age_for_line(date, line)
         if car_ages[line] is not None:
             print(f"Avg car age for {line} on {date}: {car_ages[line]} years")
 
-    for route in constants.ALL_ROUTES:
+    for route in routes:
         line = route[0]
         route = route[1]
         route_metadata = constants.get_route_metadata(line, date, False, route)
