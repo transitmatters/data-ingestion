@@ -65,6 +65,10 @@ def get_ridership_data():
     # filter out None values
     ridership_object["line-commuter-rail"] = [x for x in ridership_object["line-commuter-rail"] if x is not None]
 
+    # Add aggregate bus and ferry ridership
+    ridership_object["line-bus"] = query_landing_ridership_data("line-bus")
+    ridership_object["line-ferry"] = query_landing_ridership_data("line-ferry")
+
     return ridership_object
 
 
