@@ -18,9 +18,7 @@ def _make_response(data: list, status_code: int = 200) -> MagicMock:
 
 
 def test_process_single_day_returns_list():
-    alerts = [
-        {"valid_from": "2024-01-01T08:00:00", "valid_to": "2024-01-01T09:00:00", "text": "No issues today"}
-    ]
+    alerts = [{"valid_from": "2024-01-01T08:00:00", "valid_to": "2024-01-01T09:00:00", "text": "No issues today"}]
     request = AlertsRequest(route="Red", date=date(2024, 1, 1))
     with patch("chalicelib.delays.process.requests.get") as mock_get:
         mock_get.return_value = _make_response(alerts)

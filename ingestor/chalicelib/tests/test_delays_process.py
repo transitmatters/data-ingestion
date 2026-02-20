@@ -49,9 +49,7 @@ def test_alert_is_delay_requires_both_keywords_for_subway():
 
 
 def test_is_line_active_cr_middleborough_before_cutoff():
-    before = constants.CR_MIDDLEBOROUGH_DISCONTINUED.replace(
-        day=constants.CR_MIDDLEBOROUGH_DISCONTINUED.day - 1
-    )
+    before = constants.CR_MIDDLEBOROUGH_DISCONTINUED.replace(day=constants.CR_MIDDLEBOROUGH_DISCONTINUED.day - 1)
     assert is_line_active("CR-Middleborough", before) is True
 
 
@@ -61,9 +59,7 @@ def test_is_line_active_cr_middleborough_on_cutoff():
 
 
 def test_is_line_active_cr_newbedford_before_cutoff():
-    before = constants.CR_MIDDLEBOROUGH_DISCONTINUED.replace(
-        day=constants.CR_MIDDLEBOROUGH_DISCONTINUED.day - 1
-    )
+    before = constants.CR_MIDDLEBOROUGH_DISCONTINUED.replace(day=constants.CR_MIDDLEBOROUGH_DISCONTINUED.day - 1)
     assert is_line_active("CR-NewBedford", before) is False
 
 
