@@ -65,9 +65,9 @@ def test_get_total_service_minutes_single_trip():
 
 def test_get_total_service_minutes_multiple_trips():
     trips = [
-        make_trip(0, 1800),   # 30 min
-        make_trip(0, 3600),   # 60 min
-        make_trip(0, 7200),   # 120 min
+        make_trip(0, 1800),  # 30 min
+        make_trip(0, 3600),  # 60 min
+        make_trip(0, 7200),  # 120 min
     ]
     assert get_total_service_minutes(trips) == 210
 
