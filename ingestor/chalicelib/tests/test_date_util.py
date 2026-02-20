@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from ..date_utils import EASTERN_TIME, service_date
+from ..date_utils import EASTERN_TIME, format_dateint, service_date
 
 
 def test_service_date():
@@ -28,3 +28,10 @@ def test_edt_vs_est_datetimes():
     assert service_date(datetime(2023, 11, 6, 2, 0, 0, tzinfo=EASTERN_TIME)) == date(2023, 11, 5)
     # 3am EST is 4am EDT
     assert service_date(datetime(2023, 11, 6, 3, 0, 0, tzinfo=EASTERN_TIME)) == date(2023, 11, 6)
+
+
+def test_format_dateint():
+    assert format_dateint(20231215) == "2023-12-15"
+    assert format_dateint(20230101) == "2023-01-01"
+    assert format_dateint(20231231) == "2023-12-31"
+    assert format_dateint(19700101) == "1970-01-01"
