@@ -1,6 +1,5 @@
-from datetime import date, timedelta
+from datetime import date
 
-import pytest
 
 from ..service_ridership_dashboard.time_series import (
     _bucket_by_week,

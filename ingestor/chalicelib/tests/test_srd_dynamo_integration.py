@@ -9,7 +9,6 @@ filtered results.
 
 from datetime import date
 
-import pytest
 
 from ..service_ridership_dashboard.queries import query_ridership, query_scheduled_service
 from ..service_ridership_dashboard.ridership import RidershipEntry, _get_ridership_for_line_id, ridership_by_line_id

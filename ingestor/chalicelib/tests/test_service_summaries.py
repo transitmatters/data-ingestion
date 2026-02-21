@@ -1,6 +1,5 @@
-from datetime import date, timedelta
+from datetime import date
 
-import pytest
 
 from ..service_ridership_dashboard.service_levels import ServiceLevelsEntry
 from ..service_ridership_dashboard.service_summaries import (
