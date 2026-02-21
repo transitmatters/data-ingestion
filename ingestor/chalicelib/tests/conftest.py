@@ -113,8 +113,8 @@ def make_trip(trip_id: str, shape_id: str, route_id: str) -> Trip:
         direction_id="0",
         block_id="",
         shape_id=shape_id,
-        start_time=25200,   # 07:00
-        end_time=32400,     # 09:00
+        start_time=25200,  # 07:00
+        end_time=32400,  # 09:00
         stop_count=2,
     )
 
