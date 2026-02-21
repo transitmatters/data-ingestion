@@ -1,5 +1,4 @@
 import pandas as pd
-import pytest
 from datetime import date
 
 from .. import constants

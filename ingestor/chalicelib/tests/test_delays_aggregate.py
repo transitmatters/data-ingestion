@@ -1,6 +1,4 @@
 import pandas as pd
-import pytest
-from datetime import date
 
 from ..delays.aggregate import group_daily_data, group_monthly_data, group_weekly_data
 
