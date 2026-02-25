@@ -33,6 +33,7 @@ dev = [
 
 [tool.pytest.ini_options]
 addopts = "--cov=ingestor/chalicelib --cov-report=term-missing"
+testpaths = ["ingestor/chalicelib/tests"]
 
 [tool.uv]
 package = false

@@ -44,7 +44,7 @@ _FEED_ID = 1
 # ---------------------------------------------------------------------------
 
 
-def _make_feed_info() -> FeedInfo:
+def make_feed_info() -> FeedInfo:
     return FeedInfo(
         feed_info_id=_FEED_ID,  # self-referential; SQLite won't enforce
         feed_publisher_name="MBTA",
@@ -147,7 +147,7 @@ _SHAPE_VERTICES = [
 ]
 
 
-@pytest.fixture
+@pytest.fixture(scope="function")
 def gtfs_session():
     """
     Yield a live SQLAlchemy Session backed by an in-memory SQLite database,
@@ -180,7 +180,7 @@ def gtfs_session():
 
     with Session(engine) as session:
         # FeedInfo must come first; every other row references feed_info_id=1.
-        session.add(_make_feed_info())
+        session.add(make_feed_info())
         session.flush()  # assigns id=1
 
         # Stops
@@ -267,7 +267,7 @@ _DYNAMODB_TABLES = [
 ]
 
 
-@pytest.fixture
+@pytest.fixture(scope="function")
 def dynamodb_tables(monkeypatch):
     """
     Yield a dict of moto-backed DynamoDB Table objects keyed by table name.
@@ -278,9 +278,10 @@ def dynamodb_tables(monkeypatch):
       ShuttleTravelTimes     hash=routeId / sort=name
 
     Fake AWS credentials are set so boto3 does not attempt real IAM validation.
-    The mock_aws context intercepts all botocore HTTP calls for the fixture's
-    lifetime, including calls made through module-level boto3 resources created
-    before the mock started (botocore is patched at the transport layer).
+    The module-level ``dynamodb`` resource in ``dynamo.py`` is replaced with a
+    fresh moto-backed resource so that ``dynamo_batch_write`` and
+    ``query_dynamo`` use the mock regardless of any credential state cached by
+    the default boto3 session at import time.
     """
     monkeypatch.setenv("AWS_ACCESS_KEY_ID", "testing")
     monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "testing")
@@ -288,6 +289,12 @@ def dynamodb_tables(monkeypatch):
 
     with mock_aws():
         resource = boto3.resource("dynamodb", region_name="us-east-1")
+
+        # Replace the module-level resource so production functions use the mock.
+        from .. import dynamo as _dynamo_module
+
+        monkeypatch.setattr(_dynamo_module, "dynamodb", resource)
+
         tables = {}
         for spec in _DYNAMODB_TABLES:
             table = resource.create_table(BillingMode="PAY_PER_REQUEST", **spec)
