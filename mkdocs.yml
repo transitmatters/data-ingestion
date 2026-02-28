@@ -1,0 +1,73 @@
+site_name: Data Ingestion
+site_description: Automated data crunching jobs by TransitMatters
+site_url: https://transitmatters.github.io/data-ingestion
+repo_url: https://github.com/transitmatters/data-ingestion
+repo_name: transitmatters/data-ingestion
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: red
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: deep purple
+      accent: amber
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - content.code.copy
+    - navigation.sections
+    - navigation.expand
+    - toc.follow
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - toc:
+      permalink: true
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            show_source: true
+            show_root_heading: true
+            members_order: source
+            docstring_style: google
+
+nav:
+  - Home: index.md
+  - API Reference:
+      - GTFS:
+          - Overview: api/gtfs/gtfs.md
+          - Utils: api/gtfs/utils.md
+          - Ingest: api/gtfs/ingest.md
+          - Enqueue: api/gtfs/enqueue.md
+      - Service Ridership Dashboard:
+          - GTFS: api/service_ridership_dashboard/gtfs.md
+          - Ingest: api/service_ridership_dashboard/ingest.md
+          - Queries: api/service_ridership_dashboard/queries.md
+          - Ridership: api/service_ridership_dashboard/ridership.md
+          - S3: api/service_ridership_dashboard/s3.md
+          - Service Levels: api/service_ridership_dashboard/service_levels.md
+          - Service Summaries: api/service_ridership_dashboard/service_summaries.md
+          - Summary: api/service_ridership_dashboard/summary.md
+          - Time Series: api/service_ridership_dashboard/time_series.md
