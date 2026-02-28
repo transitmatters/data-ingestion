@@ -1,7 +1,9 @@
+import pytest
+
 from chalicelib.delays.process import alert_type
 from chalicelib.delays.types import Alert
 
-test_cases = [
+_TEST_CASES = [
     ("Red Line experiencing delays of about 10 minutes due to a disabled train at Davis", "disabled_vehicle"),
     ("Red Line experiencing delays of about 10 minutes due to a disabled trolley at Davis", "disabled_vehicle"),
     ("Red Line experiencing delays of about 10 minutes due to a train that was disabled at Davis", "disabled_vehicle"),
@@ -97,22 +99,7 @@ test_cases = [
 ]
 
 
-def test_specific_patterns():
-    """Test specific pattern matches manually"""
-
-    print("\n=== Testing Manual Test Cases ===\n")
-
-    for test_text in test_cases:
-        # Create a mock alert object
-        mock_alert = Alert(valid_from="2024-01-01T10:00:00", valid_to="2024-01-01T10:00:00", text=test_text[0])
-        actual_result = alert_type(mock_alert)
-        expected_result = test_text[1]
-
-        if actual_result != expected_result:
-            print("\nFAILED TEST CASE:")
-            print(f"Text: {test_text[0]}")
-            print(f"Expected: {expected_result}")
-            print(f"Actual: {actual_result}")
-            print("-" * 80)
-
-        assert actual_result == expected_result
+@pytest.mark.parametrize("text,expected", _TEST_CASES)
+def test_alert_type(text, expected):
+    alert = Alert(valid_from="2024-01-01T10:00:00", valid_to="2024-01-01T10:00:00", text=text)
+    assert alert_type(alert) == expected
