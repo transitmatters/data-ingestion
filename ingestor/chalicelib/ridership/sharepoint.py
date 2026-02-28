@@ -18,25 +18,39 @@ BUS_SHARE_URL = "https://mbta.sharepoint.com/:f:/s/PublicData/Eh1G_O3dog9Eh_EfCq
 
 class SharepointConnection:
     def __init__(self, user_agent: str = DEFAULT_USER_AGENT, base_url=BASE_URL, prefix="mbta") -> None:
+        """Initialize a SharePoint connection with session and configuration.
+
+        Args:
+            user_agent: User-Agent string for HTTP requests.
+            base_url: Base SharePoint URL for folder browsing.
+            prefix: SharePoint tenant prefix used in download URLs.
+        """
         self.session = self.setup_session(user_agent)
         self.base_url = base_url
         self.all_files = []
         self.prefix = prefix
 
     def setup_session(self, user_agent: str) -> requests.Session:
+        """Create and configure an HTTP session with the given User-Agent.
+
+        Args:
+            user_agent: User-Agent header value for the session.
+
+        Returns:
+            Configured requests.Session instance.
+        """
         session = requests.Session()
         session.headers.update({"User-Agent": user_agent})
         return session
 
     def get_sharepoint_folder_contents_anonymous(self, share_url):
-        """
-        Get contents of a SharePoint folder using anonymous access via sharing link.
+        """Get contents of a SharePoint folder using anonymous access via sharing link.
 
         Args:
-            share_url: The SharePoint 'anyone with the link' URL
+            share_url: The SharePoint 'anyone with the link' URL.
 
         Returns:
-            List of dictionaries containing file information, or None on error
+            List of dictionaries containing file information, or None on error.
         """
         # Follow the sharing link
         response = self.session.get(share_url, allow_redirects=True)
@@ -51,6 +65,17 @@ class SharepointConnection:
         return files
 
     def parse_g_data(self, html: str):
+        """Parse the g_listData JavaScript variable from a SharePoint HTML page.
+
+        Extracts the embedded JSON file listing from the page source by locating
+        and parsing the g_listData variable assignment.
+
+        Args:
+            html: Raw HTML content from a SharePoint folder page.
+
+        Returns:
+            List of file info dictionaries, or None if parsing fails.
+        """
         # Extract g_listData which contains the file list
         # Find the start of g_listData
         start_marker = "g_listData = "
@@ -118,15 +143,13 @@ class SharepointConnection:
             return None
 
     def get_folder_by_path(self, folder_path):
-        """
-        Get contents of a specific folder by its server-relative path.
+        """Get contents of a specific folder by its server-relative path.
 
         Args:
-            session: requests.Session with cookies
-            folder_path: Server-relative path like '/sites/PublicData/Shared Documents/...'
+            folder_path: Server-relative path like '/sites/PublicData/Shared Documents/...'.
 
         Returns:
-            List of file info dictionaries
+            List of file info dictionaries, or None on error.
         """
         # Construct the URL to view that specific folder
 
@@ -142,14 +165,13 @@ class SharepointConnection:
         return files
 
     def list_all_files_recursive(self, folder_path):
-        """
-        Recursively list all files in a folder and its subfolders.
+        """Recursively list all files in a folder and its subfolders.
 
         Args:
-            folder_path: Server-relative path to start from
+            folder_path: Server-relative path to start from.
 
         Returns:
-            List of all files (not folders) found
+            List of all file info dictionaries (not folders) found.
         """
         files = self.get_folder_by_path(folder_path)
         if not files:
@@ -178,15 +200,14 @@ class SharepointConnection:
         return all_files
 
     def download_sharepoint_file_anonymous(self, file_ref, output_path):
-        """
-        Download a file from SharePoint using an existing session.
+        """Download a file from SharePoint using an existing session.
 
         Args:
-            file_ref: The FileRef path from the file list
-            output_path: Local path to save the file
+            file_ref: The FileRef path from the file list.
+            output_path: Local path to save the file.
 
         Returns:
-            True if successful, False otherwise
+            True if successful, False otherwise.
         """
         # Construct download URL
         download_url = f"https://{self.prefix}.sharepoint.com{file_ref}?download=1"
@@ -203,17 +224,22 @@ class SharepointConnection:
             return False
 
     def fetch_sharepoint_file(self, file_regex=None, share_url=None, target_date=None, bus_data=True):
-        """
-        Downloads files from Sharepoint matching a regex pattern.
+        """Download files from SharePoint matching a regex pattern.
 
         Args:
-            file_regex (str or Pattern): Regular expression pattern to match against filenames. If None, uses default patterns based on bus_data.
-            share_url (str): SharePoint sharing URL to download from. If None, uses default URLs based on bus_data.
-            target_date (date): Date object specifying which file to download. Used for default subway data pattern matching. Optional for Bus data, required for Subway Data when file_regex is None.
-            bus_data (bool): Whether to download Bus Data (True) or Subway Data (False). Only used when file_regex is None.
+            file_regex: Regular expression pattern (str or compiled Pattern) to match
+                against filenames. If None, uses default patterns based on bus_data.
+            share_url: SharePoint sharing URL to download from. If None, uses default
+                URLs based on bus_data.
+            target_date: Date object specifying which file to download. Used for default
+                subway data pattern matching. Optional for bus data, required for subway
+                data when file_regex is None.
+            bus_data: Whether to download bus data (True) or subway data (False). Only
+                used when file_regex is None.
 
         Returns:
-            str: Path to named Temporary File with data.
+            Path to a named temporary file containing the downloaded data, or None
+            if no matching file is found.
         """
         # Determine share URL
         if share_url is None:
@@ -289,16 +315,15 @@ class SharepointConnection:
 
 
 def get_file_matching_date_pattern(files: List[dict], pattern: Pattern, target_date: Optional[date] = None):
-    """
-    Find a file matching a date pattern and extract the date from its name.
+    """Find a file matching a date pattern and extract the date from its name.
 
     Args:
-        files: List of file dictionaries with 'name' key
-        pattern: Compiled regex pattern with three capture groups for year, month, day
+        files: List of file dictionaries with 'name' key.
+        pattern: Compiled regex pattern with three capture groups for year, month, day.
         target_date: Specific date to match. If None, returns the newest matching file.
 
     Returns:
-        Tuple of (file_dict, date) if match found, None otherwise
+        Tuple of (file_dict, date) if a match is found, None otherwise.
     """
     newest_file = None
     newest_date = None
