@@ -46,7 +46,7 @@ def get_ranges_of_same_value(items_dict):
                 yield current_keys, current_value
             current_keys = [key]
             current_value = value
-    if len(current_keys) > 0:
+    if current_keys:
         yield current_keys, current_value
 
 
