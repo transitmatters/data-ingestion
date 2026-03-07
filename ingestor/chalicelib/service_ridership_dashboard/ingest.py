@@ -15,7 +15,7 @@ from .ridership import RidershipEntry, ridership_by_line_id
 from .s3 import put_dashboard_json_to_s3
 from .service_levels import ServiceLevelsByDate, ServiceLevelsEntry, get_service_level_entries_by_line_id
 from .service_summaries import summarize_weekly_service_around_date
-from .summary import get_summary_data
+from .summary import get_summary_data, get_summary_data_by_mode
 from .time_series import get_weekly_median_time_series
 from .types import DashJSON, LineData, LineKind, ServiceRegimes
 from .util import date_from_string, date_to_string
@@ -171,8 +171,14 @@ def create_service_ridership_dash_json(
         start_date=start_date,
         end_date=end_date,
     )
+    mode_data = get_summary_data_by_mode(
+        line_data=list(line_data_by_line_id.values()),
+        start_date=start_date,
+        end_date=end_date,
+    )
     dash_json: DashJSON = {
         "summaryData": summary_data,
+        "modeData": mode_data,
         "lineData": line_data_by_line_id,
     }
     if write_debug_files:

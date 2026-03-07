@@ -4,7 +4,7 @@ import boto3
 from boto3.dynamodb.conditions import Key
 from dynamodb_json import json_util as ddb_json
 
-from chalicelib import constants, s3
+from . import constants, s3
 
 dynamodb = boto3.resource("dynamodb")
 
@@ -64,6 +64,10 @@ def get_ridership_data():
                 ridership_object["line-commuter-rail"][index] = data
     # filter out None values
     ridership_object["line-commuter-rail"] = [x for x in ridership_object["line-commuter-rail"] if x is not None]
+
+    # Add aggregate bus and ferry ridership
+    ridership_object["line-bus"] = query_landing_ridership_data("line-bus")
+    ridership_object["line-ferry"] = query_landing_ridership_data("line-ferry")
 
     return ridership_object
 

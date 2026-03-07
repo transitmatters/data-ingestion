@@ -14,6 +14,12 @@ def get_ridership_by_line_id(
     routes_by_line_id: Dict[str, Route],
 ):
     by_line_id = {}
+    # Track route_ids that are accounted for by subway/CR/ferry/RIDE
+    # so that "line-bus" captures everything else.
+    # NOTE: We don't consume from the GTFS line_id loop because GTFS includes
+    # bus routes too — we only want to exclude subway, CR, ferry, and RIDE.
+    consumed_route_ids = set()
+
     for line_id, routes in routes_by_line_id.items():
         route_entries = [entry for route in routes for entry in ridership_by_route_id.get(route.route_id, [])]
         if line_id == "line-Green":
@@ -29,6 +35,40 @@ def get_ridership_by_line_id(
     # Add RIDE data as a separate line since it doesn't have traditional line_id
     if "RIDE" in ridership_by_route_id:
         by_line_id["line-RIDE"] = sorted(ridership_by_route_id["RIDE"], key=lambda entry: entry["date"])
+        consumed_route_ids.add("RIDE")
+
+    # Aggregate ferry routes (all "Boat-*" route_ids) into "line-ferry"
+    ferry_entries = []
+    for route_id, entries in ridership_by_route_id.items():
+        if route_id.startswith("Boat-"):
+            ferry_entries.extend(entries)
+            consumed_route_ids.add(route_id)
+    if ferry_entries:
+        entries_by_date = bucket_by(ferry_entries, lambda entry: entry["date"])
+        by_line_id["line-ferry"] = sorted(
+            [{"date": date, "count": sum(e["count"] for e in entries)} for date, entries in entries_by_date.items()],
+            key=lambda entry: entry["date"],
+        )
+
+    # Mark subway and CR route_ids as consumed (these have their own line entries above)
+    # Subway route_ids from format_subway_data use unofficial_labels_map to rewrite names
+    # (e.g. "Red Line" -> "Red", "SL1" -> "741") and include Mattapan.
+    # CR route_ids are prefixed with "CR-".
+    for route_id in ridership_by_route_id:
+        if route_id in ("Red", "Orange", "Blue", "Green", "Mattapan") or route_id.startswith("CR-"):
+            consumed_route_ids.add(route_id)
+
+    # Aggregate all remaining unconsumed routes into "line-bus"
+    bus_entries = []
+    for route_id, entries in ridership_by_route_id.items():
+        if route_id not in consumed_route_ids:
+            bus_entries.extend(entries)
+    if bus_entries:
+        entries_by_date = bucket_by(bus_entries, lambda entry: entry["date"])
+        by_line_id["line-bus"] = sorted(
+            [{"date": date, "count": sum(e["count"] for e in entries)} for date, entries in entries_by_date.items()],
+            key=lambda entry: entry["date"],
+        )
 
     return by_line_id
 

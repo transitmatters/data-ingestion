@@ -123,9 +123,10 @@ def aggregate_actual_trips(actual_trips, agg: Range, start_date: str):
 
 
 def group_monthly_data(df: pd.DataFrame, start_date: str):
-    df_monthly = df.resample("M").agg(
-        {"miles_covered": np.sum, "count": np.nanmedian, "total_time": np.sum, "line": "min"}
-    )
+    agg_dict = {"miles_covered": np.sum, "count": np.nanmedian, "total_time": np.sum, "line": "min"}
+    if "avg_car_age" in df.columns:
+        agg_dict["avg_car_age"] = np.nanmean
+    df_monthly = df.resample("M").agg(agg_dict)
     df_monthly = df_monthly.fillna(0)
     df_monthly.index = [datetime(x.year, x.month, 1) for x in df_monthly.index.tolist()]
     # Drop the first month if it is incomplete
@@ -137,9 +138,10 @@ def group_monthly_data(df: pd.DataFrame, start_date: str):
 
 def group_weekly_data(df: pd.DataFrame, start_date: str):
     # Group from Monday - Sunday
-    df_weekly = df.resample("W-SUN").agg(
-        {"miles_covered": np.sum, "count": np.nanmedian, "total_time": np.sum, "line": "min"}
-    )
+    agg_dict = {"miles_covered": np.sum, "count": np.nanmedian, "total_time": np.sum, "line": "min"}
+    if "avg_car_age" in df.columns:
+        agg_dict["avg_car_age"] = np.nanmean
+    df_weekly = df.resample("W-SUN").agg(agg_dict)
     df_weekly = df_weekly.fillna(0)
     # Pandas resample uses the end date of the range as the index. So we subtract 6 days to convert to first date of the range.
     df_weekly.index = df_weekly.index - pd.Timedelta(days=6)
@@ -159,18 +161,15 @@ def group_data_by_date_and_branch(df: pd.DataFrame):
         ["count", "total_time", "miles_covered"],
     ] = np.nan
     # Aggregate valuues.
-    df_grouped = (
-        df.groupby("date")
-        .agg(
-            {
-                "miles_covered": lambda x: np.nan if all(np.isnan(i) for i in x) else np.nansum(x),
-                "total_time": lambda x: np.nan if all(np.isnan(i) for i in x) else np.nansum(x),
-                "count": lambda x: np.nan if all(np.isnan(i) for i in x) else np.nansum(x),
-                "line": "first",
-            }
-        )
-        .reset_index()
-    )
+    agg_dict = {
+        "miles_covered": lambda x: np.nan if all(np.isnan(i) for i in x) else np.nansum(x),
+        "total_time": lambda x: np.nan if all(np.isnan(i) for i in x) else np.nansum(x),
+        "count": lambda x: np.nan if all(np.isnan(i) for i in x) else np.nansum(x),
+        "line": "first",
+    }
+    if "avg_car_age" in df.columns:
+        agg_dict["avg_car_age"] = "first"
+    df_grouped = df.groupby("date").agg(agg_dict).reset_index()
     # use datetime for index rather than string.
     df_grouped.set_index(pd.to_datetime(df_grouped["date"]), inplace=True)
     # Remove date column (it is the index.)
