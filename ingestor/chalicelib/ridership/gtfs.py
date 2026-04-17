@@ -8,6 +8,11 @@ from ..gtfs.utils import bucket_by
 
 
 def get_routes_by_line_id() -> Dict[str, Route]:
+    """Fetch GTFS route data from S3 and group routes by their line ID.
+
+    Returns:
+        Mapping of line IDs to lists of Route objects from the latest GTFS feed.
+    """
     s3 = boto3.resource("s3")
     archive = MbtaGtfsArchive(
         local_archive_path=TemporaryDirectory().name,
