@@ -746,6 +746,50 @@
       "Properties": {
         "BucketName": "tm-shuttle-positions"
       }
+    },
+    "StoreHourlyWeather": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "Description": "Stores hourly Boston weather data from Open-Meteo for chart overlays",
+        "Environment": {
+          "Variables": {
+            "DD_API_KEY": {
+              "Ref": "DDApiKey"
+            },
+            "DD_VERSION": {
+              "Ref": "GitVersion"
+            },
+            "DD_TAGS": {
+              "Ref": "DDTags"
+            },
+            "DD_GIT_REPOSITORY_URL": {
+              "Ref": "DDGitRepositoryUrl"
+            }
+          }
+        }
+      }
+    },
+    "BackfillWeather": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "Description": "Manually-triggered backfill of historical hourly weather from Open-Meteo archive",
+        "Environment": {
+          "Variables": {
+            "DD_API_KEY": {
+              "Ref": "DDApiKey"
+            },
+            "DD_VERSION": {
+              "Ref": "GitVersion"
+            },
+            "DD_TAGS": {
+              "Ref": "DDTags"
+            },
+            "DD_GIT_REPOSITORY_URL": {
+              "Ref": "DDGitRepositoryUrl"
+            }
+          }
+        }
+      }
     }
   }
 }

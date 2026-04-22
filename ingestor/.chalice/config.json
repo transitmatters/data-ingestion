@@ -125,6 +125,16 @@
           "iam_policy_file": "policy-service-ridership-dashboard.json",
           "lambda_timeout": 900,
           "lambda_memory_size": 1024
+        },
+        "store_hourly_weather": {
+          "iam_policy_file": "policy-weather.json",
+          "lambda_memory_size": 192,
+          "lambda_timeout": 30
+        },
+        "backfill_weather": {
+          "iam_policy_file": "policy-weather.json",
+          "lambda_memory_size": 256,
+          "lambda_timeout": 900
         }
       }
     }
