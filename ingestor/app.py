@@ -16,6 +16,7 @@ from chalicelib import (
     service_ridership_dashboard,
     speed_restrictions,
     trip_metrics,
+    weather,
 )
 from datadog_lambda.wrapper import datadog_lambda_wrapper
 
@@ -177,3 +178,18 @@ def store_landing_data(event):
 @app.schedule(Cron(30, 9, "*", "*", "?", "*"))
 def update_service_ridership_dashboard(event):
     service_ridership_dashboard.create_service_ridership_dash_json()
+
+
+#################
+# STORE HOURLY WEATHER
+# Every hour at :05 — fetch latest Boston hourly weather and merge into today's S3 file.
+@app.schedule(Cron(5, "*", "*", "*", "?", "*"))
+def store_hourly_weather(event):
+    weather.ingest_hourly_weather()
+
+
+# Manually triggered lambda for backfilling historical weather from Open-Meteo's archive API.
+# Payload: {"start_date": "YYYY-MM-DD", "end_date": "YYYY-MM-DD"}
+@app.lambda_function()
+def backfill_weather(params, context):
+    weather.backfill_weather(params["start_date"], params["end_date"])
