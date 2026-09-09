@@ -11,12 +11,12 @@ from . import constants
 # Source: roster.transithistory.org, matching transitmatters/new-train-tracker PR #279
 CARRIAGE_AGES: dict[str, dict[str, float]] = {
     "Blue": {"0700-0793": 2008},
-    # Orange and Red CRRC delivery schedules below are from the TransitMatters roster PDF (as
-    # of Sep 2026), cross-referenced with roster.transithistory.org. Build "year" is rounded
-    # to the nearest quarter (.0/.25/.5/.75) since deliveries land throughout the year;
-    # adjacent pairs delivered in the same quarter are merged into one range. Deliveries
-    # weren't always in numeric order, so some ranges are out of sequence relative to their
-    # neighbors.
+    # Orange and Red CRRC delivery schedules below are from roster.transithistory.org's
+    # vehicle roster PDF (an independent NETransit resource, not a TransitMatters property),
+    # as of Sep 2026. Build "year" is rounded to the nearest quarter (.0/.25/.5/.75) since
+    # deliveries land throughout the year; adjacent pairs delivered in the same quarter are
+    # merged into one range. Deliveries weren't always in numeric order, so some ranges are
+    # out of sequence relative to their neighbors.
     "Orange": {
         "1400-1403": 2018.5,
         "1404-1405": 2018.75,
