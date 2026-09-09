@@ -86,12 +86,17 @@ CARRIAGE_AGES: dict[str, dict[str, float]] = {
         "3800-3894": 2003,
         "3900-3923": 2019,
     },
-    "Mattapan": {"3072-3265": 1946},
+    # 3268 is in service alongside the rest of the 3072-3265 block (per @ankoure), so it's
+    # included in the range even though it falls outside the original PCC numbering block.
+    "Mattapan": {"3072-3268": 1946},
 }
 
 # Binary new/old car ID ranges, kept in sync with transitmatters/new-train-tracker's
 # server/chalicelib/fleet.py (which drives that app's live new/old vehicle toggle).
 # Blue and Mattapan have no new (CRRC/CAF Type 9) fleet, so they're omitted here.
+# TODO: Green Line Type 10s (per the roster PDF, numbered 4001-4102) aren't covered yet.
+# Once they enter revenue service they'll be misclassified as old — add their range here
+# (and a CARRIAGE_AGES entry) before/as that happens.
 NEW_CAR_ID_RANGES: dict[str, tuple[int, int]] = {
     "Red": (1900, 2151),
     "Orange": (1400, 1551),
@@ -203,7 +208,18 @@ def get_fleet_age_metrics_for_line(current_date: date, line: str) -> dict[str, D
 
     metrics: dict[str, Decimal] = {}
 
-    build_years = [year for car_id in car_ids if (year := get_car_build_year(car_id, line_key)) is not None]
+    build_years: list[float] = []
+    for car_id in car_ids:
+        year = get_car_build_year(car_id, line_key)
+        if year is not None:
+            build_years.append(year)
+        elif is_car_new(car_id, line_key):
+            # A car in the new-fleet ID range with no CARRIAGE_AGES entry means the table
+            # is stale (e.g. Red delivers up to 2151 but CARRIAGE_AGES only covers what was
+            # known when it was last updated) -- it's silently excluded from the average
+            # otherwise, which quietly shrinks the sample instead of erroring.
+            print(f"CARRIAGE_AGES['{line_key}'] is stale: car {car_id} is new but has no build year")
+
     if build_years:
         # Fractional "now", rounded to the nearest quarter like CARRIAGE_AGES, so a car
         # built earlier this same year doesn't come out with a negative age.
