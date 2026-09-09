@@ -11,23 +11,59 @@ from . import constants
 # Source: roster.transithistory.org, matching transitmatters/new-train-tracker PR #279
 CARRIAGE_AGES: dict[str, dict[str, float]] = {
     "Blue": {"0700-0793": 2008},
+    # Orange and Red CRRC delivery schedules below are from the TransitMatters roster PDF (as
+    # of Sep 2026), cross-referenced with roster.transithistory.org. Build "year" is rounded
+    # to the nearest quarter (.0/.25/.5/.75) since deliveries land throughout the year;
+    # adjacent pairs delivered in the same quarter are merged into one range. Deliveries
+    # weren't always in numeric order, so some ranges are out of sequence relative to their
+    # neighbors.
     "Orange": {
-        "1400-1415": 2019,  # Initial pilot batch
-        "1416-1429": 2020,
-        "1430-1461": 2021,
-        "1462-1477": 2022,
-        "1478-1505": 2023,
-        "1506-1531": 2024,
-        "1532-1551": 2025,
+        "1400-1403": 2018.5,
+        "1404-1405": 2018.75,
+        "1406-1409": 2019.25,
+        "1410-1411": 2019.5,
+        "1412-1413": 2019.75,
+        "1414-1415": 2020.0,
+        "1416-1419": 2020.5,
+        "1420-1421": 2020.75,
+        "1422-1425": 2021.0,
+        "1426-1427": 2020.0,
+        "1428-1429": 2020.5,
+        "1430-1431": 2021.0,
+        "1432-1435": 2021.5,
+        "1436-1437": 2021.25,
+        "1438-1449": 2021.5,
+        "1450-1451": 2021.75,
+        "1452-1453": 2021.5,
+        "1454-1461": 2021.75,
+        "1462-1463": 2022.0,
+        "1464-1465": 2022.25,
+        "1466-1467": 2022.0,
+        "1468-1477": 2022.25,
+        "1478-1485": 2023.0,
+        "1486-1493": 2023.25,
+        "1494-1495": 2023.5,
+        "1496-1505": 2023.75,
+        "1506-1511": 2024.0,
+        "1512-1517": 2024.25,
+        "1518-1519": 2024.75,
+        "1520-1521": 2024.5,
+        "1522-1523": 2024.25,
+        "1524-1525": 2024.5,
+        "1526-1527": 2024.25,
+        "1528-1529": 2024.5,
+        "1530-1531": 2024.75,
+        "1532-1535": 2025.0,
+        "1536-1537": 2024.75,
+        "1538-1539": 2025.0,
+        "1540-1545": 2025.25,
+        "1546-1547": 2025.5,
+        "1548-1551": 2025.75,
     },
     "Red": {
         "1500-1651": 1970,
         "1700-1757": 1988,
         "1800-1885": 1994,
-        # CRRC delivery schedule below is from the TransitMatters roster PDF (as of Sep 2026),
-        # cross-referenced with roster.transithistory.org. Build "year" is rounded to the
-        # nearest quarter (.0/.25/.5/.75) since deliveries land throughout the year; adjacent
-        # pairs delivered in the same quarter are merged into one range.
         "1900-1911": 2020.5,  # Initial pilot batch, 2019-2022 deliveries
         "1912-1913": 2023.75,  # Q4 2023 (Oct)
         "1914-1917": 2024.0,  # Q1 2024 (Jan-Mar)
