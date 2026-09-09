@@ -25,37 +25,23 @@ CARRIAGE_AGES: dict[str, dict[str, float]] = {
         "1700-1757": 1988,
         "1800-1885": 1994,
         # CRRC delivery schedule below is from the TransitMatters roster PDF (as of Sep 2026),
-        # cross-referenced with roster.transithistory.org. Build "year" is a fractional
-        # year (month resolution) since deliveries land throughout the year.
+        # cross-referenced with roster.transithistory.org. Build "year" is rounded to the
+        # nearest quarter (.0/.25/.5/.75) since deliveries land throughout the year; adjacent
+        # pairs delivered in the same quarter are merged into one range.
         "1900-1911": 2020.5,  # Initial pilot batch, 2019-2022 deliveries
-        "1912-1913": 2023.75,  # Oct 2023
-        "1914-1915": 2024.0,  # Jan 2024
-        "1916-1917": 2024.1667,  # Mar 2024
-        "1918-1919": 2024.5,  # Jul 2024
-        "1920-1921": 2024.5833,  # Aug 2024
-        "1922-1923": 2024.6667,  # Sep 2024
-        "1924-1925": 2024.75,  # Oct 2024
-        "1926-1927": 2024.8333,  # Nov 2024
-        "1928-1929": 2024.5833,  # Aug 2024
-        "1930-1931": 2024.25,  # Apr 2024
-        "1932-1933": 2024.9167,  # Dec 2024
-        "1934-1935": 2025.0,  # Jan 2025
-        "1936-1937": 2025.0833,  # Feb 2025
-        "1938-1939": 2025.1667,  # Mar 2025
-        "1940-1941": 2025.3333,  # May 2025
-        "1942-1943": 2025.25,  # Apr 2025
-        "1944-1945": 2025.4167,  # Jun 2025
-        "1946-1947": 2025.5,  # Jul 2025
-        "1948-1949": 2025.5,  # Jul 2025
-        "1950-1951": 2025.6667,  # Sep 2025
-        "1952-1953": 2025.6667,  # Sep 2025
-        "1954-1955": 2025.75,  # Oct 2025
-        "1956-1957": 2025.75,  # Oct 2025
-        "1958-1959": 2026.0,  # Jan 2026
-        "1960-1961": 2026.1667,  # Mar 2026
-        "1962-1963": 2026.1667,  # Mar 2026
-        "1964-1965": 2026.25,  # Apr 2026
-        "1966-1967": 2026.3333,  # May 2026
+        "1912-1913": 2023.75,  # Q4 2023 (Oct)
+        "1914-1917": 2024.0,  # Q1 2024 (Jan-Mar)
+        "1930-1931": 2024.25,  # Q2 2024 (Apr)
+        "1918-1923": 2024.5,  # Q3 2024 (Jul-Sep)
+        "1928-1929": 2024.5,  # Q3 2024 (Aug)
+        "1924-1927": 2024.75,  # Q4 2024 (Oct-Nov)
+        "1932-1933": 2024.75,  # Q4 2024 (Dec)
+        "1934-1939": 2025.0,  # Q1 2025 (Jan-Mar)
+        "1940-1945": 2025.25,  # Q2 2025 (Apr-Jun)
+        "1946-1953": 2025.5,  # Q3 2025 (Jul-Sep)
+        "1954-1957": 2025.75,  # Q4 2025 (Oct)
+        "1958-1963": 2026.0,  # Q1 2026 (Jan-Mar)
+        "1964-1967": 2026.25,  # Q2 2026 (Apr-May)
     },
     "Green": {
         "3600-3649": 1987,
@@ -183,9 +169,9 @@ def get_fleet_age_metrics_for_line(current_date: date, line: str) -> dict[str, D
 
     build_years = [year for car_id in car_ids if (year := get_car_build_year(car_id, line_key)) is not None]
     if build_years:
-        # Fractional "now", on the same (month - 1) / 12 convention as CARRIAGE_AGES, so a
-        # car built earlier this same year doesn't come out with a negative age.
-        current_frac_year = current_date.year + (current_date.month - 1) / 12
+        # Fractional "now", rounded to the nearest quarter like CARRIAGE_AGES, so a car
+        # built earlier this same year doesn't come out with a negative age.
+        current_frac_year = current_date.year + ((current_date.month - 1) // 3) * 0.25
         avg_age = current_frac_year - (sum(build_years) / len(build_years))
         metrics["avg_car_age"] = Decimal(str(round(avg_age, 1)))
 
