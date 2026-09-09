@@ -7,7 +7,7 @@ import requests
 
 from . import constants
 
-# Static mapping of car ID ranges to build years.
+# Static mapping of car ID ranges to build years, used to compute average fleet age.
 # Source: roster.transithistory.org, matching transitmatters/new-train-tracker PR #279
 CARRIAGE_AGES: dict[str, dict[str, int]] = {
     "Blue": {"0700-0793": 2008},
@@ -39,7 +39,16 @@ CARRIAGE_AGES: dict[str, dict[str, int]] = {
     "Mattapan": {"3072-3265": 1946},
 }
 
-# Maps route line names to the key used in CARRIAGE_AGES
+# Binary new/old car ID ranges, kept in sync with transitmatters/new-train-tracker's
+# server/chalicelib/fleet.py (which drives that app's live new/old vehicle toggle).
+# Blue and Mattapan have no new (CRRC/CAF Type 9) fleet, so they're omitted here.
+NEW_CAR_ID_RANGES: dict[str, tuple[int, int]] = {
+    "Red": (1900, 2151),
+    "Orange": (1400, 1551),
+    "Green": (3900, 3924),
+}
+
+# Maps route line names to the key used in CARRIAGE_AGES / NEW_CAR_ID_RANGES
 LINE_KEY_MAP: dict[str, str] = {
     "line-red": "Red",
     "line-orange": "Orange",
@@ -71,8 +80,44 @@ def get_car_build_year(car_id: int, line: str) -> int | None:
     return None
 
 
-def get_avg_car_age_for_line(current_date: date, line: str) -> Decimal | None:
-    """Fetch single-day travel times for a line and compute average car age from consist data."""
+def is_car_new(car_id: int, line: str) -> bool:
+    """Whether a car ID falls in the new (CRRC / CAF Type 9) fleet range for a line."""
+    new_range = NEW_CAR_ID_RANGES.get(line)
+    if not new_range:
+        return False
+    low, high = new_range
+    return low <= car_id <= high
+
+
+def _car_ids_for_trip(trip: dict) -> set[int]:
+    """Extract unique car IDs from a trip, preferring the full consist over the head car label."""
+    car_ids: set[int] = set()
+    consist = trip.get("vehicle_consist")
+    if consist:
+        for car_str in consist.split("|"):
+            try:
+                car_ids.add(int(car_str))
+            except ValueError:
+                continue
+    elif trip.get("vehicle_label"):
+        # vehicle_label contains the head car ID; use as fallback
+        for car_str in trip["vehicle_label"].split("-"):
+            try:
+                car_ids.add(int(car_str))
+            except ValueError:
+                continue
+    return car_ids
+
+
+def get_fleet_age_metrics_for_line(current_date: date, line: str) -> dict[str, Decimal] | None:
+    """Fetch a representative day of per-trip consist data for a line and compute:
+
+    - avg_car_age: average age (years) of the unique cars seen that day
+    - pct_new_trips: % of trips that day run with at least one new (CRRC/CAF Type 9) car
+
+    Returns None if no consist data is available for the line/date. Either metric may be
+    absent from the result if it can't be computed (e.g. no cars matched a known build year).
+    """
     line_key = LINE_KEY_MAP.get(line)
     if not line_key:
         return None
@@ -94,37 +139,27 @@ def get_avg_car_age_for_line(current_date: date, line: str) -> Decimal | None:
 
     data = json.loads(response.content.decode("utf-8"))
 
-    # Extract unique car IDs from vehicle_consist, falling back to vehicle_label (head car)
     car_ids: set[int] = set()
+    new_trip_count = 0
+    total_trip_count = 0
     for trip in data:
-        consist = trip.get("vehicle_consist")
-        if consist:
-            for car_str in consist.split("|"):
-                try:
-                    car_ids.add(int(car_str))
-                except ValueError:
-                    continue
-        elif trip.get("vehicle_label"):
-            # vehicle_label contains the head car ID; use as fallback
-            for car_str in trip["vehicle_label"].split("-"):
-                try:
-                    car_ids.add(int(car_str))
-                except ValueError:
-                    continue
+        trip_car_ids = _car_ids_for_trip(trip)
+        if not trip_car_ids:
+            continue
+        total_trip_count += 1
+        car_ids.update(trip_car_ids)
+        if any(is_car_new(car_id, line_key) for car_id in trip_car_ids):
+            new_trip_count += 1
 
-    if not car_ids:
-        return None
+    metrics: dict[str, Decimal] = {}
 
-    # Look up build years and compute average age
-    build_years: list[int] = []
-    for car_id in car_ids:
-        year = get_car_build_year(car_id, line_key)
-        if year is not None:
-            build_years.append(year)
+    build_years = [year for car_id in car_ids if (year := get_car_build_year(car_id, line_key)) is not None]
+    if build_years:
+        avg_age = current_date.year - (sum(build_years) / len(build_years))
+        metrics["avg_car_age"] = Decimal(str(round(avg_age, 1)))
 
-    if not build_years:
-        return None
+    if total_trip_count:
+        pct_new = (new_trip_count / total_trip_count) * 100
+        metrics["pct_new_trips"] = Decimal(str(round(pct_new, 1)))
 
-    current_year = current_date.year
-    avg_age = current_year - (sum(build_years) / len(build_years))
-    return Decimal(str(round(avg_age, 1)))
+    return metrics or None

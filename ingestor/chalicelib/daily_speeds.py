@@ -6,7 +6,7 @@ from urllib.parse import urlencode
 import requests
 
 from . import constants, dynamo
-from .car_ages import get_avg_car_age_for_line
+from .car_ages import get_fleet_age_metrics_for_line
 
 
 def is_valid_entry(item, expected_entries, date):
@@ -134,13 +134,13 @@ def update_daily_table(date: date, routes: list[tuple[str, str | None]] | None =
     speed_objects = []
     routes = routes or constants.ALL_ROUTES
 
-    # Compute avg_car_age once per line (shared across routes like red-a/red-b)
+    # Compute fleet age metrics once per line (shared across routes like red-a/red-b)
     lines_in_scope = set(r[0] for r in routes)
-    car_ages: dict[str, Decimal | None] = {}
+    fleet_age_metrics: dict[str, dict[str, Decimal] | None] = {}
     for line in lines_in_scope:
-        car_ages[line] = get_avg_car_age_for_line(date, line)
-        if car_ages[line] is not None:
-            print(f"Avg car age for {line} on {date}: {car_ages[line]} years")
+        fleet_age_metrics[line] = get_fleet_age_metrics_for_line(date, line)
+        if fleet_age_metrics[line] is not None:
+            print(f"Fleet age metrics for {line} on {date}: {fleet_age_metrics[line]}")
 
     for route in routes:
         line = route[0]
@@ -163,10 +163,10 @@ def update_daily_table(date: date, routes: list[tuple[str, str | None]] | None =
             print("No data for date {date_string}")
             continue
 
-        avg_car_age = car_ages.get(line)
-        if avg_car_age is not None:
+        metrics = fleet_age_metrics.get(line)
+        if metrics:
             for obj in formatted_speed_object:
-                obj["avg_car_age"] = avg_car_age
+                obj.update(metrics)
 
         speed_objects.extend(formatted_speed_object)
     print(f"Writing values: {speed_objects}")
