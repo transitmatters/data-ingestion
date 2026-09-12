@@ -170,7 +170,6 @@ def ingest_feeds(
             and re-uploaded to S3. Defaults to False.
     """
     for feed in feeds:
-        feed.use_compact_only()
         try:
             if force_rebuild_feeds:
                 print(f"[{feed.key}] Forcing rebuild locally")
@@ -184,7 +183,6 @@ def ingest_feeds(
                     print(f"[{feed.key}] Exists locally")
                 elif exists_remotely:
                     print(f"[{feed.key}] Downloading from S3")
-                    feed.use_compact_only()
                     feed.download_from_s3()
                 else:
                     print(f"[{feed.key}] Building locally")
