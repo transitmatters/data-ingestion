@@ -1,5 +1,7 @@
 from datetime import date, datetime, timedelta
-from typing import Tuple
+from typing import Optional, Tuple
+
+from .types import LineKind, ModeKind
 
 
 def date_from_string(date_str):
@@ -67,3 +69,15 @@ def date_range_contains(containing: Tuple[date, date], contained: Tuple[date, da
     (containing_from, containing_to) = containing
     (contained_from, contained_to) = contained
     return contained_from >= containing_from and contained_to <= containing_to
+
+
+def line_kind_to_mode_kind(line_kind: LineKind) -> Optional[ModeKind]:
+    if line_kind == "bus":
+        return "bus"
+    if line_kind == "regional-rail":
+        return "regional-rail"
+    if line_kind == "boat":
+        return "boat"
+    if line_kind in ("red", "orange", "blue", "green", "silver"):
+        return "rapid-transit"
+    return None

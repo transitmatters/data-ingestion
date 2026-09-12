@@ -11,6 +11,21 @@ LineKind = Literal[
     "boat",
 ]
 
+
+MODE_KINDS = [
+    "rapid-transit",
+    "regional-rail",
+    "bus",
+    "boat",
+]
+
+ModeKind = Literal[
+    "rapid-transit",
+    "regional-rail",
+    "bus",
+    "boat",
+]
+
 WeeklyMedianTimeSeries = dict[str, float]  # Map yyyy-mm-dd to numbers
 
 
@@ -61,3 +76,4 @@ class SummaryData(TypedDict):
 class DashJSON(TypedDict):
     lineData: dict[str, LineData]
     summaryData: SummaryData
+    modeData: dict[ModeKind, SummaryData]

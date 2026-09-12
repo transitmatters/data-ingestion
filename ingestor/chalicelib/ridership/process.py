@@ -64,6 +64,22 @@ def pre_process_csv(
     count_key: str,
     route_name: str | None = None,
 ):
+    """Pre-process a CSV file by aggregating daily ridership into weekly totals.
+
+    Reads the CSV, groups records by ISO year, week, and route, sums the count
+    values, and writes the result to a temporary CSV file.
+
+    Args:
+        path_to_csv_file: Path to the input CSV file.
+        date_key: Column name containing date values.
+        route_key: Column name containing route identifiers. If None and
+            route_name is provided, a 'Route' column is added with route_name.
+        count_key: Column name containing ridership counts.
+        route_name: Constant route name to assign when route_key is None.
+
+    Returns:
+        Path to a temporary CSV file containing the weekly aggregated data.
+    """
     if route_key is None and route_name is not None:
         route_key = "Route"
         df = pd.read_csv(path_to_csv_file, usecols=[date_key, count_key])
@@ -93,6 +109,21 @@ def format_ridership_csv(
     count_key: str,
     route_ids_map: Union[None, Dict[str, str]] = None,
 ):
+    """Format a ridership CSV into a dict of weekly average peak-day counts by route.
+
+    Reads ridership data, filters to weekday non-holiday (peak) days, computes
+    weekly averages per route, and returns the results grouped by route ID.
+
+    Args:
+        path_to_csv_file: Path to the input CSV file.
+        date_key: Column name containing date values.
+        route_key: Column name containing route identifiers.
+        count_key: Column name containing ridership counts.
+        route_ids_map: Optional mapping from raw route names to canonical route IDs.
+
+    Returns:
+        Dict mapping route IDs to lists of dicts with 'date' and 'count' keys.
+    """
     # read data, convert to datetime
     df = pd.read_csv(path_to_csv_file)
     df[date_key] = pd.to_datetime(df[date_key])
@@ -141,6 +172,17 @@ def format_ridership_csv(
 
 
 def format_subway_data(path_to_csv_file: str):
+    """Format subway gated station validation data into weekly peak-day averages.
+
+    Reads the subway CSV, filters to peak weekdays, computes weekly average
+    validations per route/line, and maps route names to canonical IDs.
+
+    Args:
+        path_to_csv_file: Path to the subway ridership CSV file.
+
+    Returns:
+        Dict mapping route IDs to lists of dicts with 'date' and 'count' keys.
+    """
     # read data, convert to datetime
     df = pd.read_csv(path_to_csv_file)
     df["servicedate"] = pd.to_datetime(df["servicedate"])
@@ -192,6 +234,17 @@ def format_subway_data(path_to_csv_file: str):
 
 
 def format_bus_data(path_to_excel_file: str):
+    """Format bus ridership data from an Excel file into weekly counts by route.
+
+    Reads the 'Weekly by Route' sheet, normalizes column names, and groups
+    ridership data by route with mapped canonical route IDs.
+
+    Args:
+        path_to_excel_file: Path to the bus ridership Excel file.
+
+    Returns:
+        Dict mapping route IDs to lists of dicts with 'date' and 'count' keys.
+    """
     # read data - new format doesn't need skiprows
     df = pd.read_excel(
         path_to_excel_file,
@@ -231,6 +284,14 @@ def format_bus_data(path_to_excel_file: str):
 
 
 def format_cr_data(path_to_ridershp_file: str):
+    """Format commuter rail ridership data into weekly peak-day averages by line.
+
+    Args:
+        path_to_ridershp_file: Path to the commuter rail ridership CSV file.
+
+    Returns:
+        Dict mapping CR route IDs to lists of dicts with 'date' and 'count' keys.
+    """
     ridership_by_route = format_ridership_csv(
         path_to_csv_file=path_to_ridershp_file,
         date_key="servicedate",
@@ -242,6 +303,17 @@ def format_cr_data(path_to_ridershp_file: str):
 
 
 def format_ferry_data(path_to_ridership_file: str):
+    """Format ferry ridership data into weekly peak-day averages by route.
+
+    Pre-processes daily departure data into weekly aggregates, then formats
+    into peak-day averages with canonical ferry route IDs.
+
+    Args:
+        path_to_ridership_file: Path to the ferry ridership CSV file.
+
+    Returns:
+        Dict mapping ferry route IDs to lists of dicts with 'date' and 'count' keys.
+    """
     preprocess = pre_process_csv(
         path_to_csv_file=path_to_ridership_file,
         date_key="actual_departure",
@@ -259,6 +331,17 @@ def format_ferry_data(path_to_ridership_file: str):
 
 
 def format_the_ride_data(path_to_ridership_file: str):
+    """Format The RIDE paratransit ridership data into weekly peak-day averages.
+
+    Pre-processes daily completed trip data into weekly aggregates, then
+    formats into peak-day averages under a single 'RIDE' route.
+
+    Args:
+        path_to_ridership_file: Path to The RIDE ridership CSV file.
+
+    Returns:
+        Dict mapping 'RIDE' to a list of dicts with 'date' and 'count' keys.
+    """
     preprocess = pre_process_csv(
         path_to_csv_file=path_to_ridership_file,
         date_key="Date",
@@ -282,6 +365,22 @@ def get_ridership_by_route_id(
     path_to_ferry_file: str | None,
     path_to_ride_file: str | None,
 ):
+    """Process all ridership files and merge into a single dict keyed by route ID.
+
+    Formats each transit mode's data file (if provided) and combines the results
+    into a unified mapping of route IDs to ridership entries.
+
+    Args:
+        path_to_subway_file: Path to the subway ridership CSV, or None to skip.
+        path_to_bus_file: Path to the bus ridership Excel file, or None to skip.
+        path_to_cr_file: Path to the commuter rail ridership CSV, or None to skip.
+        path_to_ferry_file: Path to the ferry ridership CSV, or None to skip.
+        path_to_ride_file: Path to The RIDE ridership CSV, or None to skip.
+
+    Returns:
+        Dict mapping route IDs to lists of dicts with 'date' and 'count' keys,
+        spanning all provided transit modes.
+    """
     subway = format_subway_data(path_to_subway_file) if path_to_subway_file else {}
     bus = format_bus_data(path_to_bus_file) if path_to_bus_file else {}
     cr = format_cr_data(path_to_cr_file) if path_to_cr_file else {}

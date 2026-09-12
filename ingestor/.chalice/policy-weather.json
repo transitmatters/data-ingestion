@@ -1,0 +1,28 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Action": [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ],
+      "Effect": "Allow",
+      "Resource": "arn:*:logs:*:*:*"
+    },
+    {
+      "Action": "s3:ListBucket",
+      "Effect": "Allow",
+      "Resource": ["arn:aws:s3:::tm-mbta-performance"]
+    },
+    {
+      "Action": "s3:*",
+      "Effect": "Allow",
+      "Resource": [
+        "arn:aws:s3:::tm-mbta-performance/Weather",
+        "arn:aws:s3:::tm-mbta-performance/Weather/*",
+        "arn:aws:s3:::tm-mbta-performance/Weather/hourly/*"
+      ]
+    }
+  ]
+}
