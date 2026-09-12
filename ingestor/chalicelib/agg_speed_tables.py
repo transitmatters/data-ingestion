@@ -16,6 +16,10 @@ from . import constants, dynamo
 
 dynamodb = boto3.resource("dynamodb")
 
+# Fleet age columns (see car_ages.py) are only present once new-train tracking is live for a
+# line, so they're added to the aggregation dict conditionally rather than unconditionally.
+FLEET_AGE_MEAN_COLS = ["avg_car_age", "pct_new_trips"]
+
 
 @dataclass
 class Line:
@@ -124,8 +128,9 @@ def aggregate_actual_trips(actual_trips, agg: Range, start_date: str):
 
 def group_monthly_data(df: pd.DataFrame, start_date: str):
     agg_dict = {"miles_covered": np.sum, "count": np.nanmedian, "total_time": np.sum, "line": "min"}
-    if "avg_car_age" in df.columns:
-        agg_dict["avg_car_age"] = np.nanmean
+    for col in FLEET_AGE_MEAN_COLS:
+        if col in df.columns:
+            agg_dict[col] = np.nanmean
     df_monthly = df.resample("M").agg(agg_dict)
     df_monthly = df_monthly.fillna(0)
     df_monthly.index = [datetime(x.year, x.month, 1) for x in df_monthly.index.tolist()]
@@ -139,8 +144,9 @@ def group_monthly_data(df: pd.DataFrame, start_date: str):
 def group_weekly_data(df: pd.DataFrame, start_date: str):
     # Group from Monday - Sunday
     agg_dict = {"miles_covered": np.sum, "count": np.nanmedian, "total_time": np.sum, "line": "min"}
-    if "avg_car_age" in df.columns:
-        agg_dict["avg_car_age"] = np.nanmean
+    for col in FLEET_AGE_MEAN_COLS:
+        if col in df.columns:
+            agg_dict[col] = np.nanmean
     df_weekly = df.resample("W-SUN").agg(agg_dict)
     df_weekly = df_weekly.fillna(0)
     # Pandas resample uses the end date of the range as the index. So we subtract 6 days to convert to first date of the range.
@@ -167,8 +173,9 @@ def group_data_by_date_and_branch(df: pd.DataFrame):
         "count": lambda x: np.nan if all(np.isnan(i) for i in x) else np.nansum(x),
         "line": "first",
     }
-    if "avg_car_age" in df.columns:
-        agg_dict["avg_car_age"] = "first"
+    for col in FLEET_AGE_MEAN_COLS:
+        if col in df.columns:
+            agg_dict[col] = "first"
     df_grouped = df.groupby("date").agg(agg_dict).reset_index()
     # use datetime for index rather than string.
     df_grouped.set_index(pd.to_datetime(df_grouped["date"]), inplace=True)
