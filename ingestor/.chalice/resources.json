@@ -4,10 +4,6 @@
       "Type": "String",
       "Description": "MBTA Performance API Key"
     },
-    "YankeeApiKey": {
-      "Type": "String",
-      "Description": "Yankee shuttle API key"
-    },
     "DDApiKey": {
       "Type": "String",
       "Description": "Datadog API key."
@@ -705,46 +701,6 @@
             "Value": "t-performance-dash"
           }
         ]
-      }
-    },
-    "ShuttleTravelTimes": {
-      "Type": "AWS::DynamoDB::Table",
-      "Properties": {
-        "TableName": "ShuttleTravelTimes",
-        "AttributeDefinitions": [
-          {
-            "AttributeName": "routeId",
-            "AttributeType": "S"
-          },
-          {
-            "AttributeName": "date",
-            "AttributeType": "S"
-          }
-        ],
-        "KeySchema": [
-          {
-            "AttributeName": "routeId",
-            "KeyType": "HASH"
-          },
-          {
-            "AttributeName": "date",
-            "KeyType": "RANGE"
-          }
-        ],
-        "BillingMode": "PAY_PER_REQUEST",
-        "Tags": [
-          {
-            "Key": "service",
-            "Value": "t-performance-dash"
-          }
-        ]
-      }
-    },
-    "S3Bucket": {
-      "Type": "AWS::S3::Bucket",
-      "DeletionPolicy": "Retain",
-      "Properties": {
-        "BucketName": "tm-shuttle-positions"
       }
     },
     "StoreHourlyWeather": {
