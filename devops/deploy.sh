@@ -1,7 +1,7 @@
 #!/bin/bash -x
 
-if [[ -z "$MBTA_V3_API_KEY" || -z "$DD_API_KEY"  || -z "$YANKEE_API_KEY"  ]]; then
-    echo "Must provide MBTA_V3_API_KEY, YANKEE_API_KEY, and DD_API_KEY in environment" 1>&2
+if [[ -z "$MBTA_V3_API_KEY" || -z "$DD_API_KEY" ]]; then
+    echo "Must provide MBTA_V3_API_KEY and DD_API_KEY in environment" 1>&2
     exit 1
 fi
 
@@ -44,4 +44,4 @@ aws cloudformation package --template-file cfn/sam.json --s3-bucket $BUCKET --ou
 aws cloudformation deploy --template-file cfn/packaged.yaml --stack-name $STACK_NAME \
     --capabilities CAPABILITY_NAMED_IAM --no-fail-on-empty-changeset \
     --tags service=ingestor env=prod \
-    --parameter-overrides MbtaV2ApiKey=$MBTA_V2_API_KEY DDApiKey=$DD_API_KEY YankeeApiKey=$YANKEE_API_KEY GitVersion=$GIT_VERSION DDTags=$DD_TAGS
+    --parameter-overrides MbtaV2ApiKey=$MBTA_V2_API_KEY DDApiKey=$DD_API_KEY GitVersion=$GIT_VERSION DDTags=$DD_TAGS
