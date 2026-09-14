@@ -195,13 +195,17 @@ def ingest_feeds(
                 if not exists_remotely:
                     print(f"[{feed.key}] Uploading to S3")
                     feed.upload_to_s3()
-            session = feed.create_sqlite_session(compact=True)
-            ingest_feed_to_dynamo(
-                dynamodb,
-                session,
-                max(feed.start_date, start_date),
-                min(feed.end_date, end_date, date.today()),
-            )
+            # A forward-looking window selects feeds that have not started yet.
+            # Those still want building and uploading -- that is the point -- but
+            # they have no elapsed service dates to summarize, and date_range()
+            # asserts start <= end, so compute the overlap and skip if empty.
+            dynamo_start = max(feed.start_date, start_date)
+            dynamo_end = min(feed.end_date, end_date, date.today())
+            if dynamo_start > dynamo_end:
+                print(f"[{feed.key}] Bundle ready; no elapsed service dates yet (activates {feed.start_date})")
+            else:
+                session = feed.create_sqlite_session(compact=True)
+                ingest_feed_to_dynamo(dynamodb, session, dynamo_start, dynamo_end)
         except Exception as ex:
             # Collect and continue so one bad feed does not block the rest, but
             # re-raise at the end -- swallowing here left the Lambda reporting
