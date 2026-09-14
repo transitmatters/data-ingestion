@@ -182,19 +182,32 @@ def ingest_feeds(
                 print(f"[{feed.key}] Uploading to S3")
                 feed.upload_to_s3()
             else:
-                exists_locally = feed.exists_locally()
+                # exists_remotely() must run before any use_compact_only() below,
+                # so it checks for *both* DB files -- "is the full bundle
+                # published?" -- not just the compact one.
                 exists_remotely = feed.exists_remotely()
-                if exists_locally:
-                    print(f"[{feed.key}] Exists locally")
-                elif exists_remotely:
-                    print(f"[{feed.key}] Downloading from S3")
-                    feed.download_from_s3()
-                else:
+                if not exists_remotely:
                     print(f"[{feed.key}] Building locally")
                     feed.build_locally()
-                if not exists_remotely:
                     print(f"[{feed.key}] Uploading to S3")
                     feed.upload_to_s3()
+                elif feed.exists_locally():
+                    print(f"[{feed.key}] Exists locally")
+                else:
+                    # Only the compact DB is read below, via
+                    # create_sqlite_session(compact=True). Pulling the ~423MB
+                    # gtfs.sqlite3 alongside it was pure waste -- ~900MB/day at
+                    # the current twice-daily schedule, for a file nothing here
+                    # opens. use_compact_only() narrows required_feed_files to
+                    # gtfs_compact.sqlite3 (~26MB).
+                    #
+                    # It is only safe on this branch: the same flag also
+                    # suppresses uploads and makes build_local_feed_entry delete
+                    # the full DB, which is what caused the original outage. This
+                    # path neither builds nor uploads.
+                    feed.use_compact_only()
+                    print(f"[{feed.key}] Downloading compact DB from S3")
+                    feed.download_from_s3()
             # A forward-looking window selects feeds that have not started yet.
             # Those still want building and uploading -- that is the point -- but
             # they have no elapsed service dates to summarize, and date_range()

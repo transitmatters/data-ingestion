@@ -74,3 +74,43 @@ def test_failures_are_collected_and_reraised(mock_dynamo):
         )
 
     mock_dynamo.assert_called_once()  # the good feed still processed
+
+
+@mock.patch("chalicelib.gtfs.ingest.ingest_feed_to_dynamo")
+def test_published_feed_downloads_only_the_compact_db(mock_dynamo):
+    """The full ~423MB gtfs.sqlite3 is never read here, so it should not be pulled."""
+    today = date.today()
+    feed = _feed("published", today - timedelta(days=10), today + timedelta(days=90))
+
+    ingest_feeds(
+        dynamodb=mock.MagicMock(),
+        feeds=[feed],
+        start_date=today - timedelta(days=3),
+        end_date=today,
+    )
+
+    feed.use_compact_only.assert_called_once()
+    feed.download_from_s3.assert_called_once()
+    feed.build_locally.assert_not_called()
+    feed.upload_to_s3.assert_not_called()
+    mock_dynamo.assert_called_once()
+
+
+@mock.patch("chalicelib.gtfs.ingest.ingest_feed_to_dynamo")
+def test_missing_feed_builds_the_full_bundle(mock_dynamo):
+    """use_compact_only() must NOT leak onto the build path -- it makes
+    build_local_feed_entry delete the full DB before upload, which is the bug
+    that left s3://tm-gtfs with compact-only bundles in the first place."""
+    today = date.today()
+    feed = _feed("missing", today - timedelta(days=10), today + timedelta(days=90), exists_remotely=False)
+
+    ingest_feeds(
+        dynamodb=mock.MagicMock(),
+        feeds=[feed],
+        start_date=today - timedelta(days=3),
+        end_date=today,
+    )
+
+    feed.use_compact_only.assert_not_called()
+    feed.build_locally.assert_called_once()
+    feed.upload_to_s3.assert_called_once()
