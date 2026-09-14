@@ -6,6 +6,12 @@ on:
     branches:
       - main
 
+# Serialize deploys: CloudFormation rejects a change set while the stack is
+# UPDATE_IN_PROGRESS, which silently drops the later of two close merges.
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
