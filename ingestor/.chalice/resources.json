@@ -746,6 +746,56 @@
           }
         }
       }
+    },
+    "GtfsIngestKeysDlq": {
+      "Type": "AWS::SQS::Queue",
+      "Properties": {
+        "QueueName": "gtfs-ingest-keys-dlq",
+        "MessageRetentionPeriod": 1209600
+      }
+    },
+    "GtfsIngestKeysQueue": {
+      "Type": "AWS::SQS::Queue",
+      "Properties": {
+        "QueueName": "gtfs-ingest-keys",
+        "VisibilityTimeout": 960,
+        "RedrivePolicy": {
+          "deadLetterTargetArn": {
+            "Fn::GetAtt": [
+              "GtfsIngestKeysDlq",
+              "Arn"
+            ]
+          },
+          "maxReceiveCount": 3
+        }
+      }
+    },
+    "IngestGtfsFeedOnDemand": {
+      "Type": "AWS::Serverless::Function",
+      "DependsOn": [
+        "GtfsIngestKeysQueue"
+      ],
+      "Properties": {
+        "Environment": {
+          "Variables": {
+            "DD_API_KEY": {
+              "Ref": "DDApiKey"
+            },
+            "DD_VERSION": {
+              "Ref": "GitVersion"
+            },
+            "DD_TAGS": {
+              "Ref": "DDTags"
+            },
+            "DD_GIT_REPOSITORY_URL": {
+              "Ref": "DDGitRepositoryUrl"
+            }
+          }
+        },
+        "EphemeralStorage": {
+          "Size": 4096
+        }
+      }
     }
   }
 }

@@ -133,6 +133,11 @@
           "iam_policy_file": "policy-weather.json",
           "lambda_memory_size": 256,
           "lambda_timeout": 900
+        },
+        "ingest_gtfs_feed_on_demand": {
+          "iam_policy_file": "policy-gtfs.json",
+          "lambda_timeout": 900,
+          "lambda_memory_size": 5120
         }
       }
     }

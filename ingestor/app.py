@@ -118,6 +118,22 @@ def update_gtfs(event):
     gtfs.ingest_gtfs_feeds_to_dynamo_and_s3(date_range=(three_days_ago, today.date()))
 
 
+# Builds a single GTFS feed on demand. mbta-performance enqueues a key here when
+# it needs a bundle that is not in S3 yet, rather than attempting a ~67s, ~1GB
+# build inside its own 60s Lambda. One feed per message keeps peak /tmp to a
+# single build; failures land in gtfs-ingest-keys-dlq after 3 attempts.
+@app.on_sqs_message(queue="gtfs-ingest-keys", batch_size=1)
+def ingest_gtfs_feed_on_demand(event):
+    for record in event:
+        message = json.loads(record.body)
+        feed_key = message["feed_key"]
+        print(f"[{feed_key}] Building on demand from SQS")
+        gtfs.ingest_gtfs_feeds_to_dynamo_and_s3(
+            feed_key=feed_key,
+            force_rebuild_feeds=message.get("force_rebuild_feeds", False),
+        )
+
+
 # 4:40am UTC -> 2:40/3:40am ET every day
 @app.schedule(Cron(40, 7, "*", "*", "?", "*"))
 def update_trip_metrics(event):
