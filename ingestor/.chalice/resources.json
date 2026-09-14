@@ -278,7 +278,7 @@
           }
         },
         "EphemeralStorage": {
-          "Size": 2048
+          "Size": 4096
         }
       }
     },

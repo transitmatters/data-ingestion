@@ -169,7 +169,12 @@ def ingest_feeds(
         force_rebuild_feeds: If True, forces all feeds to be rebuilt locally
             and re-uploaded to S3. Defaults to False.
     """
+    failures: List[Tuple[str, Exception]] = []
     for feed in feeds:
+        # Only clean up feeds this invocation brought down. A caller passing an
+        # explicit local_archive_path (the backfill script) is deliberately
+        # caching feeds between runs -- see d46a606 -- so leave those in place.
+        cached_before = feed.exists_locally()
         try:
             if force_rebuild_feeds:
                 print(f"[{feed.key}] Forcing rebuild locally")
@@ -198,8 +203,25 @@ def ingest_feeds(
                 min(feed.end_date, end_date, date.today()),
             )
         except Exception as ex:
+            # Collect and continue so one bad feed does not block the rest, but
+            # re-raise at the end -- swallowing here left the Lambda reporting
+            # success, so Errors stayed at 0 and EventBridge never retried.
             print(f"[{feed.key}] Failed to retrieve")
             print(ex)
+            failures.append((feed.key, ex))
+        finally:
+            # A full feed is ~450MB and /tmp is capped; without this a
+            # multi-feed invocation accumulates until it runs out of space.
+            if not cached_before:
+                try:
+                    if feed.exists_locally():
+                        feed.delete_locally()
+                except Exception as cleanup_ex:  # pragma: no cover - best effort
+                    print(f"[{feed.key}] Failed to clean up local files: {cleanup_ex}")
+
+    if failures:
+        keys = ", ".join(key for key, _ in failures)
+        raise RuntimeError(f"Failed to ingest {len(failures)} GTFS feed(s): {keys}") from failures[0][1]
 
 
 def ingest_gtfs_feeds_to_dynamo_and_s3(
