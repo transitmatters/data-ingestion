@@ -92,14 +92,12 @@
         "update_gtfs": {
           "iam_policy_file": "policy-gtfs.json",
           "lambda_timeout": 900,
-          "lambda_memory_size": 5120,
-          "max_ebs_size_gb": 4
+          "lambda_memory_size": 5120
         },
         "update_ridership": {
           "iam_policy_file": "policy-ridership.json",
           "lambda_timeout": 300,
-          "lambda_memory_size": 384,
-          "max_ebs_size_gb": 2
+          "lambda_memory_size": 384
         },
         "update_speed_restrictions": {
           "iam_policy_file": "policy-speed-restrictions.json",
