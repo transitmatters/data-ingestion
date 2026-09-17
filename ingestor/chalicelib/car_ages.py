@@ -144,23 +144,34 @@ def is_car_new(car_id: int, line: str) -> bool:
     return low <= car_id <= high
 
 
+def _parse_car_id(car_str: str) -> int | None:
+    """Parse a car ID, tolerating float-formatted values.
+
+    Some date ranges in the source data render labels as "1867.0" rather than "1867";
+    int() rejects those outright, which silently drops every car for the affected days.
+    """
+    try:
+        return int(float(car_str))
+    except ValueError:
+        return None
+
+
 def _car_ids_for_trip(trip: dict) -> set[int]:
     """Extract unique car IDs from a trip, preferring the full consist over the head car label."""
     car_ids: set[int] = set()
     consist = trip.get("vehicle_consist")
     if consist:
-        for car_str in consist.split("|"):
-            try:
-                car_ids.add(int(car_str))
-            except ValueError:
-                continue
+        car_strs = consist.split("|")
     elif trip.get("vehicle_label"):
         # vehicle_label contains the head car ID; use as fallback
-        for car_str in trip["vehicle_label"].split("-"):
-            try:
-                car_ids.add(int(car_str))
-            except ValueError:
-                continue
+        car_strs = str(trip["vehicle_label"]).split("-")
+    else:
+        return car_ids
+
+    for car_str in car_strs:
+        car_id = _parse_car_id(car_str)
+        if car_id is not None:
+            car_ids.add(car_id)
     return car_ids
 
 
