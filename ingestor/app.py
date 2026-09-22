@@ -98,8 +98,13 @@ def update_ridership(event):
     ridership.ingest_ridership_data()
 
 
-# 7:20am UTC -> 2:20/3:20am ET every weekday
-@app.schedule(Cron(20, 7, "?", "*", "MON-FRI", "*"))
+# Retired 2026-09-21: the upstream ArcGIS source (CSV_ZIP_URL in
+# chalicelib/speed_restrictions.py) now 400s -- "Item does not exist or is
+# inaccessible." mbta.com/performance-metrics/speed-restrictions no longer
+# exists either. Data in DynamoDB is stale past 2026-05-31. Paused pending a
+# reply from the T on whether this moved; re-add the @app.schedule below to
+# resume.
+# @app.schedule(Cron(20, 7, "?", "*", "MON-FRI", "*"))
 def update_speed_restrictions(event):
     speed_restrictions.update_speed_restrictions(max_lookback_months=2)
 
