@@ -39,20 +39,30 @@ def cutoff_date(today: date, years: int = LOOKBACK_YEARS) -> date:
 
 
 def to_weekly(points: Iterable[tuple[date, float | None]]) -> dict[date, float]:
-    """Bucket (date, value) points into Monday-start weeks, averaging multiple points per week.
+    """Bucket (date, value) points into Monday-start weeks.
+
+    If a week has a point dated on its Monday (the canonical weekly record), that point is used and
+    stray mid-week records are ignored: the Ridership table has ~30-40 such records per bus route per
+    year that run up to 2x the route's normal level. Otherwise points in the week are averaged.
 
     Missing, non-finite and non-positive values are dropped: a zero here means "no service/data"
     (shutdowns, seasonal ferry gaps), never a real measurement to compare against.
     """
-    buckets: dict[date, list[float]] = {}
+    buckets: dict[date, list[tuple[date, float]]] = {}
     for d, value in points:
         if value is None:
             continue
         value = float(value)
         if not math.isfinite(value) or value <= 0:
             continue
-        buckets.setdefault(week_start(d), []).append(value)
-    return {week: sum(values) / len(values) for week, values in sorted(buckets.items())}
+        buckets.setdefault(week_start(d), []).append((d, value))
+
+    weekly = {}
+    for week, entries in sorted(buckets.items()):
+        canonical = [value for d, value in entries if d == week]
+        values = canonical or [value for _, value in entries]
+        weekly[week] = sum(values) / len(values)
+    return weekly
 
 
 def complete_weeks_before(weekly: dict[date, float], cutoff: date) -> dict[date, float]:

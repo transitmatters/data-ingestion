@@ -15,13 +15,19 @@ def test_cutoff_is_three_years_back():
 
 def test_to_weekly_buckets_by_monday_and_drops_missing_and_zero():
     points = [
-        (date(2019, 1, 7), 10.0),  # Monday
-        (date(2019, 1, 9), 14.0),  # Wednesday, same week -> averaged
+        (date(2019, 1, 9), 10.0),  # Wednesday, no Monday record that week -> averaged
+        (date(2019, 1, 11), 14.0),  # Friday
         (date(2019, 1, 14), 0.0),  # shutdown / no data
         (date(2019, 1, 21), None),
         (date(2019, 1, 28), float("nan")),
     ]
     assert compute.to_weekly(points) == {date(2019, 1, 7): 12.0}
+
+
+def test_to_weekly_prefers_the_canonical_monday_record():
+    # Real shape of bus route 34 in 2019: stray mid-week records run ~2x the weekly level.
+    points = [(date(2019, 3, 4), 2741.0), (date(2019, 3, 6), 6567.0), (date(2019, 3, 11), 3014.0)]
+    assert compute.to_weekly(points) == {date(2019, 3, 4): 2741.0, date(2019, 3, 11): 3014.0}
 
 
 def test_single_outlier_week_cannot_set_the_best():
