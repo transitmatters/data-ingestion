@@ -89,13 +89,16 @@ def pre_process_csv(
 
     df[date_key] = pd.to_datetime(df[date_key], format="mixed", errors="coerce")
     df = df.dropna(subset=[date_key])
-    df["Year"] = df[date_key].dt.year
-    df["Week"] = df[date_key].dt.isocalendar().week
+    # Use ISO year + week together so late-December days in ISO week 1 land in the next year's week 1,
+    # and label each week with its ISO Monday
+    iso = df[date_key].dt.isocalendar()
+    df["Year"] = iso.year
+    df["Week"] = iso.week
     df[date_key] = df[date_key].dt.strftime("%Y-%m-%d")
 
     grouped_df = df.groupby(["Year", "Week", route_key])[count_key].agg("sum").reset_index()
     grouped_df[date_key] = pd.to_datetime(
-        grouped_df["Year"].astype(str) + grouped_df["Week"].astype(str) + "1", format="%Y%W%w"
+        grouped_df["Year"].astype(str) + "-" + grouped_df["Week"].astype(str) + "-1", format="%G-%V-%u"
     )
     tmp_path = NamedTemporaryFile().name
     grouped_df.to_csv(tmp_path, index=False)
@@ -344,16 +347,16 @@ def format_the_ride_data(path_to_ridership_file: str):
     """
     preprocess = pre_process_csv(
         path_to_csv_file=path_to_ridership_file,
-        date_key="Date",
+        date_key="TripDate",
         route_key=None,
         route_name="RIDE",
-        count_key="Completed_Trips",
+        count_key="CompletedTrips",
     )
     ridership_by_route = format_ridership_csv(
         path_to_csv_file=preprocess,
-        date_key="Date",
+        date_key="TripDate",
         route_key="Route",
-        count_key="Completed_Trips",
+        count_key="CompletedTrips",
     )
     return ridership_by_route
 
