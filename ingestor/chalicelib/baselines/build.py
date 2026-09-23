@@ -17,29 +17,52 @@ BASELINES_KEY = "static/landing/baselines.json"
 METRICS = {
     "speed": {
         "unit": "mph",
-        "description": "Median weekly average speed (miles covered / hours in motion), end to end.",
+        "description": "Weekly average speed (miles covered / hours in motion), end to end.",
         "source": sources.TRIP_METRICS_TABLE,
         "decimals": 2,
+        "window": compute.SUSTAINED_PEAK,
     },
     "service": {
         "unit": "round trips per day",
-        "description": "Median weekly delivered round trips per day.",
+        "description": "Weekly delivered round trips per day.",
         "source": sources.TRIP_METRICS_TABLE,
         "decimals": 1,
+        "window": compute.SUSTAINED_PEAK,
     },
     "scheduledService": {
         "unit": "scheduled trips per day",
-        "description": "Median weekly scheduled trips per day, from the service & ridership dashboard.",
+        "description": "Weekly scheduled trips per day, from the service & ridership dashboard.",
         "source": f"s3://{sources.SERVICE_RIDERSHIP_BUCKET}/{sources.SERVICE_RIDERSHIP_KEY}",
         "decimals": 0,
+        "window": compute.STABLE_LEVEL,
     },
     "ridership": {
         "unit": "riders per weekday",
-        "description": "Median weekly ridership (weekday fare validations / counts).",
+        "description": "Weekly ridership (weekday fare validations / counts).",
         "source": sources.RIDERSHIP_TABLE,
         "decimals": 0,
+        "window": compute.SUSTAINED_PEAK,
     },
 }
+
+# Baselines we compute but don't publish yet, pending a decision on how to handle them. Consumers
+# keep their existing (hard-coded) value or show no baseline; the number stays visible as candidateValue.
+HELD_BACK_REASONS = {
+    "noPrePandemicHistory": "Ridership history starts June 2020, so the best period is a COVID-era recovery.",
+    "seasonal": "Seasonal service; a rolling best compares summer peaks and needs a same-season method.",
+    "notComparable": "Counts branch trips differently from the dashboard's service metric.",
+}
+
+
+def held_back_reason(metric: str, series_id: str) -> str | None:
+    if metric == "ridership":
+        if series_id in sources.CR_RIDERSHIP_IDS or series_id == "line-commuter-rail":
+            return "noPrePandemicHistory"
+        if series_id == "line-ferry" or series_id.startswith("line-Boat-"):
+            return "seasonal"
+    if metric == "scheduledService" and series_id == "line-Green":
+        return "notComparable"
+    return None
 
 
 def build_baselines(today: date | None = None, series_by_metric: dict | None = None) -> dict:
@@ -61,8 +84,15 @@ def build_baselines(today: date | None = None, series_by_metric: dict | None = N
             "unit": meta["unit"],
             "description": meta["description"],
             "source": meta["source"],
+            "window": meta["window"].to_json(),
             "series": {
-                series_id: compute.summarize_series(compute.to_weekly(points), cutoff, meta["decimals"])
+                series_id: compute.summarize_series(
+                    compute.to_weekly(points),
+                    cutoff,
+                    meta["decimals"],
+                    meta["window"],
+                    held_back_reason(metric, series_id),
+                )
                 for series_id, points in sorted(series.items())
             },
         }
@@ -71,14 +101,13 @@ def build_baselines(today: date | None = None, series_by_metric: dict | None = N
         "schemaVersion": SCHEMA_VERSION,
         "generatedAt": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "definition": (
-            f"Best rolling {compute.WINDOW_WEEKS}-week median over the full history, using only weeks that "
+            "Best rolling-window average over the full history (window per metric), using only weeks that "
             f"ended at least {compute.LOOKBACK_YEARS} years before generatedAt."
         ),
         "cutoff": cutoff.isoformat(),
         "lookbackYears": compute.LOOKBACK_YEARS,
-        "windowWeeks": compute.WINDOW_WEEKS,
-        "minWeeksInWindow": compute.MIN_WEEKS_IN_WINDOW,
         "minHistoryWeeks": compute.MIN_HISTORY_WEEKS,
+        "heldBackReasons": HELD_BACK_REASONS,
         "metrics": metrics,
     }
 
