@@ -156,6 +156,11 @@ def format_ridership_csv(
 
     final = final.groupby(["year", "week", route_key])[count_key].mean().round().reset_index()
 
+    # Several raw routes can map to the same route ID (e.g. F1 and F2H -> Boat-F1), so sum them
+    if route_ids_map:
+        final[route_key] = final[route_key].map(route_ids_map.__getitem__)
+        final = final.groupby(["year", "week", route_key])[count_key].sum().reset_index()
+
     final = final.merge(dates, on=["week", "year"], how="left")
 
     # get list of routes
@@ -169,8 +174,7 @@ def format_ridership_csv(
         for_route = final[final[route_key] == route]
         only_date_and_count = for_route[[date_key, count_key]].dropna()
         dictdata = only_date_and_count.rename(columns={date_key: "date", count_key: "count"}).to_dict(orient="records")
-        route_id = route_ids_map[route] if route_ids_map else route
-        output[route_id] = dictdata
+        output[route] = dictdata
     return output
 
 

@@ -3,7 +3,7 @@ from tempfile import NamedTemporaryFile
 import pandas as pd
 
 from ..ridership.ingest import get_ridership_by_line_id
-from ..ridership.process import pre_process_csv
+from ..ridership.process import format_ridership_csv, pre_process_csv, unofficial_ferry_labels_map
 
 
 def _write_daily_csv(rows):
@@ -41,3 +41,15 @@ def test_silver_line_gated_data_not_counted_as_bus():
     }
     by_line_id = get_ridership_by_line_id(ridership_by_route_id, {})
     assert by_line_id["line-bus"] == [{"date": "2026-09-07", "count": 150}]
+
+
+def test_routes_mapping_to_same_id_are_summed():
+    path = NamedTemporaryFile(suffix=".csv", delete=False).name
+    pd.DataFrame(
+        [("2021-02-01", "F1", 10), ("2021-02-01", "F2H", 5), ("2021-02-08", "F2H", 7)],
+        columns=["actual_departure", "route_id", "pax_on"],
+    ).to_csv(path, index=False)
+    by_route = format_ridership_csv(path, "actual_departure", "route_id", "pax_on", unofficial_ferry_labels_map)
+    assert by_route == {
+        "Boat-F1": [{"date": "2021-02-01", "count": 15.0}, {"date": "2021-02-08", "count": 7.0}],
+    }
