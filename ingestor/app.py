@@ -18,6 +18,7 @@ from chalicelib import (
     trip_metrics,
     weather,
 )
+from chalicelib.baselines.build import store_historical_baselines as build_and_publish_baselines
 from datadog_lambda.wrapper import datadog_lambda_wrapper
 
 app = Chalice(app_name="ingestor")
@@ -194,6 +195,14 @@ def store_landing_data(event):
     ridership_data = landing.get_ridership_data()
     landing.upload_to_s3(json.dumps(trip_metrics_data), json.dumps(ridership_data))
     landing.clear_cache()
+
+
+# 8:15 UTC -> 3:15/4:15am ET every Monday, after the weekly trip metric tables and ridership update.
+# Publishes static/landing/baselines.json: the "historical best" per line and metric, looking back
+# 3+ years. It only moves when a week crosses the 3-year line, so weekly is plenty.
+@app.schedule(Cron(15, 8, "?", "*", "MON", "*"))
+def store_historical_baselines(event):
+    build_and_publish_baselines()
 
 
 # 9:00 UTC -> 4:30/5:30am ET every day (after GTFS and ridership have been ingested)

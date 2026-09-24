@@ -373,6 +373,28 @@
         }
       }
     },
+    "StoreHistoricalBaselines": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "Description": "Publishes historical-best baselines (3+ years back) for dashboard comparisons",
+        "Environment": {
+          "Variables": {
+            "DD_API_KEY": {
+              "Ref": "DDApiKey"
+            },
+            "DD_VERSION": {
+              "Ref": "GitVersion"
+            },
+            "DD_TAGS": {
+              "Ref": "DDTags"
+            },
+            "DD_GIT_REPOSITORY_URL": {
+              "Ref": "DDGitRepositoryUrl"
+            }
+          }
+        }
+      }
+    },
     "DeliveredTripMetricsDB": {
       "Type": "AWS::DynamoDB::Table",
       "Properties": {
