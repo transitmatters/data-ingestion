@@ -83,8 +83,13 @@ CARRIAGE_AGES: dict[str, dict[str, float]] = {
         "3600-3649": 1987,
         "3650-3699": 1988,
         "3700-3719": 1997,
-        "3800-3894": 2003,
+        # Type 8s were accepted gradually from 1999 to 2008 (30 in 2006 alone); the
+        # roster PDF's acceptance-by-year list averages ~2004.6, so a flat 2003 overstated age.
+        "3800-3894": 2004.5,
         "3900-3923": 2019,
+        # Type 10 pilot cars, first delivery expected Sep 2026. Production cars (up to 4102,
+        # 2027-2031) get quarterly batch entries as they arrive, like Red/Orange CRRC above.
+        "4001-4004": 2026.75,
     },
     # 3268 is in service alongside the rest of the 3072-3265 block (per @ankoure), so it's
     # included in the range even though it falls outside the original PCC numbering block.
@@ -93,14 +98,11 @@ CARRIAGE_AGES: dict[str, dict[str, float]] = {
 
 # Binary new/old car ID ranges, kept in sync with transitmatters/new-train-tracker's
 # server/chalicelib/fleet.py (which drives that app's live new/old vehicle toggle).
-# Blue and Mattapan have no new (CRRC/CAF Type 9) fleet, so they're omitted here.
-# TODO: Green Line Type 10s (per the roster PDF, numbered 4001-4102) aren't covered yet.
-# Once they enter revenue service they'll be misclassified as old — add their range here
-# (and a CARRIAGE_AGES entry) before/as that happens.
-NEW_CAR_ID_RANGES: dict[str, tuple[int, int]] = {
-    "Red": (1900, 2151),
-    "Orange": (1400, 1551),
-    "Green": (3900, 3924),
+# Blue and Mattapan have no new fleet, so they're omitted here. Ranges are inclusive.
+NEW_CAR_ID_RANGES: dict[str, list[tuple[int, int]]] = {
+    "Red": [(1900, 2151)],  # CRRC #4
+    "Orange": [(1400, 1551)],  # CRRC #14
+    "Green": [(3900, 3923), (4001, 4102)],  # CAF Type 9, CAF Type 10
 }
 
 # Maps route line names to the key used in CARRIAGE_AGES / NEW_CAR_ID_RANGES
@@ -136,12 +138,8 @@ def get_car_build_year(car_id: int, line: str) -> float | None:
 
 
 def is_car_new(car_id: int, line: str) -> bool:
-    """Whether a car ID falls in the new (CRRC / CAF Type 9) fleet range for a line."""
-    new_range = NEW_CAR_ID_RANGES.get(line)
-    if not new_range:
-        return False
-    low, high = new_range
-    return low <= car_id <= high
+    """Whether a car ID falls in a new (CRRC / CAF Type 9 / CAF Type 10) fleet range for a line."""
+    return any(low <= car_id <= high for low, high in NEW_CAR_ID_RANGES.get(line, []))
 
 
 def _parse_car_id(car_str: str) -> int | None:
@@ -179,7 +177,7 @@ def get_fleet_age_metrics_for_line(current_date: date, line: str) -> dict[str, D
     """Fetch a representative day of per-trip consist data for a line and compute:
 
     - avg_car_age: average age (years) of the unique cars seen that day
-    - pct_new_trips: % of trips that day run with at least one new (CRRC/CAF Type 9) car
+    - pct_new_trips: % of trips that day run with at least one new (CRRC/CAF Type 9/10) car
 
     Returns None if no consist data is available for the line/date. Either metric may be
     absent from the result if it can't be computed (e.g. no cars matched a known build year).
