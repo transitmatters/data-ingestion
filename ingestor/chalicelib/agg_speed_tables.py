@@ -17,13 +17,13 @@ from .car_ages import FLEET_MIX_PREFIX
 
 dynamodb = boto3.resource("dynamodb")
 
-# Fleet columns (see car_ages.py) are only present once new-train tracking is live for a
+# Fleet age columns (see car_ages.py) are only present once new-train tracking is live for a
 # line, so they're added to the aggregation dict conditionally rather than unconditionally.
 FLEET_AGE_MEAN_COLS = ["avg_car_age", "pct_new_trips"]
 
 
 def fleet_cols(columns) -> list[str]:
-    """Fleet metric columns present: the fixed age/new-train pair plus any fleet_mix_<type>."""
+    """Fleet metric columns present, including any fleet_mix_<type>."""
     return [col for col in columns if col in FLEET_AGE_MEAN_COLS or str(col).startswith(FLEET_MIX_PREFIX)]
 
 

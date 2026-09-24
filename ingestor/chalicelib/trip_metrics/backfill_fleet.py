@@ -1,10 +1,5 @@
-"""Fleet-only backfill: recompute car age / new-train / fleet mix metrics on existing
-DeliveredTripMetrics rows, then rebuild the weekly and monthly aggregates.
-
-Unlike backfill.py, this doesn't re-ingest trip metrics. It only updates the fleet
-attributes on rows that already exist, leaving speed/count fields untouched.
-
-Run from ingestor/:
+"""Recompute fleet metrics on existing DeliveredTripMetrics rows (speed fields untouched),
+then rebuild the weekly and monthly tables. Run from ingestor/:
     BACKFILL_START_DATE=2018-12-01 BACKFILL_END_DATE=2026-09-23 BACKFILL_LINE=line-green \
         uv run python -m chalicelib.trip_metrics.backfill_fleet
 """
