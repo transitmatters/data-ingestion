@@ -18,6 +18,9 @@ CARRIAGE_AGES: dict[str, dict[str, float]] = {
     # merged into one range. Deliveries weren't always in numeric order, so some ranges are
     # out of sequence relative to their neighbors.
     "Orange": {
+        # #12 Hawker Siddeley cars (01200-01319, built 1979-81), in service until Aug 2022.
+        # Labels come through as 1200-1319; no overlap with the CRRC #14 range below.
+        "1200-1319": 1980,
         "1400-1403": 2018.5,
         "1404-1405": 2018.75,
         "1406-1409": 2019.25,
@@ -106,11 +109,13 @@ NEW_CAR_ID_RANGES: dict[str, list[tuple[int, int]]] = {
 }
 
 # Coarse car type per ID range, for the fleet mix breakdown (share of cars by type). Only
-# lines with more than one type are listed; others don't get fleet_mix_* fields. Kept
-# separate from CARRIAGE_AGES so a car is classified as soon as its type is known, before
-# its delivery batch gets a build year.
+# lines with more than one type (now or historically) are listed; others don't get
+# fleet_mix_* fields. Kept separate from CARRIAGE_AGES so a car is classified as soon as its
+# type is known, before its delivery batch gets a build year.
 CAR_TYPES: dict[str, dict[str, str]] = {
     "Red": {"1500-1651": "red1", "1700-1757": "red2", "1800-1885": "red3", "1900-2151": "red4"},
+    # Single-type today, but the #12s ran alongside the CRRC #14s from 2019 until Aug 2022
+    "Orange": {"1200-1319": "orange12", "1400-1551": "orange14"},
     "Green": {"3600-3719": "type7", "3800-3894": "type8", "3900-3923": "type9", "4001-4102": "type10"},
 }
 

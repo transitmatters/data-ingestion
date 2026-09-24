@@ -29,6 +29,7 @@ def test_build_years():
     # Type 10 production cars aren't in the table until they're delivered
     assert get_car_build_year(4050, "Green") is None
     assert get_car_build_year(1966, "Red") == 2026.25
+    assert get_car_build_year(1250, "Orange") == 1980
 
 
 def test_car_types():
@@ -40,7 +41,9 @@ def test_car_types():
     assert get_car_type(1750, "Red") == "red2"
     assert get_car_type(1960, "Red") == "red4"
     assert get_car_type(9999, "Green") is None
-    assert get_car_type(1450, "Orange") is None  # single-type lines aren't tracked
+    assert get_car_type(1250, "Orange") == "orange12"
+    assert get_car_type(1450, "Orange") == "orange14"
+    assert get_car_type(700, "Blue") is None  # single-type lines aren't tracked
 
 
 def test_fleet_mix_mixed_consist():
@@ -64,4 +67,4 @@ def test_fleet_mix_sums_to_100_and_skips_unknown_cars():
 def test_fleet_mix_empty():
     assert compute_fleet_mix([], "Green") == {}
     assert compute_fleet_mix([{9999}], "Green") == {}
-    assert compute_fleet_mix([{1450}], "Orange") == {}
+    assert compute_fleet_mix([{700}], "Blue") == {}
