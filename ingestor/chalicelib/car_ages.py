@@ -105,7 +105,18 @@ NEW_CAR_ID_RANGES: dict[str, list[tuple[int, int]]] = {
     "Green": [(3900, 3923), (4001, 4102)],  # CAF Type 9, CAF Type 10
 }
 
-# Maps route line names to the key used in CARRIAGE_AGES / NEW_CAR_ID_RANGES
+# Coarse car type per ID range, for the fleet mix breakdown (share of cars by type). Only
+# lines with more than one type are listed; others don't get fleet_mix_* fields. Kept
+# separate from CARRIAGE_AGES so a car is classified as soon as its type is known, before
+# its delivery batch gets a build year.
+CAR_TYPES: dict[str, dict[str, str]] = {
+    "Red": {"1500-1651": "red1", "1700-1757": "red2", "1800-1885": "red3", "1900-2151": "red4"},
+    "Green": {"3600-3719": "type7", "3800-3894": "type8", "3900-3923": "type9", "4001-4102": "type10"},
+}
+
+FLEET_MIX_PREFIX = "fleet_mix_"
+
+# Maps route line names to the key used in CARRIAGE_AGES / NEW_CAR_ID_RANGES / CAR_TYPES
 LINE_KEY_MAP: dict[str, str] = {
     "line-red": "Red",
     "line-orange": "Orange",
@@ -135,6 +146,40 @@ def get_car_build_year(car_id: int, line: str) -> float | None:
         if int(low) <= car_id <= int(high):
             return year
     return None
+
+
+def get_car_type(car_id: int, line: str) -> str | None:
+    """Look up the car type (e.g. "type8", "red4") for a car ID on a given line."""
+    for range_str, car_type in CAR_TYPES.get(line, {}).items():
+        low, high = range_str.split("-")
+        if int(low) <= car_id <= int(high):
+            return car_type
+    return None
+
+
+def compute_fleet_mix(trips_car_ids: list[set[int]], line: str) -> dict[str, Decimal]:
+    """Share of car-trips by car type, as fleet_mix_<type> percentages.
+
+    Each car in each trip counts once, so shares sum to ~100 even for mixed consists (e.g. a
+    Type 7 + Type 8 train is 50/50). Every type for the line is included, zero if unseen, so
+    weekly/monthly means still sum to 100. Cars with no known type are left out entirely.
+    """
+    line_types = CAR_TYPES.get(line)
+    if not line_types:
+        return {}
+    counts = {car_type: 0 for car_type in line_types.values()}
+    for trip_car_ids in trips_car_ids:
+        for car_id in trip_car_ids:
+            car_type = get_car_type(car_id, line)
+            if car_type is not None:
+                counts[car_type] += 1
+    total = sum(counts.values())
+    if not total:
+        return {}
+    return {
+        f"{FLEET_MIX_PREFIX}{car_type}": Decimal(str(round(count / total * 100, 1)))
+        for car_type, count in counts.items()
+    }
 
 
 def is_car_new(car_id: int, line: str) -> bool:
@@ -178,6 +223,7 @@ def get_fleet_age_metrics_for_line(current_date: date, line: str) -> dict[str, D
 
     - avg_car_age: average age (years) of the unique cars seen that day
     - pct_new_trips: % of trips that day run with at least one new (CRRC/CAF Type 9/10) car
+    - fleet_mix_<type>: % of car-trips by car type, for lines listed in CAR_TYPES
 
     Returns None if no consist data is available for the line/date. Either metric may be
     absent from the result if it can't be computed (e.g. no cars matched a known build year).
@@ -204,6 +250,7 @@ def get_fleet_age_metrics_for_line(current_date: date, line: str) -> dict[str, D
     data = json.loads(response.content.decode("utf-8"))
 
     car_ids: set[int] = set()
+    trips_car_ids: list[set[int]] = []
     new_trip_count = 0
     total_trip_count = 0
     for trip in data:
@@ -212,6 +259,7 @@ def get_fleet_age_metrics_for_line(current_date: date, line: str) -> dict[str, D
             continue
         total_trip_count += 1
         car_ids.update(trip_car_ids)
+        trips_car_ids.append(trip_car_ids)
         if any(is_car_new(car_id, line_key) for car_id in trip_car_ids):
             new_trip_count += 1
 
@@ -239,5 +287,7 @@ def get_fleet_age_metrics_for_line(current_date: date, line: str) -> dict[str, D
     if total_trip_count:
         pct_new = (new_trip_count / total_trip_count) * 100
         metrics["pct_new_trips"] = Decimal(str(round(pct_new, 1)))
+
+    metrics.update(compute_fleet_mix(trips_car_ids, line_key))
 
     return metrics or None
