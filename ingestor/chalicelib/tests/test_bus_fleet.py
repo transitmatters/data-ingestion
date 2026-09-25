@@ -18,7 +18,7 @@ def test_bus_info_range_edges():
 def test_metrics_mix_and_battery_share():
     # 2 battery trips (same bus), 1 hybrid, 1 CNG, 1 unknown bus
     metrics = compute_bus_metrics([4201, 4201, 1900, 1700, 9999], date(2026, 9, 22))
-    assert metrics["trips"] == 4
+    assert metrics["fleet_trips"] == 4
     assert metrics["pct_battery_trips"] == Decimal("50.0")
     assert metrics["fleet_mix_battery"] == Decimal("50.0")
     assert metrics["fleet_mix_diesel"] == 0
@@ -72,3 +72,15 @@ def test_falls_back_to_gobble_when_lamp_missing_or_unlabeled(monkeypatch):
     unlabeled = [{"trip_id": "1", "vehicle_label": ""}]
     monkeypatch.setattr(bus_fleet, "_read_events", _fake_sources({"Events-lamp/": unlabeled, "Events-live/": gobble}))
     assert bus_fleet._bus_ids_at_stop("1-1-72", date(2026, 9, 9)) == [1900, 1901]
+
+
+def test_rows_are_keyed_alongside_rapid_transit(monkeypatch):
+    buses = {"1": [1900, 1901], "71": [4201]}
+    monkeypatch.setattr(bus_fleet, "BUS_FLEET_STOPS", {route: [] for route in buses})
+    monkeypatch.setattr(bus_fleet, "_bus_ids_for_route", lambda route, _: buses[route])
+
+    rows = {row["route"]: row for row in bus_fleet.get_bus_fleet_metrics(date(2026, 9, 22))}
+
+    assert set(rows) == {"line-bus-1", "line-bus-71", "line-bus"}
+    assert all(row["line"] == "line-bus" and row["date"] == "2026-09-22" for row in rows.values())
+    assert rows["line-bus"]["fleet_trips"] == 3

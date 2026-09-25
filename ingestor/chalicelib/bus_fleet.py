@@ -11,11 +11,13 @@ from pathlib import Path
 import boto3
 from botocore.exceptions import ClientError
 
-from . import constants, dynamo
+from . import constants
 from .car_ages import _parse_car_id, average_age, mix_percentages
 
-TABLE_NAME = "BusFleetMetrics"
-ALL_ROUTES_KEY = "all"
+# Bus rows live alongside rapid transit in DeliveredTripMetrics: one per route ("line-bus-<route>")
+# plus a system-wide row ("line-bus").
+TABLE_NAME = "DeliveredTripMetrics"
+BUS_LINE = "line-bus"
 EVENTS_BUCKET = "tm-mbta-performance"
 
 # Where to read bus numbers, best source first. The MBTA's monthly bus archives have no vehicle
@@ -26,6 +28,7 @@ EVENT_KEY_TEMPLATES = [
 ]
 
 s3 = boto3.client("s3")
+delivered_trip_metrics = boto3.resource("dynamodb").Table(TABLE_NAME)
 
 # Bus number range -> (build year, propulsion), from the NETransit MBTA roster (09/23/26).
 # Extended-range hybrids count as hybrid. 4305-4387 are on order: add their build years on delivery.
@@ -80,7 +83,7 @@ def compute_bus_metrics(trip_bus_ids: list[int], current_date: date) -> dict[str
     if not trips:
         return {}
     metrics: dict[str, Decimal] = {
-        "trips": Decimal(trips),
+        "fleet_trips": Decimal(trips),
         "pct_battery_trips": Decimal(str(round(counts["battery"] / trips * 100, 1))),
         **mix_percentages(counts),
     }
@@ -120,29 +123,38 @@ def _bus_ids_for_route(route: str, current_date: date) -> list[int]:
 
 
 def get_bus_fleet_metrics(current_date: date) -> list[dict]:
-    """One row per sampled route, plus an "all" row pooled across every route's trips."""
+    """One row per sampled route, plus a system-wide row pooled across every route's trips."""
     with ThreadPoolExecutor(max_workers=8) as executor:
         route_bus_ids = dict(
             zip(BUS_FLEET_STOPS, executor.map(lambda r: _bus_ids_for_route(r, current_date), BUS_FLEET_STOPS))
         )
     date_str = current_date.strftime(constants.DATE_FORMAT_BACKEND)
     rows = []
-    for route, bus_ids in [*route_bus_ids.items(), (ALL_ROUTES_KEY, sum(route_bus_ids.values(), []))]:
+    keyed = [(f"{BUS_LINE}-{route}", bus_ids) for route, bus_ids in route_bus_ids.items()]
+    for route_key, bus_ids in [*keyed, (BUS_LINE, sum(route_bus_ids.values(), []))]:
         metrics = compute_bus_metrics(bus_ids, current_date)
         if metrics:
-            rows.append({"route": route, "date": date_str, **metrics})
+            rows.append({"route": route_key, "date": date_str, "line": BUS_LINE, **metrics})
     return rows
 
 
 def update_bus_fleet_table(current_date: date):
     rows = get_bus_fleet_metrics(current_date)
     print(f"Writing {len(rows)} bus fleet rows for {current_date}")
-    dynamo.dynamo_batch_write(rows, TABLE_NAME)
+    for row in rows:
+        # Merge rather than replace, so other bus service stats in the same row are kept
+        fields = {k: v for k, v in row.items() if k not in ("route", "date")}
+        delivered_trip_metrics.update_item(
+            Key={"route": row["route"], "date": row["date"]},
+            UpdateExpression="SET " + ", ".join(f"#a{i} = :v{i}" for i in range(len(fields))),
+            ExpressionAttributeNames={f"#a{i}": k for i, k in enumerate(fields)},
+            ExpressionAttributeValues={f":v{i}": v for i, v in enumerate(fields.values())},
+        )
 
 
 if __name__ == "__main__":
     # Backfill, run from ingestor/:
-    #   BACKFILL_START_DATE=2024-01-01 BACKFILL_END_DATE=2026-09-24 uv run python -m chalicelib.bus_fleet
+    #   BACKFILL_START_DATE=2023-12-14 BACKFILL_END_DATE=2026-09-24 uv run python -m chalicelib.bus_fleet
     start = datetime.strptime(os.environ["BACKFILL_START_DATE"], "%Y-%m-%d").date()
     end = datetime.strptime(os.environ["BACKFILL_END_DATE"], "%Y-%m-%d").date()
     for d in range((end - start).days + 1):
