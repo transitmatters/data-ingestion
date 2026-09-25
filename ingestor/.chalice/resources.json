@@ -818,6 +818,39 @@
           "Size": 4096
         }
       }
+    },
+    "BusFleetMetrics": {
+      "Type": "AWS::DynamoDB::Table",
+      "Properties": {
+        "TableName": "BusFleetMetrics",
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "route",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "date",
+            "AttributeType": "S"
+          }
+        ],
+        "KeySchema": [
+          {
+            "AttributeName": "route",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "date",
+            "KeyType": "RANGE"
+          }
+        ],
+        "BillingMode": "PAY_PER_REQUEST",
+        "Tags": [
+          {
+            "Key": "service",
+            "Value": "t-performance-dash"
+          }
+        ]
+      }
     }
   }
 }
