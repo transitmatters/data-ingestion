@@ -16,7 +16,7 @@
       ],
       "Effect": "Allow",
       "Resource": [
-        "arn:aws:dynamodb:us-east-1:473352343756:table/DeliveredTripMetrics"
+        "arn:aws:dynamodb:us-east-1:473352343756:table/DeliveredTripMetricsBus"
       ]
     },
     {

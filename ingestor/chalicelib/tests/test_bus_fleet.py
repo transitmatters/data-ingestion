@@ -74,13 +74,13 @@ def test_falls_back_to_gobble_when_lamp_missing_or_unlabeled(monkeypatch):
     assert bus_fleet._bus_ids_at_stop("1-1-72", date(2026, 9, 9)) == [1900, 1901]
 
 
-def test_rows_are_keyed_alongside_rapid_transit(monkeypatch):
+def test_rows_keyed_by_gtfs_route_plus_system_wide(monkeypatch):
     buses = {"1": [1900, 1901], "71": [4201]}
     monkeypatch.setattr(bus_fleet, "BUS_FLEET_STOPS", {route: [] for route in buses})
     monkeypatch.setattr(bus_fleet, "_bus_ids_for_route", lambda route, _: buses[route])
 
     rows = {row["route"]: row for row in bus_fleet.get_bus_fleet_metrics(date(2026, 9, 22))}
 
-    assert set(rows) == {"line-bus-1", "line-bus-71", "line-bus"}
-    assert all(row["line"] == "line-bus" and row["date"] == "2026-09-22" for row in rows.values())
-    assert rows["line-bus"]["fleet_trips"] == 3
+    assert set(rows) == {"1", "71", "all"}
+    assert all(row["date"] == "2026-09-22" for row in rows.values())
+    assert rows["all"]["fleet_trips"] == 3

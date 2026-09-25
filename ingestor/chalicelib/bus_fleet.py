@@ -14,10 +14,10 @@ from botocore.exceptions import ClientError
 from . import constants
 from .car_ages import _parse_car_id, average_age, mix_percentages
 
-# Bus rows live alongside rapid transit in DeliveredTripMetrics: one per route ("line-bus-<route>")
-# plus a system-wide row ("line-bus").
-TABLE_NAME = "DeliveredTripMetrics"
-BUS_LINE = "line-bus"
+# Fleet fields are merged into the bus service rows written by mbta-performance's bus LAMP job,
+# keyed by GTFS route id. The system-wide row uses a reserved key that isn't a route.
+TABLE_NAME = "DeliveredTripMetricsBus"
+SYSTEM_WIDE_KEY = "all"
 EVENTS_BUCKET = "tm-mbta-performance"
 
 # Where to read bus numbers, best source first. The MBTA's monthly bus archives have no vehicle
@@ -130,11 +130,10 @@ def get_bus_fleet_metrics(current_date: date) -> list[dict]:
         )
     date_str = current_date.strftime(constants.DATE_FORMAT_BACKEND)
     rows = []
-    keyed = [(f"{BUS_LINE}-{route}", bus_ids) for route, bus_ids in route_bus_ids.items()]
-    for route_key, bus_ids in [*keyed, (BUS_LINE, sum(route_bus_ids.values(), []))]:
+    for route, bus_ids in [*route_bus_ids.items(), (SYSTEM_WIDE_KEY, sum(route_bus_ids.values(), []))]:
         metrics = compute_bus_metrics(bus_ids, current_date)
         if metrics:
-            rows.append({"route": route_key, "date": date_str, "line": BUS_LINE, **metrics})
+            rows.append({"route": route, "date": date_str, **metrics})
     return rows
 
 
@@ -142,7 +141,7 @@ def update_bus_fleet_table(current_date: date):
     rows = get_bus_fleet_metrics(current_date)
     print(f"Writing {len(rows)} bus fleet rows for {current_date}")
     for row in rows:
-        # Merge rather than replace, so other bus service stats in the same row are kept
+        # Merge rather than replace, so the service stats already in the row are kept
         fields = {k: v for k, v in row.items() if k not in ("route", "date")}
         delivered_trip_metrics.update_item(
             Key={"route": row["route"], "date": row["date"]},
