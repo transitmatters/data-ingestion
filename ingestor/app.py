@@ -28,8 +28,12 @@ app.register_middleware(ConvertToMiddleware(datadog_lambda_wrapper))
 
 ################
 # STORE V3 ALERTS
-# Runs every 15 minutes from either 4 AM -> 1:55AM or 5 AM -> 2:55 AM depending on DST
-@app.schedule(Cron("0/15", "0-6,9-23", "*", "*", "?", "*"))
+# Runs hourly, every hour from either 4 AM -> 1AM or 5 AM -> 2 AM depending on DST.
+# This is now only a same-day fallback: mbta-performance's LAMP alerts pipeline
+# (Alerts/lamp/) is the source of truth for historical days, rebuilt daily from
+# MBTA's LAMP alerts archive. Dropped from every 15 minutes now that this file no
+# longer needs to capture every intraday alert revision for history's sake.
+@app.schedule(Cron("0", "0-6,9-23", "*", "*", "?", "*"))
 def store_current_alerts(event):
     alerts.save_v3_alerts()
 
