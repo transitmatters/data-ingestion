@@ -18,6 +18,25 @@
       "Resource": [
         "arn:aws:dynamodb:us-east-1:473352343756:table/BusFleetMetrics"
       ]
+    },
+    {
+      "Action": [
+        "s3:ListBucket"
+      ],
+      "Effect": "Allow",
+      "Resource": [
+        "arn:aws:s3:::tm-mbta-performance"
+      ]
+    },
+    {
+      "Action": [
+        "s3:GetObject"
+      ],
+      "Effect": "Allow",
+      "Resource": [
+        "arn:aws:s3:::tm-mbta-performance/Events-lamp/bus-daily-data/*",
+        "arn:aws:s3:::tm-mbta-performance/Events-live/daily-bus-data/*"
+      ]
     }
   ]
 }

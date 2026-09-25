@@ -1,22 +1,36 @@
+import csv
+import gzip
+import io
 import json
 import os
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
-from urllib.parse import urlencode
 
-import requests
+import boto3
+from botocore.exceptions import ClientError
 
 from . import constants, dynamo
 from .car_ages import _parse_car_id, average_age, mix_percentages
 
 TABLE_NAME = "BusFleetMetrics"
 ALL_ROUTES_KEY = "all"
+EVENTS_BUCKET = "tm-mbta-performance"
+
+# Where to read bus numbers, best source first. The MBTA's monthly bus archives have no vehicle
+# column, so they can't be used here.
+EVENT_KEY_TEMPLATES = [
+    "Events-lamp/bus-daily-data/{stop}/Year={year}/Month={month}/Day={day}/events.csv",
+    "Events-live/daily-bus-data/{stop}/Year={year}/Month={month}/Day={day}/events.csv.gz",
+]
+
+s3 = boto3.client("s3")
 
 # Bus number range -> (build year, propulsion), from the NETransit MBTA roster (09/23/26).
 # Extended-range hybrids count as hybrid. 4305-4387 are on order: add their build years on delivery.
 BUS_FLEET: dict[str, tuple[float | None, str]] = {
+    "0600-0754": (2006.5, "diesel"),  # retired 2023-24
     "0756-0910": (2008, "diesel"),
     "1200-1224": (2010, "hybrid"),
     "1250-1293": (2016.5, "hybrid"),
@@ -36,8 +50,7 @@ BUS_FLEET: dict[str, tuple[float | None, str]] = {
 }
 PROPULSIONS = ["diesel", "hybrid", "cng", "battery"]
 
-# Stops sampled per GTFS route: the busiest stop gobble captures in each direction, found by
-# checking the headways API on recent weekdays.
+# Stops sampled per GTFS route: the busiest stop gobble captures in each direction on recent weekdays.
 BUS_FLEET_STOPS: dict[str, list[str]] = json.loads((Path(__file__).parent / "bus_fleet_stops.json").read_text())
 
 
@@ -76,22 +89,30 @@ def compute_bus_metrics(trip_bus_ids: list[int], current_date: date) -> dict[str
     return metrics
 
 
-def _bus_ids_at_stop(stop_id: str, current_date: date) -> list[int]:
-    url = constants.DD_URL_HEADWAYS.format(
-        date=current_date.strftime(constants.DATE_FORMAT_BACKEND), parameters=urlencode({"stop": stop_id})
-    )
+def _read_events(key: str) -> list[dict] | None:
     try:
-        response = requests.get(url, timeout=60)
-        response.raise_for_status()
-    except requests.exceptions.RequestException as e:
-        print(f"Failed to fetch headways for bus fleet ({stop_id}, {current_date}): {e}")
-        return []
-    bus_ids = []
-    for departure in response.json():
-        bus_id = _parse_car_id(str(departure.get("vehicle_label") or ""))
-        if bus_id is not None:
-            bus_ids.append(bus_id)
-    return bus_ids
+        body = s3.get_object(Bucket=EVENTS_BUCKET, Key=key)["Body"].read()
+    except ClientError as e:
+        if e.response["Error"]["Code"] == "NoSuchKey":
+            return None
+        raise
+    if key.endswith(".gz"):
+        body = gzip.decompress(body)
+    return list(csv.DictReader(io.StringIO(body.decode("utf-8"))))
+
+
+def _bus_ids_at_stop(stop_id: str, current_date: date) -> list[int]:
+    """One bus number per trip at a stop, from the first source that has them for that day."""
+    for template in EVENT_KEY_TEMPLATES:
+        key = template.format(stop=stop_id, year=current_date.year, month=current_date.month, day=current_date.day)
+        bus_by_trip: dict[str, int] = {}
+        for row in _read_events(key) or []:
+            bus_id = _parse_car_id(row.get("vehicle_label") or "")
+            if bus_id is not None:
+                bus_by_trip.setdefault(row["trip_id"], bus_id)
+        if bus_by_trip:
+            return list(bus_by_trip.values())
+    return []
 
 
 def _bus_ids_for_route(route: str, current_date: date) -> list[int]:

@@ -1,16 +1,18 @@
 from datetime import date
 from decimal import Decimal
 
+from .. import bus_fleet
 from ..bus_fleet import BUS_FLEET_STOPS, compute_bus_metrics, get_bus_info
 
 
 def test_bus_info_range_edges():
+    assert get_bus_info(700) == (2006.5, "diesel")
     assert get_bus_info(840) == (2008, "diesel")
     assert get_bus_info(1294) == (2018, "hybrid")
     assert get_bus_info(1295) == (2019, "battery")
     assert get_bus_info(1700) == (2016.5, "cng")
     assert get_bus_info(4305) == (None, "battery")
-    assert get_bus_info(620) is None  # work bus, not in revenue service
+    assert get_bus_info(420) is None
 
 
 def test_metrics_mix_and_battery_share():
@@ -39,3 +41,34 @@ def test_no_known_buses():
 def test_stops_match_their_route():
     for route, stops in BUS_FLEET_STOPS.items():
         assert stops and all(stop.split("-")[0] == route for stop in stops)
+
+
+def _fake_sources(files):
+    def read(key):
+        return next((rows for prefix, rows in files.items() if key.startswith(prefix)), None)
+
+    return read
+
+
+def test_prefers_lamp_over_gobble(monkeypatch):
+    monkeypatch.setattr(
+        bus_fleet,
+        "_read_events",
+        _fake_sources(
+            {
+                "Events-lamp/": [{"trip_id": "1", "vehicle_label": "4201"}, {"trip_id": "1", "vehicle_label": "4201"}],
+                "Events-live/": [{"trip_id": "1", "vehicle_label": "1900"}],
+            }
+        ),
+    )
+    assert bus_fleet._bus_ids_at_stop("71-0-2064", date(2026, 9, 9)) == [4201]
+
+
+def test_falls_back_to_gobble_when_lamp_missing_or_unlabeled(monkeypatch):
+    gobble = [{"trip_id": "1", "vehicle_label": "1900"}, {"trip_id": "2", "vehicle_label": "1901"}]
+    monkeypatch.setattr(bus_fleet, "_read_events", _fake_sources({"Events-live/": gobble}))
+    assert bus_fleet._bus_ids_at_stop("1-1-72", date(2024, 5, 1)) == [1900, 1901]
+
+    unlabeled = [{"trip_id": "1", "vehicle_label": ""}]
+    monkeypatch.setattr(bus_fleet, "_read_events", _fake_sources({"Events-lamp/": unlabeled, "Events-live/": gobble}))
+    assert bus_fleet._bus_ids_at_stop("1-1-72", date(2026, 9, 9)) == [1900, 1901]
