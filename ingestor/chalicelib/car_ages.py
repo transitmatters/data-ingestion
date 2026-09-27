@@ -170,13 +170,22 @@ def compute_fleet_mix(trips_car_ids: list[set[int]], line: str) -> dict[str, Dec
             car_type = get_car_type(car_id, line)
             if car_type is not None:
                 counts[car_type] += 1
+    return mix_percentages(counts)
+
+
+def mix_percentages(counts: dict[str, int]) -> dict[str, Decimal]:
+    """fleet_mix_<key> percentages from counts, or {} if there's nothing to count."""
     total = sum(counts.values())
     if not total:
         return {}
-    return {
-        f"{FLEET_MIX_PREFIX}{car_type}": Decimal(str(round(count / total * 100, 1)))
-        for car_type, count in counts.items()
-    }
+    return {f"{FLEET_MIX_PREFIX}{key}": Decimal(str(round(count / total * 100, 1))) for key, count in counts.items()}
+
+
+def average_age(build_years: list[float], current_date: date) -> Decimal:
+    # Fractional "now", rounded to the nearest quarter like CARRIAGE_AGES, so a car
+    # built earlier this same year doesn't come out with a negative age.
+    current_frac_year = current_date.year + ((current_date.month - 1) // 3) * 0.25
+    return Decimal(str(round(current_frac_year - sum(build_years) / len(build_years), 1)))
 
 
 def is_car_new(car_id: int, line: str) -> bool:
@@ -275,11 +284,7 @@ def get_fleet_age_metrics_for_line(current_date: date, line: str) -> dict[str, D
             print(f"CARRIAGE_AGES['{line_key}'] is stale: car {car_id} is new but has no build year")
 
     if build_years:
-        # Fractional "now", rounded to the nearest quarter like CARRIAGE_AGES, so a car
-        # built earlier this same year doesn't come out with a negative age.
-        current_frac_year = current_date.year + ((current_date.month - 1) // 3) * 0.25
-        avg_age = current_frac_year - (sum(build_years) / len(build_years))
-        metrics["avg_car_age"] = Decimal(str(round(avg_age, 1)))
+        metrics["avg_car_age"] = average_age(build_years, current_date)
 
     if total_trip_count:
         pct_new = (new_trip_count / total_trip_count) * 100

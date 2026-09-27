@@ -6,6 +6,7 @@ from chalicelib import (
     agg_speed_tables,
     alerts,
     bluebikes,
+    bus_fleet,
     constants,
     daily_speeds,
     delays,
@@ -91,6 +92,13 @@ def update_delivered_trip_metrics_yesterday(event):
     two_days_ago = (today - timedelta(days=2)).date()
     daily_speeds.update_daily_table(yesterday)
     daily_speeds.update_daily_table(two_days_ago)
+
+
+# 12:30 UTC -> 7:30/8:30am ET, after the MBTA's next-day data cleanup
+@app.schedule(Cron(30, 12, "*", "*", "?", "*"))
+def update_bus_fleet_metrics(event):
+    yesterday = (datetime.now() - timedelta(days=1)).date()
+    bus_fleet.update_bus_fleet_table(yesterday)
 
 
 # 7:10am UTC -> 2:10/3:10am ET every day
