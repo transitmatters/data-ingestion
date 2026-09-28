@@ -1,7 +1,7 @@
 from datetime import date
 from decimal import Decimal
 
-from .. import bus_fleet
+from .. import bus_fleet, fleet_events
 from ..bus_fleet import BUS_FLEET_STOPS, compute_bus_metrics, get_bus_info
 
 
@@ -52,8 +52,8 @@ def _fake_sources(files):
 
 def test_prefers_lamp_over_gobble(monkeypatch):
     monkeypatch.setattr(
-        bus_fleet,
-        "_read_events",
+        fleet_events,
+        "read_events",
         _fake_sources(
             {
                 "Events-lamp/": [{"trip_id": "1", "vehicle_label": "4201"}, {"trip_id": "1", "vehicle_label": "4201"}],
@@ -61,17 +61,17 @@ def test_prefers_lamp_over_gobble(monkeypatch):
             }
         ),
     )
-    assert bus_fleet._bus_ids_at_stop("71-0-2064", date(2026, 9, 9)) == [4201]
+    assert fleet_events.vehicle_ids_at_stop("71-0-2064", date(2026, 9, 9), bus_fleet.EVENT_KEY_TEMPLATES) == [4201]
 
 
 def test_falls_back_to_gobble_when_lamp_missing_or_unlabeled(monkeypatch):
     gobble = [{"trip_id": "1", "vehicle_label": "1900"}, {"trip_id": "2", "vehicle_label": "1901"}]
-    monkeypatch.setattr(bus_fleet, "_read_events", _fake_sources({"Events-live/": gobble}))
-    assert bus_fleet._bus_ids_at_stop("1-1-72", date(2024, 5, 1)) == [1900, 1901]
+    monkeypatch.setattr(fleet_events, "read_events", _fake_sources({"Events-live/": gobble}))
+    assert fleet_events.vehicle_ids_at_stop("1-1-72", date(2024, 5, 1), bus_fleet.EVENT_KEY_TEMPLATES) == [1900, 1901]
 
     unlabeled = [{"trip_id": "1", "vehicle_label": ""}]
-    monkeypatch.setattr(bus_fleet, "_read_events", _fake_sources({"Events-lamp/": unlabeled, "Events-live/": gobble}))
-    assert bus_fleet._bus_ids_at_stop("1-1-72", date(2026, 9, 9)) == [1900, 1901]
+    monkeypatch.setattr(fleet_events, "read_events", _fake_sources({"Events-lamp/": unlabeled, "Events-live/": gobble}))
+    assert fleet_events.vehicle_ids_at_stop("1-1-72", date(2026, 9, 9), bus_fleet.EVENT_KEY_TEMPLATES) == [1900, 1901]
 
 
 def test_rows_keyed_by_gtfs_route_plus_system_wide(monkeypatch):

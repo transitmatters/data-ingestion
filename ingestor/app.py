@@ -8,6 +8,7 @@ from chalicelib import (
     bluebikes,
     bus_fleet,
     constants,
+    cr_fleet,
     daily_speeds,
     delays,
     gtfs,
@@ -99,6 +100,13 @@ def update_delivered_trip_metrics_yesterday(event):
 def update_bus_fleet_metrics(event):
     yesterday = (datetime.now() - timedelta(days=1)).date()
     bus_fleet.update_bus_fleet_table(yesterday)
+
+
+# 12:35 UTC -> 7:35/8:35am ET
+@app.schedule(Cron(35, 12, "*", "*", "?", "*"))
+def update_cr_fleet_metrics(event):
+    yesterday = (datetime.now() - timedelta(days=1)).date()
+    cr_fleet.update_cr_fleet_table(yesterday)
 
 
 # 7:10am UTC -> 2:10/3:10am ET every day
