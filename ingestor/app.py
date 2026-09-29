@@ -116,14 +116,8 @@ def update_speed_restrictions(event):
 
 # 7:50am UTC -> 2:50/3:50am ET every Monday (source data is published monthly)
 @app.schedule(Cron(50, 7, "?", "*", "MON", "*"))
-def update_the_ride_reliability(event):
-    reliability.update_the_ride_reliability(lookback_days=120)
-
-
-# 7:55am UTC -> 2:55/3:55am ET every Monday (source data is published monthly)
-@app.schedule(Cron(55, 7, "?", "*", "MON", "*"))
-def update_commuter_rail_reliability(event):
-    reliability.update_commuter_rail_reliability(lookback_days=180)
+def update_reliability(event):
+    reliability.update_reliability()
 
 
 # 7:30am UTC -> 2:30/3:30am ET every day

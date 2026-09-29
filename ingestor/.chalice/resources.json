@@ -329,32 +329,10 @@
         }
       }
     },
-    "UpdateTheRideReliability": {
+    "UpdateReliability": {
       "Type": "AWS::Serverless::Function",
       "Properties": {
-        "Description": "Ingests and saves The RIDE daily reliability from the MBTA open data portal",
-        "Environment": {
-          "Variables": {
-            "DD_API_KEY": {
-              "Ref": "DDApiKey"
-            },
-            "DD_VERSION": {
-              "Ref": "GitVersion"
-            },
-            "DD_TAGS": {
-              "Ref": "DDTags"
-            },
-            "DD_GIT_REPOSITORY_URL": {
-              "Ref": "DDGitRepositoryUrl"
-            }
-          }
-        }
-      }
-    },
-    "UpdateCommuterRailReliability": {
-      "Type": "AWS::Serverless::Function",
-      "Properties": {
-        "Description": "Ingests and saves commuter rail daily reliability from the MBTA open data portal",
+        "Description": "Ingests and saves The RIDE and commuter rail daily reliability from the MBTA open data portal",
         "Environment": {
           "Variables": {
             "DD_API_KEY": {
