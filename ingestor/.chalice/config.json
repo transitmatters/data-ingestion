@@ -148,6 +148,16 @@
           "iam_policy_file": "policy-bus-fleet.json",
           "lambda_timeout": 300,
           "lambda_memory_size": 256
+        },
+        "update_the_ride_reliability": {
+          "iam_policy_file": "policy-reliability.json",
+          "lambda_timeout": 300,
+          "lambda_memory_size": 256
+        },
+        "update_commuter_rail_reliability": {
+          "iam_policy_file": "policy-reliability.json",
+          "lambda_timeout": 300,
+          "lambda_memory_size": 512
         }
       }
     }

@@ -15,6 +15,7 @@ So far we have:
 - Store Bluebikes station status data every 5 min.
 - Store ridership data
 - Process and store speed restrictions
+- Store daily reliability for The RIDE and commuter rail from the MBTA open data portal (weekly; backfill with `uv run python -m chalicelib.reliability.the_ride` / `commuter_rail` from `ingestor/`)
 - Store hourly Boston weather data (temperature + condition) for chart overlays
 
 To add a new lambda function, put the methods you need in a new file in chalicelib/.

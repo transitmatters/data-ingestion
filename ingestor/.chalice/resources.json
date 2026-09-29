@@ -329,6 +329,50 @@
         }
       }
     },
+    "UpdateTheRideReliability": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "Description": "Ingests and saves The RIDE daily reliability from the MBTA open data portal",
+        "Environment": {
+          "Variables": {
+            "DD_API_KEY": {
+              "Ref": "DDApiKey"
+            },
+            "DD_VERSION": {
+              "Ref": "GitVersion"
+            },
+            "DD_TAGS": {
+              "Ref": "DDTags"
+            },
+            "DD_GIT_REPOSITORY_URL": {
+              "Ref": "DDGitRepositoryUrl"
+            }
+          }
+        }
+      }
+    },
+    "UpdateCommuterRailReliability": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "Description": "Ingests and saves commuter rail daily reliability from the MBTA open data portal",
+        "Environment": {
+          "Variables": {
+            "DD_API_KEY": {
+              "Ref": "DDApiKey"
+            },
+            "DD_VERSION": {
+              "Ref": "GitVersion"
+            },
+            "DD_TAGS": {
+              "Ref": "DDTags"
+            },
+            "DD_GIT_REPOSITORY_URL": {
+              "Ref": "DDGitRepositoryUrl"
+            }
+          }
+        }
+      }
+    },
     "UpdateTimePredictions": {
       "Type": "AWS::Serverless::Function",
       "Properties": {
@@ -643,6 +687,72 @@
         "KeySchema": [
           {
             "AttributeName": "lineId",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "date",
+            "KeyType": "RANGE"
+          }
+        ],
+        "BillingMode": "PAY_PER_REQUEST",
+        "Tags": [
+          {
+            "Key": "service",
+            "Value": "t-performance-dash"
+          }
+        ]
+      }
+    },
+    "TheRideReliability": {
+      "Type": "AWS::DynamoDB::Table",
+      "Properties": {
+        "TableName": "TheRideReliability",
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "lineId",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "date",
+            "AttributeType": "S"
+          }
+        ],
+        "KeySchema": [
+          {
+            "AttributeName": "lineId",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "date",
+            "KeyType": "RANGE"
+          }
+        ],
+        "BillingMode": "PAY_PER_REQUEST",
+        "Tags": [
+          {
+            "Key": "service",
+            "Value": "t-performance-dash"
+          }
+        ]
+      }
+    },
+    "CommuterRailReliability": {
+      "Type": "AWS::DynamoDB::Table",
+      "Properties": {
+        "TableName": "CommuterRailReliability",
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "routeId",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "date",
+            "AttributeType": "S"
+          }
+        ],
+        "KeySchema": [
+          {
+            "AttributeName": "routeId",
             "KeyType": "HASH"
           },
           {
