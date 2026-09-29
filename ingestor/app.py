@@ -13,6 +13,7 @@ from chalicelib import (
     gtfs,
     landing,
     predictions,
+    reliability,
     ridership,
     service_ridership_dashboard,
     speed_restrictions,
@@ -111,6 +112,12 @@ def update_ridership(event):
 @app.schedule(Cron(20, 7, "?", "*", "MON-FRI", "*"))
 def update_speed_restrictions(event):
     speed_restrictions.update_speed_restrictions(max_lookback_months=2)
+
+
+# 7:50am UTC -> 2:50/3:50am ET every Monday (source data is published monthly)
+@app.schedule(Cron(50, 7, "?", "*", "MON", "*"))
+def update_reliability(event):
+    reliability.update_reliability()
 
 
 # 7:30am UTC -> 2:30/3:30am ET every day
