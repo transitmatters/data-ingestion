@@ -13,10 +13,7 @@
     {
       "Effect": "Allow",
       "Action": ["dynamodb:BatchWriteItem"],
-      "Resource": [
-        "arn:aws:dynamodb:us-east-1:473352343756:table/TheRideReliability",
-        "arn:aws:dynamodb:us-east-1:473352343756:table/CommuterRailReliability"
-      ]
+      "Resource": ["arn:aws:dynamodb:us-east-1:473352343756:table/Reliability"]
     }
   ]
 }

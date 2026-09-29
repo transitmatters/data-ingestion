@@ -9,9 +9,9 @@ import requests
 
 from ..dynamo import dynamo_batch_write
 from ..ridership.config import THE_RIDE_RIDERSHIP_ARCGIS_URL, THE_RIDE_UPDATE_CACHE_URL
+from .constants import DYNAMO_TABLE_NAME
 
-DYNAMO_TABLE_NAME = "TheRideReliability"
-LINE_ID = "line-RIDE"
+ROUTE_ID = "RIDE"
 
 # Deprecated dataset covering 2014-07-01 through 2025-07-31; only used for backfills.
 THE_RIDE_LEGACY_RELIABILITY_ARCGIS_URL = "https://opendata.arcgis.com/api/v3/datasets/cb4f4fb3cdf443e7a9d66c87ab1f5e17_0/downloads/data?format=csv&spatialRefId=4326&where=1%3D1"
@@ -35,7 +35,8 @@ class TheRideReliabilityEntry:
 
     def to_item(self) -> Dict:
         item = {
-            "lineId": LINE_ID,
+            "routeId": ROUTE_ID,
+            "mode": "the-ride",
             "date": self.date.isoformat(),
             "timestamp": int(datetime.combine(self.date, datetime.min.time()).timestamp()),
             "completed": self.completed,

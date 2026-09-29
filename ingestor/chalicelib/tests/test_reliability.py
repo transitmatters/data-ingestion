@@ -31,7 +31,8 @@ def test_ride_parses_current_dataset():
     rows = list(read_csv_rows(RIDE_CSV))
     entry = parse_current_row(rows[1])
     assert entry.to_item() == {
-        "lineId": "line-RIDE",
+        "routeId": "RIDE",
+        "mode": "the-ride",
         "date": "2026-08-31",
         "timestamp": entry.to_item()["timestamp"],
         "completed": 3701,

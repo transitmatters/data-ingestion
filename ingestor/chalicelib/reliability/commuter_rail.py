@@ -6,8 +6,7 @@ from typing import Dict, Iterable, List, Optional, Tuple
 import requests
 
 from ..dynamo import dynamo_batch_write
-
-DYNAMO_TABLE_NAME = "CommuterRailReliability"
+from .constants import DYNAMO_TABLE_NAME
 
 CR_RELIABILITY_ARCGIS_URL = "https://www.arcgis.com/sharing/rest/content/items/ec18161c237d419698abc767f1be6a50/data"
 
@@ -64,6 +63,7 @@ def to_items(by_key: Dict[EntryKey, Dict]) -> List[Dict]:
         items.append(
             {
                 "routeId": route_id,
+                "mode": "commuter-rail",
                 "date": service_date.isoformat(),
                 "timestamp": int(datetime.combine(service_date, datetime.min.time()).timestamp()),
                 **totals,

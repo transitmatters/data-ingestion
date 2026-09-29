@@ -681,43 +681,10 @@
         ]
       }
     },
-    "TheRideReliability": {
+    "Reliability": {
       "Type": "AWS::DynamoDB::Table",
       "Properties": {
-        "TableName": "TheRideReliability",
-        "AttributeDefinitions": [
-          {
-            "AttributeName": "lineId",
-            "AttributeType": "S"
-          },
-          {
-            "AttributeName": "date",
-            "AttributeType": "S"
-          }
-        ],
-        "KeySchema": [
-          {
-            "AttributeName": "lineId",
-            "KeyType": "HASH"
-          },
-          {
-            "AttributeName": "date",
-            "KeyType": "RANGE"
-          }
-        ],
-        "BillingMode": "PAY_PER_REQUEST",
-        "Tags": [
-          {
-            "Key": "service",
-            "Value": "t-performance-dash"
-          }
-        ]
-      }
-    },
-    "CommuterRailReliability": {
-      "Type": "AWS::DynamoDB::Table",
-      "Properties": {
-        "TableName": "CommuterRailReliability",
+        "TableName": "Reliability",
         "AttributeDefinitions": [
           {
             "AttributeName": "routeId",
