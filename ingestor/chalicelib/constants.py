@@ -265,8 +265,8 @@ TERMINI_NEW = {
         },
         "including_terminals": {
             "stops": [
-                [STATIONS["ASHMONT"]["NB"], STATIONS["MATTAPAN"]["NB"]],
-                [STATIONS["MATTAPAN"]["SB"], STATIONS["ASHMONT"]["SB"]],
+                [STATIONS["MATTAPAN"]["NB"], STATIONS["ASHMONT_MATTAPAN"]["NB"]],
+                [STATIONS["ASHMONT_MATTAPAN"]["SB"], STATIONS["MATTAPAN"]["SB"]],
             ],
         },
     },
