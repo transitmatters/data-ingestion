@@ -149,6 +149,11 @@
           "lambda_timeout": 300,
           "lambda_memory_size": 256
         },
+        "update_cr_fleet_metrics": {
+          "iam_policy_file": "policy-cr-fleet.json",
+          "lambda_timeout": 120,
+          "lambda_memory_size": 192
+        },
         "update_reliability": {
           "iam_policy_file": "policy-reliability.json",
           "lambda_timeout": 300,

@@ -1,6 +1,3 @@
-import csv
-import gzip
-import io
 import json
 import os
 from concurrent.futures import ThreadPoolExecutor
@@ -9,16 +6,15 @@ from decimal import Decimal
 from pathlib import Path
 
 import boto3
-from botocore.exceptions import ClientError
 
 from . import constants
-from .car_ages import _parse_car_id, average_age, mix_percentages
+from .car_ages import average_age, mix_percentages
+from .fleet_events import merge_rows, vehicle_ids_at_stop
 
 # Fleet fields are merged into the bus service rows written by mbta-performance's bus LAMP job,
 # keyed by GTFS route id. The system-wide row uses a reserved key that isn't a route.
 TABLE_NAME = "DeliveredTripMetricsBus"
 SYSTEM_WIDE_KEY = "all"
-EVENTS_BUCKET = "tm-mbta-performance"
 
 # Where to read bus numbers, best source first. The MBTA's monthly bus archives have no vehicle
 # column, so they can't be used here.
@@ -27,7 +23,6 @@ EVENT_KEY_TEMPLATES = [
     "Events-live/daily-bus-data/{stop}/Year={year}/Month={month}/Day={day}/events.csv.gz",
 ]
 
-s3 = boto3.client("s3")
 delivered_trip_metrics = boto3.resource("dynamodb").Table(TABLE_NAME)
 
 # Bus number range -> (build year, propulsion), from the NETransit MBTA roster (09/23/26).
@@ -92,34 +87,12 @@ def compute_bus_metrics(trip_bus_ids: list[int], current_date: date) -> dict[str
     return metrics
 
 
-def _read_events(key: str) -> list[dict] | None:
-    try:
-        body = s3.get_object(Bucket=EVENTS_BUCKET, Key=key)["Body"].read()
-    except ClientError as e:
-        if e.response["Error"]["Code"] == "NoSuchKey":
-            return None
-        raise
-    if key.endswith(".gz"):
-        body = gzip.decompress(body)
-    return list(csv.DictReader(io.StringIO(body.decode("utf-8"))))
-
-
-def _bus_ids_at_stop(stop_id: str, current_date: date) -> list[int]:
-    """One bus number per trip at a stop, from the first source that has them for that day."""
-    for template in EVENT_KEY_TEMPLATES:
-        key = template.format(stop=stop_id, year=current_date.year, month=current_date.month, day=current_date.day)
-        bus_by_trip: dict[str, int] = {}
-        for row in _read_events(key) or []:
-            bus_id = _parse_car_id(row.get("vehicle_label") or "")
-            if bus_id is not None:
-                bus_by_trip.setdefault(row["trip_id"], bus_id)
-        if bus_by_trip:
-            return list(bus_by_trip.values())
-    return []
-
-
 def _bus_ids_for_route(route: str, current_date: date) -> list[int]:
-    return [bus_id for stop_id in BUS_FLEET_STOPS[route] for bus_id in _bus_ids_at_stop(stop_id, current_date)]
+    return [
+        bus_id
+        for stop_id in BUS_FLEET_STOPS[route]
+        for bus_id in vehicle_ids_at_stop(stop_id, current_date, EVENT_KEY_TEMPLATES)
+    ]
 
 
 def get_bus_fleet_metrics(current_date: date) -> list[dict]:
@@ -140,15 +113,8 @@ def get_bus_fleet_metrics(current_date: date) -> list[dict]:
 def update_bus_fleet_table(current_date: date):
     rows = get_bus_fleet_metrics(current_date)
     print(f"Writing {len(rows)} bus fleet rows for {current_date}")
-    for row in rows:
-        # Merge rather than replace, so the service stats already in the row are kept
-        fields = {k: v for k, v in row.items() if k not in ("route", "date")}
-        delivered_trip_metrics.update_item(
-            Key={"route": row["route"], "date": row["date"]},
-            UpdateExpression="SET " + ", ".join(f"#a{i} = :v{i}" for i in range(len(fields))),
-            ExpressionAttributeNames={f"#a{i}": k for i, k in enumerate(fields)},
-            ExpressionAttributeValues={f":v{i}": v for i, v in enumerate(fields.values())},
-        )
+    # Merge rather than replace, so the service stats already in the rows are kept
+    merge_rows(delivered_trip_metrics, rows)
 
 
 if __name__ == "__main__":
