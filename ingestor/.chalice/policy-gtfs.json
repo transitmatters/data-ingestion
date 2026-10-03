@@ -25,7 +25,8 @@
             ],
             "Resource": [
                 "arn:aws:dynamodb:us-east-1:473352343756:table/TripCounts",
-                "arn:aws:dynamodb:us-east-1:473352343756:table/ScheduledServiceDaily"
+                "arn:aws:dynamodb:us-east-1:473352343756:table/ScheduledServiceDaily",
+                "arn:aws:dynamodb:us-east-1:473352343756:table/ScheduledServiceRegionalRail"
             ]
         },
         {
