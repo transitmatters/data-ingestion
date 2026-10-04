@@ -648,6 +648,39 @@
         ]
       }
     },
+    "ScheduledServiceRegionalRail": {
+      "Type": "AWS::DynamoDB::Table",
+      "Properties": {
+        "TableName": "ScheduledServiceRegionalRail",
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "routeId",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "date",
+            "AttributeType": "S"
+          }
+        ],
+        "KeySchema": [
+          {
+            "AttributeName": "routeId",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "date",
+            "KeyType": "RANGE"
+          }
+        ],
+        "BillingMode": "PAY_PER_REQUEST",
+        "Tags": [
+          {
+            "Key": "service",
+            "Value": "t-performance-dash"
+          }
+        ]
+      }
+    },
     "Ridership": {
       "Type": "AWS::DynamoDB::Table",
       "Properties": {
