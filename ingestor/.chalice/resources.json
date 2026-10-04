@@ -329,6 +329,28 @@
         }
       }
     },
+    "UpdateReliability": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "Description": "Ingests and saves The RIDE and commuter rail daily reliability from the MBTA open data portal",
+        "Environment": {
+          "Variables": {
+            "DD_API_KEY": {
+              "Ref": "DDApiKey"
+            },
+            "DD_VERSION": {
+              "Ref": "GitVersion"
+            },
+            "DD_TAGS": {
+              "Ref": "DDTags"
+            },
+            "DD_GIT_REPOSITORY_URL": {
+              "Ref": "DDGitRepositoryUrl"
+            }
+          }
+        }
+      }
+    },
     "UpdateTimePredictions": {
       "Type": "AWS::Serverless::Function",
       "Properties": {
@@ -355,6 +377,28 @@
       "Type": "AWS::Serverless::Function",
       "Properties": {
         "Description": "Caches landing page data to improve homepage loading times",
+        "Environment": {
+          "Variables": {
+            "DD_API_KEY": {
+              "Ref": "DDApiKey"
+            },
+            "DD_VERSION": {
+              "Ref": "GitVersion"
+            },
+            "DD_TAGS": {
+              "Ref": "DDTags"
+            },
+            "DD_GIT_REPOSITORY_URL": {
+              "Ref": "DDGitRepositoryUrl"
+            }
+          }
+        }
+      }
+    },
+    "StoreHistoricalBaselines": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "Description": "Publishes historical-best baselines (3+ years back) for dashboard comparisons",
         "Environment": {
           "Variables": {
             "DD_API_KEY": {
@@ -604,6 +648,39 @@
         ]
       }
     },
+    "ScheduledServiceRegionalRail": {
+      "Type": "AWS::DynamoDB::Table",
+      "Properties": {
+        "TableName": "ScheduledServiceRegionalRail",
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "routeId",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "date",
+            "AttributeType": "S"
+          }
+        ],
+        "KeySchema": [
+          {
+            "AttributeName": "routeId",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "date",
+            "KeyType": "RANGE"
+          }
+        ],
+        "BillingMode": "PAY_PER_REQUEST",
+        "Tags": [
+          {
+            "Key": "service",
+            "Value": "t-performance-dash"
+          }
+        ]
+      }
+    },
     "Ridership": {
       "Type": "AWS::DynamoDB::Table",
       "Properties": {
@@ -621,6 +698,39 @@
         "KeySchema": [
           {
             "AttributeName": "lineId",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "date",
+            "KeyType": "RANGE"
+          }
+        ],
+        "BillingMode": "PAY_PER_REQUEST",
+        "Tags": [
+          {
+            "Key": "service",
+            "Value": "t-performance-dash"
+          }
+        ]
+      }
+    },
+    "Reliability": {
+      "Type": "AWS::DynamoDB::Table",
+      "Properties": {
+        "TableName": "Reliability",
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "routeId",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "date",
+            "AttributeType": "S"
+          }
+        ],
+        "KeySchema": [
+          {
+            "AttributeName": "routeId",
             "KeyType": "HASH"
           },
           {
@@ -795,6 +905,39 @@
         "EphemeralStorage": {
           "Size": 4096
         }
+      }
+    },
+    "DeliveredTripMetricsCR": {
+      "Type": "AWS::DynamoDB::Table",
+      "Properties": {
+        "TableName": "DeliveredTripMetricsCR",
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "route",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "date",
+            "AttributeType": "S"
+          }
+        ],
+        "KeySchema": [
+          {
+            "AttributeName": "route",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "date",
+            "KeyType": "RANGE"
+          }
+        ],
+        "BillingMode": "PAY_PER_REQUEST",
+        "Tags": [
+          {
+            "Key": "service",
+            "Value": "t-performance-dash"
+          }
+        ]
       }
     }
   }

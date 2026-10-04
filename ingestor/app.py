@@ -6,18 +6,22 @@ from chalicelib import (
     agg_speed_tables,
     alerts,
     bluebikes,
+    bus_fleet,
     constants,
+    cr_fleet,
     daily_speeds,
     delays,
     gtfs,
     landing,
     predictions,
+    reliability,
     ridership,
     service_ridership_dashboard,
     speed_restrictions,
     trip_metrics,
     weather,
 )
+from chalicelib.baselines.build import store_historical_baselines as build_and_publish_baselines
 from datadog_lambda.wrapper import datadog_lambda_wrapper
 
 app = Chalice(app_name="ingestor")
@@ -92,6 +96,20 @@ def update_delivered_trip_metrics_yesterday(event):
     daily_speeds.update_daily_table(two_days_ago)
 
 
+# 12:30 UTC -> 7:30/8:30am ET, after the MBTA's next-day data cleanup
+@app.schedule(Cron(30, 12, "*", "*", "?", "*"))
+def update_bus_fleet_metrics(event):
+    yesterday = (datetime.now() - timedelta(days=1)).date()
+    bus_fleet.update_bus_fleet_table(yesterday)
+
+
+# 12:35 UTC -> 7:35/8:35am ET
+@app.schedule(Cron(35, 12, "*", "*", "?", "*"))
+def update_cr_fleet_metrics(event):
+    yesterday = (datetime.now() - timedelta(days=1)).date()
+    cr_fleet.update_cr_fleet_table(yesterday)
+
+
 # 7:10am UTC -> 2:10/3:10am ET every day
 @app.schedule(Cron(10, 7, "*", "*", "?", "*"))
 def update_ridership(event):
@@ -107,6 +125,12 @@ def update_ridership(event):
 # @app.schedule(Cron(20, 7, "?", "*", "MON-FRI", "*"))
 def update_speed_restrictions(event):
     speed_restrictions.update_speed_restrictions(max_lookback_months=2)
+
+
+# 7:50am UTC -> 2:50/3:50am ET every Monday (source data is published monthly)
+@app.schedule(Cron(50, 7, "?", "*", "MON", "*"))
+def update_reliability(event):
+    reliability.update_reliability()
 
 
 # 7:30am UTC -> 2:30/3:30am ET every day
@@ -199,6 +223,14 @@ def store_landing_data(event):
     ridership_data = landing.get_ridership_data()
     landing.upload_to_s3(json.dumps(trip_metrics_data), json.dumps(ridership_data))
     landing.clear_cache()
+
+
+# 8:15 UTC -> 3:15/4:15am ET every Monday, after the weekly trip metric tables and ridership update.
+# Publishes static/landing/baselines.json: the "historical best" per line and metric, looking back
+# 3+ years. It only moves when a week crosses the 3-year line, so weekly is plenty.
+@app.schedule(Cron(15, 8, "?", "*", "MON", "*"))
+def store_historical_baselines(event):
+    build_and_publish_baselines()
 
 
 # 9:00 UTC -> 4:30/5:30am ET every day (after GTFS and ridership have been ingested)

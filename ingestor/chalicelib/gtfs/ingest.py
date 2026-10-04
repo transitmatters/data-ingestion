@@ -22,6 +22,7 @@ from .utils import (
     get_total_service_minutes,
 )
 from .models import SessionModels, RouteDateTotals
+from .regional_rail import REGIONAL_RAIL_TABLE_NAME, create_regional_rail_items
 
 
 def load_session_models(session: Session) -> SessionModels:
@@ -122,7 +123,7 @@ def ingest_feed_to_dynamo(
     start_date: date,
     end_date: date,
 ) -> None:
-    """Compute and write scheduled service totals to DynamoDB for a date range.
+    """Compute and write scheduled service totals and Regional Rail metrics to DynamoDB for a date range.
 
     Args:
         dynamodb: A boto3 DynamoDB resource.
@@ -131,6 +132,7 @@ def ingest_feed_to_dynamo(
         end_date: The last date to ingest (inclusive).
     """
     ScheduledServiceDaily = dynamodb.Table("ScheduledServiceDaily")
+    ScheduledServiceRegionalRail = dynamodb.Table(REGIONAL_RAIL_TABLE_NAME)
     models = load_session_models(session)
     for today in date_range(start_date, end_date):
         totals = create_route_date_totals(today, models)
@@ -146,6 +148,9 @@ def ingest_feed_to_dynamo(
                     "hasServiceExceptions": total.has_service_exceptions,
                     "byHour": {"totals": total.by_hour},
                 }
+                batch.put_item(Item=item)
+        with ScheduledServiceRegionalRail.batch_writer() as batch:
+            for item in create_regional_rail_items(today, models):
                 batch.put_item(Item=item)
 
 

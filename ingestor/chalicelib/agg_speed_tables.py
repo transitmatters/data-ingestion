@@ -13,12 +13,18 @@ from chalice import BadRequestError
 from dynamodb_json import json_util as ddb_json
 
 from . import constants, dynamo
+from .car_ages import FLEET_MIX_PREFIX
 
 dynamodb = boto3.resource("dynamodb")
 
 # Fleet age columns (see car_ages.py) are only present once new-train tracking is live for a
 # line, so they're added to the aggregation dict conditionally rather than unconditionally.
 FLEET_AGE_MEAN_COLS = ["avg_car_age", "pct_new_trips"]
+
+
+def fleet_cols(columns) -> list[str]:
+    """Fleet metric columns present, including any fleet_mix_<type>."""
+    return [col for col in columns if col in FLEET_AGE_MEAN_COLS or str(col).startswith(FLEET_MIX_PREFIX)]
 
 
 @dataclass
@@ -126,29 +132,53 @@ def aggregate_actual_trips(actual_trips, agg: Range, start_date: str):
     return return_data.to_dict(orient="records")
 
 
+def fill_na_except_fleet_age(df: pd.DataFrame):
+    """Zero-fill missing values, but leave fleet age columns as NaN.
+
+    Zero is a real value for trip counts and mileage, but not for an average car age --
+    filling it there invents a datapoint for periods the source data can't speak to
+    (vehicle labels only start appearing in the source around Dec 2018).
+    """
+    skip = set(fleet_cols(df.columns))
+    return df.fillna({col: 0 for col in df.columns if col not in skip})
+
+
+def to_records_dropping_empty_fleet_age(df: pd.DataFrame):
+    """Serialize rows, omitting fleet age fields that have no underlying data.
+
+    DynamoDB can't store NaN, and omitting the attribute keeps "no fleet data for this
+    period" distinct from a genuine measurement.
+    """
+    cols = fleet_cols(df.columns)
+    records = df.to_dict(orient="records")
+    for record in records:
+        for col in cols:
+            if pd.isna(record[col]):
+                del record[col]
+    return records
+
+
 def group_monthly_data(df: pd.DataFrame, start_date: str):
     agg_dict = {"miles_covered": np.sum, "count": np.nanmedian, "total_time": np.sum, "line": "min"}
-    for col in FLEET_AGE_MEAN_COLS:
-        if col in df.columns:
-            agg_dict[col] = np.nanmean
+    for col in fleet_cols(df.columns):
+        agg_dict[col] = np.nanmean
     df_monthly = df.resample("M").agg(agg_dict)
-    df_monthly = df_monthly.fillna(0)
+    df_monthly = fill_na_except_fleet_age(df_monthly)
     df_monthly.index = [datetime(x.year, x.month, 1) for x in df_monthly.index.tolist()]
     # Drop the first month if it is incomplete
     if datetime.fromisoformat(start_date).day != 1:
         df_monthly = df_monthly.tail(-1)
     df_monthly["date"] = df_monthly.index.strftime("%Y-%m-%d")
-    return df_monthly.to_dict(orient="records")
+    return to_records_dropping_empty_fleet_age(df_monthly)
 
 
 def group_weekly_data(df: pd.DataFrame, start_date: str):
     # Group from Monday - Sunday
     agg_dict = {"miles_covered": np.sum, "count": np.nanmedian, "total_time": np.sum, "line": "min"}
-    for col in FLEET_AGE_MEAN_COLS:
-        if col in df.columns:
-            agg_dict[col] = np.nanmean
+    for col in fleet_cols(df.columns):
+        agg_dict[col] = np.nanmean
     df_weekly = df.resample("W-SUN").agg(agg_dict)
-    df_weekly = df_weekly.fillna(0)
+    df_weekly = fill_na_except_fleet_age(df_weekly)
     # Pandas resample uses the end date of the range as the index. So we subtract 6 days to convert to first date of the range.
     df_weekly.index = df_weekly.index - pd.Timedelta(days=6)
     # Drop the first week if it is incomplete
@@ -156,7 +186,7 @@ def group_weekly_data(df: pd.DataFrame, start_date: str):
         df_weekly = df_weekly.tail(-1)
     # Convert date back to string.
     df_weekly["date"] = df_weekly.index.strftime("%Y-%m-%d")
-    return df_weekly.to_dict(orient="records")
+    return to_records_dropping_empty_fleet_age(df_weekly)
 
 
 def group_data_by_date_and_branch(df: pd.DataFrame):
@@ -173,9 +203,8 @@ def group_data_by_date_and_branch(df: pd.DataFrame):
         "count": lambda x: np.nan if all(np.isnan(i) for i in x) else np.nansum(x),
         "line": "first",
     }
-    for col in FLEET_AGE_MEAN_COLS:
-        if col in df.columns:
-            agg_dict[col] = "first"
+    for col in fleet_cols(df.columns):
+        agg_dict[col] = "first"
     df_grouped = df.groupby("date").agg(agg_dict).reset_index()
     # use datetime for index rather than string.
     df_grouped.set_index(pd.to_datetime(df_grouped["date"]), inplace=True)

@@ -69,8 +69,10 @@ def get_ridership_by_line_id(
     # Subway route_ids from format_subway_data use unofficial_labels_map to rewrite names
     # (e.g. "Red Line" -> "Red", "SL1" -> "741") and include Mattapan.
     # CR route_ids are prefixed with "CR-".
+    # "Silver Line" comes from the gated station data; the bus file already covers SL
+    # routes (741, 742, ...) so counting it again would double-count them in "line-bus".
     for route_id in ridership_by_route_id:
-        if route_id in ("Red", "Orange", "Blue", "Green", "Mattapan") or route_id.startswith("CR-"):
+        if route_id in ("Red", "Orange", "Blue", "Green", "Mattapan", "Silver Line") or route_id.startswith("CR-"):
             consumed_route_ids.add(route_id)
 
     # Aggregate all remaining unconsumed routes into "line-bus"
