@@ -19,7 +19,7 @@ AWS_ACCESS_KEY_ID=xxx
 AWS_SECRET_ACCESS_KEY=xxx
 BACKFILL_START_DATE=2018-01-01 # Or whatever
 BACKFILL_END_DATE=2020-01-01 # Or whatever
-LOCAL_ARCHIVE_PATH=/path/to/gtfs/archive # Defaults to ./feeds
+LOCAL_ARCHIVE_PATH=/path/to/gtfs/archive # Defaults to $GTFS_DATA_DIR/sqlite_feeds if GTFS_DATA_DIR is set, else ./feeds
 ```
 
 ## 3. Run the migration
