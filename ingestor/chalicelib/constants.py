@@ -211,8 +211,9 @@ TERMINI_NEW = {
             },
             "including_terminals": {
                 "stops": [
-                    [STATIONS["CLEVELAND_CIRCLE"]["NB"], STATIONS["NORTH_STATION_GREEN"]["NB"]],
-                    [STATIONS["NORTH_STATION_GREEN"]["SB"], STATIONS["CLEVELAND_CIRCLE"]["SB"]],
+                    # Inbound trips arrive on 70205 and outbound trips depart from 70206
+                    [STATIONS["CLEVELAND_CIRCLE"]["NB"], STATIONS["NORTH_STATION_GREEN"]["SB"]],
+                    [STATIONS["NORTH_STATION_GREEN"]["NB"], STATIONS["CLEVELAND_CIRCLE"]["SB"]],
                 ]
             },
         },
