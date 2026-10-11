@@ -120,10 +120,11 @@ def update_ridership(event):
 # chalicelib/speed_restrictions.py) now 400s -- "Item does not exist or is
 # inaccessible." mbta.com/performance-metrics/speed-restrictions no longer
 # exists either. Data in DynamoDB is stale past 2026-05-31. Paused pending a
-# reply from the T on whether this moved; re-add the @app.schedule below to
-# resume.
-# @app.schedule(Cron(20, 7, "?", "*", "MON-FRI", "*"))
-def update_speed_restrictions(event):
+# reply from the T on whether this moved. It stays deployed as a manual lambda
+# (resources.json still configures it); swap back to
+# @app.schedule(Cron(20, 7, "?", "*", "MON-FRI", "*")) to resume.
+@app.lambda_function()
+def update_speed_restrictions(event, context):
     speed_restrictions.update_speed_restrictions(max_lookback_months=2)
 
 
