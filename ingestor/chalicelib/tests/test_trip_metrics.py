@@ -1,7 +1,7 @@
 from datetime import date
 
 from .. import constants
-from ..trip_metrics.ingest import generate_requests
+from ..trip_metrics.ingest import generate_requests, is_plausible
 
 POST_GLX = date(2026, 9, 1)
 PRE_GLX = date(2023, 1, 9)
@@ -59,3 +59,16 @@ def test_mattapan_inclusive_matches_exclusive_direction():
     # Direction 0 runs Mattapan -> Ashmont in both
     assert inclusive == [[70276, 70261], [70261, 70275]]
     assert exclusive == [[70274, 70264], [70263, 70273]]
+
+
+def test_green_pre_glx_c_inclusive_stops():
+    assert constants.get_route_metadata("line-green", PRE_GLX, True, "c")["stops"] == [
+        [(70237, 70238), 70205],
+        [70206, (70237, 70238)],
+    ]
+
+
+def test_is_plausible():
+    exclusive = {"dir_0_exclusive_mean": 2900.0}
+    assert is_plausible(exclusive, {"dir_0_inclusive_mean": 3100.0}, "0")
+    assert not is_plausible(exclusive, {"dir_0_inclusive_mean": 160.0}, "0")

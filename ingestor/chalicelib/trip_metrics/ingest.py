@@ -137,6 +137,12 @@ def get_df_entry_for_direction_and_exclusivity(df: pd.DataFrame, direction: Dire
     return {f"{prefix}_{key}": value for key, value in entry.iloc[0].to_dict().items() if key in KEYS_TO_KEEP}
 
 
+def is_plausible(exclusive: dict, inclusive: dict, direction: DirectionType):
+    # Terminal-to-terminal trips cover the one-stop-in span, so a shorter mean means the source paired the wrong
+    # events (e.g. ~160s "trips" from Heath St to Medford/Tufts in Sep-Oct 2025)
+    return inclusive[f"dir_{direction}_inclusive_mean"] >= exclusive[f"dir_{direction}_exclusive_mean"]
+
+
 def prepare_dict_for_dynamo(row_dict):
     res = {}
     for key, value in row_dict.items():
@@ -163,7 +169,14 @@ def ingest_trip_metrics(start_date: date, end_date: date, routes: List[Tuple[str
             nb_exclusive = get_df_entry_for_direction_and_exclusivity(date_data, "1", False)
             sb_inclusive = get_df_entry_for_direction_and_exclusivity(date_data, "0", True)
             nb_inclusive = get_df_entry_for_direction_and_exclusivity(date_data, "1", True)
-            if sb_exclusive and nb_exclusive and sb_inclusive and nb_inclusive:
+            if (
+                sb_exclusive
+                and nb_exclusive
+                and sb_inclusive
+                and nb_inclusive
+                and is_plausible(sb_exclusive, sb_inclusive, "0")
+                and is_plausible(nb_exclusive, nb_inclusive, "1")
+            ):
                 row_dict = prepare_dict_for_dynamo(
                     {
                         "date": date_str,
