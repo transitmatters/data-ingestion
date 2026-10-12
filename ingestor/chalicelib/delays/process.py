@@ -218,6 +218,10 @@ def update_weekly_from_daily(start_date: date, end_date: date, lines=constants.A
     Avoids another api call.
     """
 
+    # Snap to Monday so the first week isn't partial. Otherwise a Sunday start overwrites
+    # that whole week with just Sunday's delays.
+    start_date = start_date - timedelta(days=start_date.weekday())
+
     # Get daily data from DynamoDB instead of API
     daily_records = get_daily_data_for_week(start_date, end_date, lines)
 
