@@ -160,6 +160,7 @@ def ingest_feeds(
     start_date: date,
     end_date: date,
     force_rebuild_feeds: bool = False,
+    keep_local_feeds: bool = False,
 ) -> None:
     """Process a list of GTFS feeds by building/downloading them and ingesting to DynamoDB.
 
@@ -173,13 +174,11 @@ def ingest_feeds(
         end_date: The last date to ingest (inclusive).
         force_rebuild_feeds: If True, forces all feeds to be rebuilt locally
             and re-uploaded to S3. Defaults to False.
+        keep_local_feeds: If True, leaves downloaded and built feeds on disk
+            for later runs instead of deleting them. Defaults to False.
     """
     failures: List[Tuple[str, Exception]] = []
     for feed in feeds:
-        # Only clean up feeds this invocation brought down. A caller passing an
-        # explicit local_archive_path (the backfill script) is deliberately
-        # caching feeds between runs -- see d46a606 -- so leave those in place.
-        cached_before = feed.exists_locally()
         try:
             if force_rebuild_feeds:
                 print(f"[{feed.key}] Forcing rebuild locally")
@@ -196,8 +195,6 @@ def ingest_feeds(
                     feed.build_locally()
                     print(f"[{feed.key}] Uploading to S3")
                     feed.upload_to_s3()
-                elif feed.exists_locally():
-                    print(f"[{feed.key}] Exists locally")
                 else:
                     # Only the compact DB is read below, via
                     # create_sqlite_session(compact=True). Pulling the ~423MB
@@ -210,9 +207,15 @@ def ingest_feeds(
                     # suppresses uploads and makes build_local_feed_entry delete
                     # the full DB, which is what caused the original outage. This
                     # path neither builds nor uploads.
+                    #
+                    # Check the local cache only after narrowing, so a cached
+                    # compact DB counts even without the full one beside it.
                     feed.use_compact_only()
-                    print(f"[{feed.key}] Downloading compact DB from S3")
-                    feed.download_from_s3()
+                    if feed.exists_locally():
+                        print(f"[{feed.key}] Exists locally")
+                    else:
+                        print(f"[{feed.key}] Downloading compact DB from S3")
+                        feed.download_from_s3()
             # A forward-looking window selects feeds that have not started yet.
             # Those still want building and uploading -- that is the point -- but
             # they have no elapsed service dates to summarize, and date_range()
@@ -234,7 +237,9 @@ def ingest_feeds(
         finally:
             # A full feed is ~450MB and /tmp is capped; without this a
             # multi-feed invocation accumulates until it runs out of space.
-            if not cached_before:
+            # Callers keeping feeds (the backfill script) cache them between
+            # runs, since s3://tm-gtfs reads are billed once feeds reach Glacier.
+            if not keep_local_feeds:
                 try:
                     if feed.exists_locally():
                         feed.delete_locally()
@@ -262,8 +267,9 @@ def ingest_gtfs_feeds_to_dynamo_and_s3(
         date_range: A tuple of (start_date, end_date) to select feeds covering
             that range. Defaults to None.
         feed_key: A specific feed key to ingest. Defaults to None.
-        local_archive_path: Path to store local feed files. If None, a temporary
-            directory is used. Defaults to None.
+        local_archive_path: Path to store local feed files, kept between runs.
+            If None, a temporary directory is used and feeds are deleted after
+            use. Defaults to None.
         boto3_session: An optional boto3 Session to use for AWS operations. If
             None, a new session is created. Defaults to None.
         force_rebuild_feeds: If True, forces all feeds to be rebuilt locally.
@@ -274,6 +280,8 @@ def ingest_gtfs_feeds_to_dynamo_and_s3(
     """
     if not boto3_session:
         boto3_session = boto3.Session()
+    # An explicit path is a cache to keep; the default temporary one is not
+    keep_local_feeds = local_archive_path is not None
     if not local_archive_path:
         local_archive_path = TemporaryDirectory().name
     archive = MbtaGtfsArchive(
@@ -296,6 +304,7 @@ def ingest_gtfs_feeds_to_dynamo_and_s3(
         start_date=start_date,
         end_date=end_date,
         force_rebuild_feeds=force_rebuild_feeds,
+        keep_local_feeds=keep_local_feeds,
     )
 
 

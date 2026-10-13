@@ -114,3 +114,41 @@ def test_missing_feed_builds_the_full_bundle(mock_dynamo):
     feed.use_compact_only.assert_not_called()
     feed.build_locally.assert_called_once()
     feed.upload_to_s3.assert_called_once()
+
+
+@mock.patch("chalicelib.gtfs.ingest.ingest_feed_to_dynamo")
+def test_cached_compact_feed_is_not_downloaded_again(mock_dynamo):
+    """A cache holding only the compact DB must count, or every backfill re-reads s3://tm-gtfs."""
+    today = date.today()
+    feed = _feed("cached", today - timedelta(days=10), today + timedelta(days=90))
+    # Only the compact DB is on disk: the feed exists locally once narrowed to it
+    feed.exists_locally.side_effect = lambda: feed.use_compact_only.called
+
+    ingest_feeds(
+        dynamodb=mock.MagicMock(),
+        feeds=[feed],
+        start_date=today - timedelta(days=3),
+        end_date=today,
+        keep_local_feeds=True,
+    )
+
+    feed.download_from_s3.assert_not_called()
+    mock_dynamo.assert_called_once()
+
+
+@pytest.mark.parametrize("keep_local_feeds, deleted", [(False, True), (True, False)])
+@mock.patch("chalicelib.gtfs.ingest.ingest_feed_to_dynamo")
+def test_downloaded_feeds_are_deleted_unless_kept(mock_dynamo, keep_local_feeds, deleted):
+    today = date.today()
+    feed = _feed("downloaded", today - timedelta(days=10), today + timedelta(days=90))
+    feed.exists_locally.side_effect = lambda: feed.download_from_s3.called
+
+    ingest_feeds(
+        dynamodb=mock.MagicMock(),
+        feeds=[feed],
+        start_date=today - timedelta(days=3),
+        end_date=today,
+        keep_local_feeds=keep_local_feeds,
+    )
+
+    assert feed.delete_locally.called == deleted
