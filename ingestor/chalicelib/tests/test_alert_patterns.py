@@ -94,6 +94,41 @@ test_cases = [
     ("Delays caused by auto blocking the track", "car_traffic"),
     ("Delays caused by auto was removed from the track", "car_traffic"),
     ("Delays caused by accident blocking the tracks", "car_traffic"),
+    # Real alert text from the LAMP archive that previously fell through to "other"
+    (
+        "Providence Line Train 834 is operating 5-15 minutes behind schedule due to traffic caused by a disabled Amtrak train ahead",
+        "disabled_vehicle",
+    ),
+    (
+        "Haverhill Line Train 7215 is operating 15-20 minutes behind schedule due to a disabled freight train",
+        "disabled_vehicle",
+    ),
+    (
+        "Blue Line: Delays of about 10 minutes while signal personnel perform maintenance between Maverick and Airport",
+        "signal_problem",
+    ),
+    ("Lowell Line Train 318 is operating 15-25 minutes behind schedule due to a downed catenary wire", "power_problem"),
+    ("Providence Line Train 813 is operating 30-40 minutes behind schedule due to a power outage", "power_problem"),
+    ("Green Line: Delays of about 10 minutes while crews perform power maintenance", "power_problem"),
+    ("Red Line: Delays of about 15 minutes due to a power equipment inspection", "power_problem"),
+    ("Orange Line: Delays of about 15 minutes due to a medical incident at Massachusetts Ave", "medical_emergency"),
+    ("Red Line: Delays of about 15 minutes due to an earlier train issue at Harvard", "mechanical_problem"),
+    (
+        "Red Line Braintree Branch: Delays of about 15 minutes while maintenance personnel conduct track inspections",
+        "track_work",
+    ),
+    ("Orange Line: Delays of about 10 minutes while personnel inspect the track area near Wellington", "track_work"),
+    ("Green Line: Delays of about 10 minutes while work crews access the tracks", "track_work"),
+    ("Mattapan Line: Delays of about 10 minutes while track department personnel conduct inspections", "track_work"),
+    (
+        "Franklin Line Train 735 is operating 5-15 minutes behind schedule due to Amtrak infrastructure repairs",
+        "track_work",
+    ),
+    (
+        "Kingston Line Train 040 is operating 10-20 minutes behind schedule due to an earlier road vehicle",
+        "car_traffic",
+    ),
+    ("Green Line: Delays of about 15 minutes due to a disabled vehicle blocking the track area", "car_traffic"),
 ]
 
 
