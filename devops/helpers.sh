@@ -48,10 +48,12 @@ function shrink {
     zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/co*/* || true
     zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/ch*/* || true
     zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/cu*/* || true
-    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/da*/* || true
-    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/di*/* || true
-    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/do*/* || true
-    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/de*/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/clean*/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/cloud9/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/clouddirectory/* || true
+    # Every d* service except dynamodb, which chalicelib/dynamo.py uses
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/d[a-xz]*/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/dynamodbstreams/* || true
     zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/e*/* || true
     zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/f*/* || true
     zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/g*/* || true
@@ -67,7 +69,13 @@ function shrink {
     zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/q*/* || true
     zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/r*/* || true
     zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/sa*/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/se*/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/sn*/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/sm*/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/sim*/* || true
     zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/ss*/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/st*/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/su*/* || true
     zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/t*/* || true
     zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/u*/* || true
     zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/v*/* || true
@@ -75,6 +83,24 @@ function shrink {
     zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/x*/* || true
     zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/y*/* || true
     zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/z*/* || true
+    # Service models the prefix rules above miss. We keep s3, cloudfront, sqs and
+    # dynamodb. Note zip wildcards cross '/', so s3[a-z]* is used to spare s3 itself.
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/ce/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/cloudc*/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/cloudformation/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/cloudfront-*/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/cloudh*/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/clouds*/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/cloudt*/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/cloudw*/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/s3[a-z]*/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/sc*/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/sd*/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/sh*/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/si*/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/so*/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/sw*/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/sy*/* || true
 }
 
 # Check if the layer deployment package is under the maximum size
