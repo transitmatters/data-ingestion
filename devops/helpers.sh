@@ -2,6 +2,7 @@
 
 # Shrink the deployment package for the lambda layer https://stackoverflow.com/a/69355796
 function shrink {
+    # Note: zip -d returns non-zero if pattern doesn't match, so we use || true
     zip -d -qq cfn/layer-deployment.zip '*/__pycache__/*' || true
     zip -d -qq cfn/layer-deployment.zip '**/*.pyc' || true
     zip -d -qq cfn/layer-deployment.zip '**/LICENSE*' || true
@@ -13,11 +14,89 @@ function shrink {
     zip -d -qq cfn/layer-deployment.zip '**/*.h' || true
     zip -d -qq cfn/layer-deployment.zip '**/*.pyx' || true
     zip -d -qq cfn/layer-deployment.zip '**/*.pxd' || true
-    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/numpy*/tests/**/* || true
+    # Type stubs, never imported at runtime
+    zip -d -qq cfn/layer-deployment.zip '**/*.pyi' || true
+    # Numpy tests - delete test files but keep _natype.py (needed by numpy.testing at runtime)
+    # Note: numpy/_core/tests/_natype.py must be preserved - it's imported by numpy/testing/_private/utils.py
+    # Use explicit paths because wildcards with ** can match too broadly
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/numpy/tests/**/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/numpy/tests/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/numpy/_core/tests/test_*.py || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/numpy/_core/tests/_locales.py || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/numpy/_core/tests/data/**/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/numpy/_core/tests/data/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/numpy/_core/tests/examples/**/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/numpy/_core/tests/examples/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/numpy/_pyinstaller/tests/**/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/numpy/_pyinstaller/tests/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/numpy/compat/tests/**/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/numpy/compat/tests/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/numpy/f2py/tests/**/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/numpy/f2py/tests/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/numpy/fft/tests/**/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/numpy/fft/tests/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/numpy/lib/tests/**/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/numpy/lib/tests/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/numpy/linalg/tests/**/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/numpy/linalg/tests/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/numpy/ma/tests/**/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/numpy/ma/tests/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/numpy/matrixlib/tests/**/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/numpy/matrixlib/tests/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/numpy/polynomial/tests/**/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/numpy/polynomial/tests/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/numpy/random/tests/**/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/numpy/random/tests/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/numpy/typing/tests/**/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/numpy/typing/tests/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/numpy/testing/tests/**/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/numpy/testing/tests/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/numpy/conftest.py || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/numpy/_core/*_tests*.so || true
+    # Pandas tests
     zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/pandas*/tests/**/* || true
-    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/pandas/tests/**/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/pandas/tests/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/pandas/conftest.py || true
     zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/pandas/_libs/tslibs/src/datetime/* || true
     zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/pandas/io/formats/templates/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/pandas/io/tests/**/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/pandas/core/tests/**/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/benchmarks/**/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/benchmarks/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/examples/**/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/examples/* || true
+    # SQLAlchemy testing utilities (not needed at runtime)
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/sqlalchemy*/testing/**/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/sqlalchemy*/testing/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/sqlalchemy/dialects/oracle/**/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/sqlalchemy/dialects/mssql/**/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/sqlalchemy/dialects/mysql/**/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/sqlalchemy/dialects/postgresql/**/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/*/zoneinfo/Africa/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/*/zoneinfo/Asia/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/*/zoneinfo/Atlantic/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/*/zoneinfo/Arctic/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/*/zoneinfo/Antarctica/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/*/zoneinfo/Australia/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/*/zoneinfo/Brazil/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/*/zoneinfo/Chile/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/*/zoneinfo/Europe/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/*/zoneinfo/Indian/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/*/zoneinfo/Pacific/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/*/zoneinfo/Mexico/* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/*/zoneinfo/Singapore || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/*/zoneinfo/Turkey || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/*/zoneinfo/Poland || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/*/zoneinfo/Egypt || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/*/zoneinfo/Hongkong || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/*/zoneinfo/Portugal || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/*/zoneinfo/Libya || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/*/zoneinfo/Kwajalein || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/*/zoneinfo/Zulu || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/*/zoneinfo/I* || true
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/*/zoneinfo/J* || true
+    # dateutil's own tz database; we resolve zones via zoneinfo + tzdata and pytz
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/dateutil/zoneinfo/*.tar.gz || true
     zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/examples/* || true
     zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/sqlalchemy*/testing/**/* || true
     zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/sqlalchemy/dialects/oracle/**/* || true
@@ -101,6 +180,10 @@ function shrink {
     zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/so*/* || true
     zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/sw*/* || true
     zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/boto*/data/sy*/* || true
+    # Only a fallback for when certifi is missing, and certifi comes with requests
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/botocore/cacert.pem || true
+    # Install manifests, only read by pip uninstall and importlib.metadata.files()
+    zip -d -qq cfn/layer-deployment.zip python/lib/**/site-packages/*.dist-info/RECORD || true
 }
 
 # Check if the layer deployment package is under the maximum size
