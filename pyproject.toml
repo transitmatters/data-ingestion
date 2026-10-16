@@ -3,7 +3,7 @@ name = "data-ingestion"
 version = "0.1.3"
 description = ""
 authors = [{ name = "TransitMatters Labs Team" }]
-requires-python = ">=3.13,<3.14"
+requires-python = ">=3.14,<3.15"
 license = "MIT"
 dependencies = [
     "requests>=2.34.2,<3",

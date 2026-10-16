@@ -185,7 +185,7 @@ class SharepointConnection:
             if isinstance(size, str):
                 try:
                     size = int(size)
-                except (ValueError, TypeError):
+                except ValueError, TypeError:
                     size = 0
 
             logger.debug(f"[{file_type}] {file['name']} - {size:,} bytes")
@@ -270,7 +270,7 @@ class SharepointConnection:
                 if isinstance(size, str):
                     try:
                         size = int(size)
-                    except (ValueError, TypeError):
+                    except ValueError, TypeError:
                         size = 0
 
                 if file["is_folder"]:
