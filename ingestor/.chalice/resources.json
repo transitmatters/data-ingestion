@@ -1,8 +1,9 @@
 {
   "Parameters": {
-    "MbtaV2ApiKey": {
+    "MbtaV3ApiKey": {
       "Type": "String",
-      "Description": "MBTA Performance API Key"
+      "NoEcho": true,
+      "Description": "MBTA V3 API key"
     },
     "DDApiKey": {
       "Type": "String",
@@ -71,6 +72,9 @@
         "Description": "Stores all v3 current API alerts",
         "Environment": {
           "Variables": {
+            "MBTA_V3_API_KEY": {
+              "Ref": "MbtaV3ApiKey"
+            },
             "DD_API_KEY": {
               "Ref": "DDApiKey"
             },
