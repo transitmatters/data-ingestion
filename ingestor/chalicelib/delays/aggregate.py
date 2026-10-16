@@ -1,6 +1,7 @@
 from datetime import datetime
-import numpy as np
 import pandas as pd
+
+from .. import constants
 
 
 def group_monthly_data(df: pd.DataFrame, start_date: str):
@@ -14,66 +15,47 @@ def group_monthly_data(df: pd.DataFrame, start_date: str):
     return df_monthly
 
 
+# What the alerts said ("delays of about 15 minutes"), summed per alert.
+STATED_DELAY_COLUMNS = ["total_delay_time", *constants.DELAY_BY_TYPE]
+# How long those same alerts were live (see duration.py). Absent for days with no
+# LAMP alerts file, which must stay absent rather than read as zero minutes.
+ALERT_MINUTES_COLUMNS = ["delay_alert_minutes", *(f"delay_alert_minutes_{t}" for t in constants.DELAY_BY_TYPE)]
+
+
+def _sum_if_any(series: pd.Series):
+    return series.sum(min_count=1)
+
+
+def _resample(df: pd.DataFrame, rule: str) -> pd.DataFrame:
+    agg = {column: "sum" for column in STATED_DELAY_COLUMNS}
+    agg.update({column: _sum_if_any for column in ALERT_MINUTES_COLUMNS if column in df.columns})
+    agg["line"] = "min"
+    resampled = df.resample(rule).agg(agg)
+    resampled[STATED_DELAY_COLUMNS] = resampled[STATED_DELAY_COLUMNS].fillna(0)
+    resampled["line"] = resampled["line"].fillna(0)
+    return resampled
+
+
+def _records(df: pd.DataFrame) -> list[dict]:
+    # Drop missing alert-minute values instead of writing NaN, which DynamoDB rejects
+    return [{k: v for k, v in record.items() if not pd.isna(v)} for record in df.to_dict(orient="records")]
+
+
 def group_weekly_data(df: pd.DataFrame, start_date: str):
     # Group from Monday - Sunday
-    df_weekly = df.resample("W-SUN").agg(
-        {
-            "total_delay_time": np.sum,
-            "disabled_vehicle": np.sum,
-            "signal_problem": np.sum,
-            "power_problem": np.sum,
-            "brake_problem": np.sum,
-            "door_problem": np.sum,
-            "switch_problem": np.sum,
-            "track_issue": np.sum,
-            "track_work": np.sum,
-            "car_traffic": np.sum,
-            "mechanical_problem": np.sum,
-            "police_activity": np.sum,
-            "medical_emergency": np.sum,
-            "flooding": np.sum,
-            "fire": np.sum,
-            "other": np.sum,
-            "line": "min",
-        }
-    )
-    df_weekly = df_weekly.fillna(0)
+    df_weekly = _resample(df, "W-SUN")
     # Pandas resample uses the end date of the range as the index. So we subtract 6 days to convert to first date of the range.
     df_weekly.index = df_weekly.index - pd.Timedelta(days=6)
 
     # Convert date back to string.
     df_weekly["date"] = df_weekly.index.strftime("%Y-%m-%d")
     df_weekly = df_weekly[df_weekly["line"] != 0]
-    return df_weekly.to_dict(orient="records")
+    return _records(df_weekly)
 
 
 def group_daily_data(df: pd.DataFrame, start_date: str):
     # Formats daily data on delays for Dynamo
-
-    df_daily = df.resample("D").agg(
-        {
-            "total_delay_time": np.sum,
-            "disabled_vehicle": np.sum,
-            "signal_problem": np.sum,
-            "power_problem": np.sum,
-            "brake_problem": np.sum,
-            "door_problem": np.sum,
-            "switch_problem": np.sum,
-            "track_issue": np.sum,
-            "track_work": np.sum,
-            "car_traffic": np.sum,
-            "mechanical_problem": np.sum,
-            "police_activity": np.sum,
-            "medical_emergency": np.sum,
-            "flooding": np.sum,
-            "fire": np.sum,
-            "other": np.sum,
-            "line": "min",
-        }
-    )
-
-    # Fill the empties with 0
-    df_daily = df_daily.fillna(0)
+    df_daily = _resample(df, "D")
 
     # Convert date back to string.
     df_daily["date"] = df_daily.index.strftime("%Y-%m-%d")
@@ -82,7 +64,4 @@ def group_daily_data(df: pd.DataFrame, start_date: str):
 
     df_daily = df_daily[df_daily["line"] != 0]
 
-    # Select only the columns we need for storage
-    daily_records = df_daily.to_dict(orient="records")
-
-    return daily_records
+    return _records(df_daily)
