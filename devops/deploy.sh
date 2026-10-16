@@ -39,6 +39,7 @@ echo "Difference: $diffsize bytes"
 
 # Check package size before deploying
 check_package_size
+check_unzipped_size
 
 aws cloudformation package --template-file cfn/sam.json --s3-bucket $BUCKET --output-template-file cfn/packaged.yaml
 aws cloudformation deploy --template-file cfn/packaged.yaml --stack-name $STACK_NAME --s3-bucket $BUCKET \

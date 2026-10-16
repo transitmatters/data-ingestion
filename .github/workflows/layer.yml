@@ -75,3 +75,10 @@ jobs:
           cd ingestor
           source ../devops/helpers.sh
           check_package_size
+          check_unzipped_size
+
+      - name: Smoke-test layer in the Lambda runtime
+        run: |
+          cd ingestor
+          source ../devops/helpers.sh
+          smoke_layer
