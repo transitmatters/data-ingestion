@@ -265,3 +265,25 @@ function smoke_layer {
     rm -rf "$layer_dir" "$app_dir"
     return $status
 }
+
+# Strip debug symbols from the layer's compiled libraries. Wheels ship unstripped .so files;
+# --strip-unneeded keeps the dynamic symbol table the loader needs. ddtrace is left as shipped.
+# Needs GNU strip (binutils), so it's a no-op on macOS; deploys and layer.yml run on Linux.
+function strip_binaries {
+    local zipfile="${1:-cfn/layer-deployment.zip}"
+    if ! strip --version 2>/dev/null | grep -q GNU; then
+        echo "GNU strip not found, skipping strip_binaries"
+        return 0
+    fi
+
+    local zippath
+    zippath="$(cd "$(dirname "$zipfile")" && pwd)/$(basename "$zipfile")"
+    local workdir
+    workdir="$(mktemp -d)"
+
+    # *.libs/ holds auditwheel-vendored libraries rewritten by patchelf; stripping those corrupts
+    # their load segments ("ELF load command address/offset not page-aligned"), e.g. numpy's OpenBLAS
+    unzip -q "$zippath" '*.so' '*.so.*' -x '*/site-packages/ddtrace/*' '*.libs/*' -d "$workdir"
+    (cd "$workdir" && find . -type f -print0 | xargs -0 strip --strip-unneeded 2>/dev/null; zip -q -r "$zippath" .)
+    rm -rf "$workdir"
+}

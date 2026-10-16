@@ -30,6 +30,7 @@ echo "Shrinking the deployment package for the lambda layer. It's currently $act
 
 source ../devops/helpers.sh
 shrink > /dev/null 2>&1
+strip_binaries
 
 # Check the size of the new package
 newsize=$(wc -c <"cfn/layer-deployment.zip")

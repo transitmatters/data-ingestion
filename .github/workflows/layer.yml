@@ -63,6 +63,7 @@ jobs:
           source ../devops/helpers.sh
           echo "Shrinking deployment package..."
           shrink
+          strip_binaries
 
           # Check size after shrinking
           newsize=$(wc -c <"cfn/layer-deployment.zip")
