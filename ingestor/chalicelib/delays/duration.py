@@ -8,9 +8,9 @@ through `active_period.end` -- for subway delays that's a ~2h placeholder set wh
 the alert is posted, while `closed_timestamp` is when MBTA actually took it down.
 
 Subway alerts stay up a bit longer than the delay they state (a "15 minute" alert
-is up ~35 min at the median). Commuter Rail alerts are per train and stay up until
-that train finishes its trip, so for CR lines this means "minutes with at least one
-late-train alert up" rather than how late trains ran.
+is up ~35 min at the median). Commuter Rail is left out: its alerts are per train
+("operating 10-20 minutes behind schedule") and stay up until that train finishes
+its trip, so the stated minutes already are the real delay.
 """
 
 import json

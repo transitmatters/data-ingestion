@@ -118,3 +118,20 @@ def test_process_requests_keeps_stated_minutes_next_to_live_minutes(monkeypatch)
     assert records["2026-10-09"]["total_delay_time"] == 15
     assert not any(k.startswith("delay_alert_minutes") for k in records["2026-10-09"])
     assert set(constants.DELAY_BY_TYPE) <= set(records["2026-10-09"])
+
+
+def test_commuter_rail_uses_stated_minutes_only(monkeypatch):
+    cr_text = "Worcester Line Train 509 (6:02 AM from South Station) is operating 10-20 minutes behind schedule"
+    lamp = _alert("1", cr_text, "2026-10-08T06:30:00-04:00", closed="2026-10-08T08:20:00-04:00", route="CR-Worcester")
+    monkeypatch.setattr(
+        process, "process_single_day", lambda request: [{"valid_from": "", "valid_to": "", "text": cr_text}]
+    )
+    monkeypatch.setattr(duration, "load_lamp_alerts", lambda day: lamp)
+
+    df = process.process_requests(process.generate_requests(DAY, DAY, ["CR-Worcester"]), ["CR-Worcester"])[
+        "CR-Worcester"
+    ]
+    [record] = process.group_daily_data(df, DAY.isoformat())
+
+    assert record["total_delay_time"] == 20
+    assert not any(k.startswith("delay_alert_minutes") for k in record)

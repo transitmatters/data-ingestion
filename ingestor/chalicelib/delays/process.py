@@ -159,10 +159,13 @@ def process_requests(requests: List[AlertsRequest], lines=constants.ALL_LINES):
             "delay_by_type": delay_by_type,
         }
 
-        # How long the same alerts were actually live, next to what they said
-        if request.date not in lamp_alerts_by_day:
-            lamp_alerts_by_day[request.date] = duration.load_lamp_alerts(request.date)
-        lamp_alerts = lamp_alerts_by_day[request.date]
+        # How long the same alerts were actually live, next to what they said. Commuter
+        # Rail's stated "N minutes behind schedule" already is the delay (see duration.py).
+        lamp_alerts = None
+        if not request.route.startswith("CR-"):
+            if request.date not in lamp_alerts_by_day:
+                lamp_alerts_by_day[request.date] = duration.load_lamp_alerts(request.date)
+            lamp_alerts = lamp_alerts_by_day[request.date]
         if lamp_alerts is not None:
             intervals = duration.live_intervals(lamp_alerts, request.route, request.date, alert_is_delay)
             record["delay_alert_minutes"] = duration.union_minutes(intervals)
