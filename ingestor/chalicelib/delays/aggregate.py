@@ -6,7 +6,7 @@ from .. import constants
 
 def group_monthly_data(df: pd.DataFrame, start_date: str):
     # TODO: Aggregate the sub values
-    df_monthly = df.groupby("line").resample("M").sum()
+    df_monthly = df.groupby("line").resample("ME").sum()
     df_monthly = df_monthly.fillna(0)
     df_monthly["date"] = [datetime(x[1].year, x[1].month, 1).strftime("%Y-%m-%d") for x in df_monthly.index.tolist()]
     # Drop the first month if it is incomplete
