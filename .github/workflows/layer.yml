@@ -23,13 +23,13 @@ jobs:
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python via mise
         uses: jdx/mise-action@v5
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v10.3.0
 
       - name: Generate AWS profile
         run: |
@@ -63,6 +63,7 @@ jobs:
           source ../devops/helpers.sh
           echo "Shrinking deployment package..."
           shrink
+          strip_binaries
 
           # Check size after shrinking
           newsize=$(wc -c <"cfn/layer-deployment.zip")
@@ -75,3 +76,10 @@ jobs:
           cd ingestor
           source ../devops/helpers.sh
           check_package_size
+          check_unzipped_size
+
+      - name: Smoke-test layer in the Lambda runtime
+        run: |
+          cd ingestor
+          source ../devops/helpers.sh
+          smoke_layer
