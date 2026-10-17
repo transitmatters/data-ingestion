@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from ..agg_speed_tables import fleet_cols, group_data_by_date_and_branch, group_weekly_data
+from ..agg_speed_tables import fleet_cols, group_data_by_date_and_branch, group_monthly_data, group_weekly_data
 
 
 def _row(route, date, miles, **fleet):
@@ -46,3 +46,23 @@ def test_weekly_fleet_mix_mean_and_missing_days():
     # No data means the attribute is omitted, not zero-filled
     assert "fleet_mix_type7" not in weeks[1]
     assert weeks[1]["miles_covered"] == 2.0
+
+
+def test_monthly_sums_each_month_and_drops_partial_first_month():
+    rows = [
+        # Starts mid-September, so September is incomplete and dropped
+        _row("line-green-b", "2026-09-15", 1.0),
+        _row("line-green-c", "2026-09-15", 2.0),
+        _row("line-green-b", "2026-10-01", 3.0),
+        _row("line-green-c", "2026-10-01", 4.0),
+        _row("line-green-b", "2026-10-31", 5.0),
+        _row("line-green-c", "2026-10-31", 6.0),
+        _row("line-green-b", "2026-11-02", 7.0),
+        _row("line-green-c", "2026-11-02", 8.0),
+    ]
+    df = group_data_by_date_and_branch(pd.DataFrame(rows))
+    months = group_monthly_data(df, "2026-09-15")
+
+    assert [m["date"] for m in months] == ["2026-10-01", "2026-11-01"]
+    assert [m["miles_covered"] for m in months] == [18.0, 15.0]
+    assert [m["line"] for m in months] == ["line-green", "line-green"]
