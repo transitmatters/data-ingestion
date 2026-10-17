@@ -30,6 +30,7 @@ echo "Shrinking the deployment package for the lambda layer. It's currently $act
 
 source ../devops/helpers.sh
 shrink > /dev/null 2>&1
+strip_binaries
 
 # Check the size of the new package
 newsize=$(wc -c <"cfn/layer-deployment.zip")
@@ -39,6 +40,7 @@ echo "Difference: $diffsize bytes"
 
 # Check package size before deploying
 check_package_size
+check_unzipped_size
 
 aws cloudformation package --template-file cfn/sam.json --s3-bucket $BUCKET --output-template-file cfn/packaged.yaml
 aws cloudformation deploy --template-file cfn/packaged.yaml --stack-name $STACK_NAME --s3-bucket $BUCKET \
