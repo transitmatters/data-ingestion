@@ -22,6 +22,7 @@ from chalicelib import (
     weather,
 )
 from chalicelib.baselines.build import store_historical_baselines as build_and_publish_baselines
+from chalicelib.overview.build import store_overview
 from datadog_lambda.wrapper import datadog_lambda_wrapper
 
 app = Chalice(app_name="ingestor")
@@ -239,6 +240,14 @@ def store_historical_baselines(event):
 @app.schedule(Cron(30, 9, "*", "*", "?", "*"))
 def update_service_ridership_dashboard(event):
     service_ridership_dashboard.create_service_ridership_dash_json()
+
+
+# 13:00 UTC -> 8:00/9:00am ET every day, after the service & ridership dashboard (9:30), slow
+# zones (10:00) and bus fleet (12:30) updates. Publishes static/landing/overview.json, the home
+# page scoreboard.
+@app.schedule(Cron(0, 13, "*", "*", "?", "*"))
+def store_overview_data(event):
+    store_overview()
 
 
 #################
