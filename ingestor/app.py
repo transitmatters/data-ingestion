@@ -176,10 +176,10 @@ def update_trip_metrics(event):
     trip_metrics.ingest_recent_trip_metrics(lookback_days=7)
 
 
-# 8:30am UTC -> 3:45/4:45am ET every Monday and Tuesday
+# 12:45pm UTC -> 7:45/8:45am ET every Monday and Tuesday
 # There's shouldn't be any benefit to running it more frequently.
 # Runs 15 minutes after the daily update
-@app.schedule(Cron(45, 8, "?", "*", "MON,TUE", "*"))
+@app.schedule(Cron(45, 12, "?", "*", "MON,TUE", "*"))
 def update_weekly_alert_delays(event):
     today = datetime.now()
     one_week_ago = (today - timedelta(days=15)).date()
@@ -187,7 +187,8 @@ def update_weekly_alert_delays(event):
 
 
 # for daily delay uploads
-@app.schedule(Cron(30, 8, "*", "*", "?", "*"))
+# 12:30pm UTC, after mbta-performance rebuilds yesterday's LAMP alerts file at 11:00 UTC
+@app.schedule(Cron(30, 12, "*", "*", "?", "*"))
 def update_daily_alert_delays(event):
     today = datetime.now()
     yesterday = (today - timedelta(days=1)).date()

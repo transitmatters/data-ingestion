@@ -159,10 +159,10 @@ def to_records_dropping_empty_fleet_age(df: pd.DataFrame):
 
 
 def group_monthly_data(df: pd.DataFrame, start_date: str):
-    agg_dict = {"miles_covered": np.sum, "count": np.nanmedian, "total_time": np.sum, "line": "min"}
+    agg_dict = {"miles_covered": "sum", "count": "median", "total_time": "sum", "line": "min"}
     for col in fleet_cols(df.columns):
-        agg_dict[col] = np.nanmean
-    df_monthly = df.resample("M").agg(agg_dict)
+        agg_dict[col] = "mean"
+    df_monthly = df.resample("ME").agg(agg_dict)
     df_monthly = fill_na_except_fleet_age(df_monthly)
     df_monthly.index = [datetime(x.year, x.month, 1) for x in df_monthly.index.tolist()]
     # Drop the first month if it is incomplete
@@ -174,9 +174,9 @@ def group_monthly_data(df: pd.DataFrame, start_date: str):
 
 def group_weekly_data(df: pd.DataFrame, start_date: str):
     # Group from Monday - Sunday
-    agg_dict = {"miles_covered": np.sum, "count": np.nanmedian, "total_time": np.sum, "line": "min"}
+    agg_dict = {"miles_covered": "sum", "count": "median", "total_time": "sum", "line": "min"}
     for col in fleet_cols(df.columns):
-        agg_dict[col] = np.nanmean
+        agg_dict[col] = "mean"
     df_weekly = df.resample("W-SUN").agg(agg_dict)
     df_weekly = fill_na_except_fleet_age(df_weekly)
     # Pandas resample uses the end date of the range as the index. So we subtract 6 days to convert to first date of the range.

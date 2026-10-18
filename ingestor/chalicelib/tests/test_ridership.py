@@ -3,7 +3,7 @@ from tempfile import NamedTemporaryFile
 import pandas as pd
 
 from ..ridership.ingest import get_ridership_by_line_id
-from ..ridership.process import format_ridership_csv, pre_process_csv, unofficial_ferry_labels_map
+from ..ridership.process import format_ridership_csv, format_subway_data, pre_process_csv, unofficial_ferry_labels_map
 
 
 def _write_daily_csv(rows):
@@ -52,4 +52,18 @@ def test_routes_mapping_to_same_id_are_summed():
     by_route = format_ridership_csv(path, "actual_departure", "route_id", "pax_on", unofficial_ferry_labels_map)
     assert by_route == {
         "Boat-F1": [{"date": "2021-02-01", "count": 15.0}, {"date": "2021-02-08", "count": 7.0}],
+    }
+
+
+def test_holidays_are_left_out_of_the_peak_average():
+    # Mon 2026-09-07 is Labor Day, so the week's peak average is Tue-Fri only
+    rows = [("2026-09-07", "Red Line", 1000)] + [(f"2026-09-{d:02d}", "Red Line", 100) for d in range(8, 12)]
+    path = NamedTemporaryFile(suffix=".csv", delete=False).name
+    pd.DataFrame(rows, columns=["servicedate", "route_or_line", "validations"]).to_csv(path, index=False)
+    assert format_subway_data(path)["Red"] == [{"date": "2026-09-07", "count": 100}]
+
+    path = NamedTemporaryFile(suffix=".csv", delete=False).name
+    pd.DataFrame(rows, columns=["date", "line", "riders"]).to_csv(path, index=False)
+    assert format_ridership_csv(path, "date", "line", "riders") == {
+        "Red Line": [{"date": "2026-09-07", "count": 100.0}]
     }
