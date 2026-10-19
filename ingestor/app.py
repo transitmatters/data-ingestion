@@ -6,17 +6,22 @@ from chalicelib import (
     agg_speed_tables,
     alerts,
     bluebikes,
+    bus_fleet,
     constants,
+    cr_fleet,
     daily_speeds,
     delays,
     gtfs,
     landing,
     predictions,
+    reliability,
     ridership,
     service_ridership_dashboard,
     speed_restrictions,
     trip_metrics,
+    weather,
 )
+from chalicelib.baselines.build import store_historical_baselines as build_and_publish_baselines
 from datadog_lambda.wrapper import datadog_lambda_wrapper
 
 app = Chalice(app_name="ingestor")
@@ -97,6 +102,20 @@ def update_delivered_trip_metrics_yesterday(event):
     daily_speeds.update_daily_table(two_days_ago)
 
 
+# 12:30 UTC -> 7:30/8:30am ET, after the MBTA's next-day data cleanup
+@app.schedule(Cron(30, 12, "*", "*", "?", "*"))
+def update_bus_fleet_metrics(event):
+    yesterday = (datetime.now() - timedelta(days=1)).date()
+    bus_fleet.update_bus_fleet_table(yesterday)
+
+
+# 12:35 UTC -> 7:35/8:35am ET
+@app.schedule(Cron(35, 12, "*", "*", "?", "*"))
+def update_cr_fleet_metrics(event):
+    yesterday = (datetime.now() - timedelta(days=1)).date()
+    cr_fleet.update_cr_fleet_table(yesterday)
+
+
 # 7:10am UTC -> 2:10/3:10am ET every day
 @app.schedule(Cron(10, 7, "*", "*", "?", "*"))
 def update_ridership(event):
@@ -104,11 +123,22 @@ def update_ridership(event):
     ridership.ingest_ridership_data()
 
 
-# 7:20am UTC -> 2:20/3:20am ET every weekday
-@app.schedule(Cron(20, 7, "?", "*", "MON-FRI", "*"))
-def update_speed_restrictions(event):
-    """Updates speed restrictions from ArcGIS data for the last 2 months."""
+# Retired 2026-09-21: the upstream ArcGIS source (CSV_ZIP_URL in
+# chalicelib/speed_restrictions.py) now 400s -- "Item does not exist or is
+# inaccessible." mbta.com/performance-metrics/speed-restrictions no longer
+# exists either. Data in DynamoDB is stale past 2026-05-31. Paused pending a
+# reply from the T on whether this moved. It stays deployed as a manual lambda
+# (resources.json still configures it); swap back to
+# @app.schedule(Cron(20, 7, "?", "*", "MON-FRI", "*")) to resume.
+@app.lambda_function()
+def update_speed_restrictions(event, context):
     speed_restrictions.update_speed_restrictions(max_lookback_months=2)
+
+
+# 7:50am UTC -> 2:50/3:50am ET every Monday (source data is published monthly)
+@app.schedule(Cron(50, 7, "?", "*", "MON", "*"))
+def update_reliability(event):
+    reliability.update_reliability()
 
 
 # 7:30am UTC -> 2:30/3:30am ET every day
@@ -122,9 +152,31 @@ def update_time_predictions(event):
 @app.schedule(Cron(0, "8,23", "*", "*", "?", "*"))
 def update_gtfs(event):
     """Ingests GTFS feeds from the last 3 days into DynamoDB and S3."""
+    # Look ahead as well as back. get_feeds_for_dates matches feeds *covering*
+    # the range, so a backward-looking window never sees a feed until the day it
+    # activates -- leaving mbta-performance without a gtfs.sqlite3 until the next
+    # scheduled run, up to 12 hours later. MBTA publishes with a lead time, so
+    # reaching forward builds the bundle before anything asks for it.
     today = datetime.now()
     three_days_ago = (today - timedelta(days=3)).date()
-    gtfs.ingest_gtfs_feeds_to_dynamo_and_s3(date_range=(three_days_ago, today.date()))
+    two_weeks_ahead = (today + timedelta(days=14)).date()
+    gtfs.ingest_gtfs_feeds_to_dynamo_and_s3(date_range=(three_days_ago, two_weeks_ahead))
+
+
+# Builds a single GTFS feed on demand. mbta-performance enqueues a key here when
+# it needs a bundle that is not in S3 yet, rather than attempting a ~67s, ~1GB
+# build inside its own 60s Lambda. One feed per message keeps peak /tmp to a
+# single build; failures land in gtfs-ingest-keys-dlq after 3 attempts.
+@app.on_sqs_message(queue="gtfs-ingest-keys", batch_size=1)
+def ingest_gtfs_feed_on_demand(event):
+    for record in event:
+        message = json.loads(record.body)
+        feed_key = message["feed_key"]
+        print(f"[{feed_key}] Building on demand from SQS")
+        gtfs.ingest_gtfs_feeds_to_dynamo_and_s3(
+            feed_key=feed_key,
+            force_rebuild_feeds=message.get("force_rebuild_feeds", False),
+        )
 
 
 # 4:40am UTC -> 2:40/3:40am ET every day
@@ -134,10 +186,10 @@ def update_trip_metrics(event):
     trip_metrics.ingest_recent_trip_metrics(lookback_days=7)
 
 
-# 8:30am UTC -> 3:45/4:45am ET every Monday and Tuesday
+# 12:45pm UTC -> 7:45/8:45am ET every Monday and Tuesday
 # There's shouldn't be any benefit to running it more frequently.
 # Runs 15 minutes after the daily update
-@app.schedule(Cron(45, 8, "?", "*", "MON,TUE", "*"))
+@app.schedule(Cron(45, 12, "?", "*", "MON,TUE", "*"))
 def update_weekly_alert_delays(event):
     """Aggregates daily delay data into weekly totals for the last 15 days."""
     today = datetime.now()
@@ -146,7 +198,8 @@ def update_weekly_alert_delays(event):
 
 
 # for daily delay uploads
-@app.schedule(Cron(30, 8, "*", "*", "?", "*"))
+# 12:30pm UTC, after mbta-performance rebuilds yesterday's LAMP alerts file at 11:00 UTC
+@app.schedule(Cron(30, 12, "*", "*", "?", "*"))
 def update_daily_alert_delays(event):
     """Processes yesterday's alerts and updates the daily delay table."""
     today = datetime.now()
@@ -199,8 +252,31 @@ def store_landing_data(event):
     landing.clear_cache()
 
 
+# 8:15 UTC -> 3:15/4:15am ET every Monday, after the weekly trip metric tables and ridership update.
+# Publishes static/landing/baselines.json: the "historical best" per line and metric, looking back
+# 3+ years. It only moves when a week crosses the 3-year line, so weekly is plenty.
+@app.schedule(Cron(15, 8, "?", "*", "MON", "*"))
+def store_historical_baselines(event):
+    build_and_publish_baselines()
+
+
 # 9:00 UTC -> 4:30/5:30am ET every day (after GTFS and ridership have been ingested)
 @app.schedule(Cron(30, 9, "*", "*", "?", "*"))
 def update_service_ridership_dashboard(event):
     """Generates and uploads the service ridership dashboard JSON."""
     service_ridership_dashboard.create_service_ridership_dash_json()
+
+
+#################
+# STORE HOURLY WEATHER
+# Every hour at :05 — fetch latest Boston hourly weather and merge into today's S3 file.
+@app.schedule(Cron(5, "*", "*", "*", "?", "*"))
+def store_hourly_weather(event):
+    weather.ingest_hourly_weather()
+
+
+# Manually triggered lambda for backfilling historical weather from Open-Meteo's archive API.
+# Payload: {"start_date": "YYYY-MM-DD", "end_date": "YYYY-MM-DD"}
+@app.lambda_function()
+def backfill_weather(params, context):
+    weather.backfill_weather(params["start_date"], params["end_date"])

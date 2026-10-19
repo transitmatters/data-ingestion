@@ -3,7 +3,7 @@ import json
 import requests
 from botocore.exceptions import ClientError
 
-from chalicelib import s3
+from chalicelib import keys, s3
 from chalicelib.date_utils import get_current_service_date
 
 BUCKET = "tm-mbta-performance"
@@ -28,7 +28,8 @@ def save_v3_alerts():
     merges in newly fetched alerts by ID, and uploads the updated set back
     to S3.
     """
-    r_s = requests.get("https://api-v3.mbta.com/alerts")
+    headers = {"x-api-key": keys.MBTA_V3_API_KEY} if keys.MBTA_V3_API_KEY else {}
+    r_s = requests.get("https://api-v3.mbta.com/alerts", headers=headers)
     alerts = r_s.json()
 
     service_date = get_current_service_date()

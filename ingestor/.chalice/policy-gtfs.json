@@ -25,7 +25,22 @@
             ],
             "Resource": [
                 "arn:aws:dynamodb:us-east-1:473352343756:table/TripCounts",
-                "arn:aws:dynamodb:us-east-1:473352343756:table/ScheduledServiceDaily"
+                "arn:aws:dynamodb:us-east-1:473352343756:table/ScheduledServiceDaily",
+                "arn:aws:dynamodb:us-east-1:473352343756:table/ScheduledServiceRegionalRail"
+            ]
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "sqs:ReceiveMessage",
+                "sqs:DeleteMessage",
+                "sqs:GetQueueAttributes",
+                "sqs:SendMessage",
+                "sqs:GetQueueUrl"
+            ],
+            "Resource": [
+                "arn:aws:sqs:us-east-1:473352343756:gtfs-ingest-keys",
+                "arn:aws:sqs:us-east-1:473352343756:gtfs-ingest-keys-dlq"
             ]
         }
     ]

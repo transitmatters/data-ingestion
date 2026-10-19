@@ -1,6 +1,5 @@
 .env.local
 **/__pycache__
-.python-version
 .temp
 .envrc
 feeds

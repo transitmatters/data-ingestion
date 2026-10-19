@@ -9,20 +9,15 @@ on:
 jobs:
   backend:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.13"]
     env:
       AWS_DEFAULT_REGION: us-east-1
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v4
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
+        uses: actions/checkout@v7
+      - name: Set up Python via mise
+        uses: jdx/mise-action@v5
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v10.3.0
       - name: Install dependencies
         run: uv sync --group dev
       - name: test code with pytest

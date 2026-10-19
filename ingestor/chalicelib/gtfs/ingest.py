@@ -22,9 +22,18 @@ from .utils import (
     get_total_service_minutes,
 )
 from .models import SessionModels, RouteDateTotals
+from .regional_rail import REGIONAL_RAIL_TABLE_NAME, create_regional_rail_items
 
 
-def load_session_models(session: Session):
+def load_session_models(session: Session) -> SessionModels:
+    """Query all GTFS models from a SQLAlchemy session and index them into dicts keyed by ID.
+
+    Args:
+        session: A SQLAlchemy session connected to a GTFS SQLite database.
+
+    Returns:
+        A SessionModels instance with all models indexed by their respective keys.
+    """
     calendar_services = session.query(CalendarService).all()
     calendar_attributes = session.query(CalendarAttribute).all()
     calendar_service_exceptions = session.query(CalendarServiceException).all()
@@ -42,7 +51,15 @@ def load_session_models(session: Session):
     )
 
 
-def create_gl_route_date_totals(totals: List[RouteDateTotals]):
+def create_gl_route_date_totals(totals: List[RouteDateTotals]) -> RouteDateTotals:
+    """Aggregate Green Line branch totals into a single combined Green Line total.
+
+    Args:
+        totals: List of RouteDateTotals for all routes on a given date.
+
+    Returns:
+        A single RouteDateTotals representing the combined Green Line service.
+    """
     gl_totals = [t for t in totals if t.route_id.startswith("Green-")]
     total_by_hour = [0] * 24
     for total in gl_totals:
@@ -62,7 +79,17 @@ def create_gl_route_date_totals(totals: List[RouteDateTotals]):
     )
 
 
-def create_route_date_totals(today: date, models: SessionModels):
+def create_route_date_totals(today: date, models: SessionModels) -> List[RouteDateTotals]:
+    """Create scheduled service totals for all valid routes on a given date.
+
+    Args:
+        today: The date to compute totals for.
+        models: The SessionModels containing all GTFS data.
+
+    Returns:
+        A list of RouteDateTotals for each valid route, including a combined
+        Green Line entry.
+    """
     all_totals = []
     service_ids_and_exception_status_for_today = get_service_ids_for_date_to_has_exceptions(models, today)
     for route_id, route in models.routes.items():
@@ -95,8 +122,17 @@ def ingest_feed_to_dynamo(
     session: Session,
     start_date: date,
     end_date: date,
-):
+) -> None:
+    """Compute and write scheduled service totals and Regional Rail metrics to DynamoDB for a date range.
+
+    Args:
+        dynamodb: A boto3 DynamoDB resource.
+        session: A SQLAlchemy session connected to a GTFS SQLite database.
+        start_date: The first date to ingest (inclusive).
+        end_date: The last date to ingest (inclusive).
+    """
     ScheduledServiceDaily = dynamodb.Table("ScheduledServiceDaily")
+    ScheduledServiceRegionalRail = dynamodb.Table(REGIONAL_RAIL_TABLE_NAME)
     models = load_session_models(session)
     for today in date_range(start_date, end_date):
         totals = create_route_date_totals(today, models)
@@ -113,6 +149,9 @@ def ingest_feed_to_dynamo(
                     "byHour": {"totals": total.by_hour},
                 }
                 batch.put_item(Item=item)
+        with ScheduledServiceRegionalRail.batch_writer() as batch:
+            for item in create_regional_rail_items(today, models):
+                batch.put_item(Item=item)
 
 
 def ingest_feeds(
@@ -121,9 +160,25 @@ def ingest_feeds(
     start_date: date,
     end_date: date,
     force_rebuild_feeds: bool = False,
-):
+    keep_local_feeds: bool = False,
+) -> None:
+    """Process a list of GTFS feeds by building/downloading them and ingesting to DynamoDB.
+
+    Each feed is either built locally, downloaded from S3, or reused if already
+    present. The resulting SQLite database is then ingested into DynamoDB.
+
+    Args:
+        dynamodb: A boto3 DynamoDB resource.
+        feeds: List of GtfsFeed objects to process.
+        start_date: The first date to ingest (inclusive).
+        end_date: The last date to ingest (inclusive).
+        force_rebuild_feeds: If True, forces all feeds to be rebuilt locally
+            and re-uploaded to S3. Defaults to False.
+        keep_local_feeds: If True, leaves downloaded and built feeds on disk
+            for later runs instead of deleting them. Defaults to False.
+    """
+    failures: List[Tuple[str, Exception]] = []
     for feed in feeds:
-        feed.use_compact_only()
         try:
             if force_rebuild_feeds:
                 print(f"[{feed.key}] Forcing rebuild locally")
@@ -131,41 +186,102 @@ def ingest_feeds(
                 print(f"[{feed.key}] Uploading to S3")
                 feed.upload_to_s3()
             else:
-                exists_locally = feed.exists_locally()
+                # exists_remotely() must run before any use_compact_only() below,
+                # so it checks for *both* DB files -- "is the full bundle
+                # published?" -- not just the compact one.
                 exists_remotely = feed.exists_remotely()
-                if exists_locally:
-                    print(f"[{feed.key}] Exists locally")
-                elif exists_remotely:
-                    print(f"[{feed.key}] Downloading from S3")
-                    feed.use_compact_only()
-                    feed.download_from_s3()
-                else:
+                if not exists_remotely:
                     print(f"[{feed.key}] Building locally")
                     feed.build_locally()
-                if not exists_remotely:
                     print(f"[{feed.key}] Uploading to S3")
                     feed.upload_to_s3()
-            session = feed.create_sqlite_session(compact=True)
-            ingest_feed_to_dynamo(
-                dynamodb,
-                session,
-                max(feed.start_date, start_date),
-                min(feed.end_date, end_date, date.today()),
-            )
+                else:
+                    # Only the compact DB is read below, via
+                    # create_sqlite_session(compact=True). Pulling the ~423MB
+                    # gtfs.sqlite3 alongside it was pure waste -- ~900MB/day at
+                    # the current twice-daily schedule, for a file nothing here
+                    # opens. use_compact_only() narrows required_feed_files to
+                    # gtfs_compact.sqlite3 (~26MB).
+                    #
+                    # It is only safe on this branch: the same flag also
+                    # suppresses uploads and makes build_local_feed_entry delete
+                    # the full DB, which is what caused the original outage. This
+                    # path neither builds nor uploads.
+                    #
+                    # Check the local cache only after narrowing, so a cached
+                    # compact DB counts even without the full one beside it.
+                    feed.use_compact_only()
+                    if feed.exists_locally():
+                        print(f"[{feed.key}] Exists locally")
+                    else:
+                        print(f"[{feed.key}] Downloading compact DB from S3")
+                        feed.download_from_s3()
+            # A forward-looking window selects feeds that have not started yet.
+            # Those still want building and uploading -- that is the point -- but
+            # they have no elapsed service dates to summarize, and date_range()
+            # asserts start <= end, so compute the overlap and skip if empty.
+            dynamo_start = max(feed.start_date, start_date)
+            dynamo_end = min(feed.end_date, end_date, date.today())
+            if dynamo_start > dynamo_end:
+                print(f"[{feed.key}] Bundle ready; no elapsed service dates yet (activates {feed.start_date})")
+            else:
+                session = feed.create_sqlite_session(compact=True)
+                ingest_feed_to_dynamo(dynamodb, session, dynamo_start, dynamo_end)
         except Exception as ex:
+            # Collect and continue so one bad feed does not block the rest, but
+            # re-raise at the end -- swallowing here left the Lambda reporting
+            # success, so Errors stayed at 0 and EventBridge never retried.
             print(f"[{feed.key}] Failed to retrieve")
             print(ex)
+            failures.append((feed.key, ex))
+        finally:
+            # A full feed is ~450MB and /tmp is capped; without this a
+            # multi-feed invocation accumulates until it runs out of space.
+            # Callers keeping feeds (the backfill script) cache them between
+            # runs, since s3://tm-gtfs reads are billed once feeds reach Glacier.
+            if not keep_local_feeds:
+                try:
+                    if feed.exists_locally():
+                        feed.delete_locally()
+                except Exception as cleanup_ex:  # pragma: no cover - best effort
+                    print(f"[{feed.key}] Failed to clean up local files: {cleanup_ex}")
+
+    if failures:
+        keys = ", ".join(key for key, _ in failures)
+        raise RuntimeError(f"Failed to ingest {len(failures)} GTFS feed(s): {keys}") from failures[0][1]
 
 
 def ingest_gtfs_feeds_to_dynamo_and_s3(
     date_range: Union[None, Tuple[date, date]] = None,
     feed_key: Union[None, str] = None,
     local_archive_path: str | None = None,
-    boto3_session=None,
+    boto3_session: boto3.Session | None = None,
     force_rebuild_feeds: bool = False,
-):
+) -> None:
+    """Orchestrate the full GTFS ingestion pipeline from archive to DynamoDB and S3.
+
+    Either a date_range or a feed_key must be provided to identify which feeds
+    to process.
+
+    Args:
+        date_range: A tuple of (start_date, end_date) to select feeds covering
+            that range. Defaults to None.
+        feed_key: A specific feed key to ingest. Defaults to None.
+        local_archive_path: Path to store local feed files, kept between runs.
+            If None, a temporary directory is used and feeds are deleted after
+            use. Defaults to None.
+        boto3_session: An optional boto3 Session to use for AWS operations. If
+            None, a new session is created. Defaults to None.
+        force_rebuild_feeds: If True, forces all feeds to be rebuilt locally.
+            Defaults to False.
+
+    Raises:
+        Exception: If neither date_range nor feed_key is provided.
+    """
     if not boto3_session:
         boto3_session = boto3.Session()
+    # An explicit path is a cache to keep; the default temporary one is not
+    keep_local_feeds = local_archive_path is not None
     if not local_archive_path:
         local_archive_path = TemporaryDirectory().name
     archive = MbtaGtfsArchive(
@@ -188,10 +304,20 @@ def ingest_gtfs_feeds_to_dynamo_and_s3(
         start_date=start_date,
         end_date=end_date,
         force_rebuild_feeds=force_rebuild_feeds,
+        keep_local_feeds=keep_local_feeds,
     )
 
 
 def get_feed_keys_for_date_range(start_date: date, end_date: date) -> List[str]:
+    """Retrieve the feed keys for all GTFS feeds that cover a given date range.
+
+    Args:
+        start_date: The start of the date range (inclusive).
+        end_date: The end of the date range (inclusive).
+
+    Returns:
+        A list of feed key strings for feeds overlapping the date range.
+    """
     archive = MbtaGtfsArchive(local_archive_path=TemporaryDirectory().name)
     feeds = archive.get_feeds_for_dates(start_date, end_date)
     return [feed.key for feed in feeds]

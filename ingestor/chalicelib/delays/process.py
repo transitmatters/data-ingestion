@@ -1,5 +1,6 @@
 import json
 import re
+import sys
 from datetime import date, timedelta
 from decimal import Decimal
 from typing import List
@@ -9,9 +10,10 @@ import pandas as pd
 import requests
 from boto3.dynamodb.conditions import Key
 
-from chalicelib import constants, dynamo
-from chalicelib.delays.aggregate import group_daily_data, group_weekly_data
-from chalicelib.delays.types import Alert, AlertsRequest
+from .. import constants, dynamo
+from . import duration
+from .aggregate import group_daily_data, group_weekly_data
+from .types import Alert, AlertsRequest
 
 WEEKLY_TABLE_NAME = "AlertDelaysWeekly"
 DAILY_TABLE_NAME = "AlertDelaysDaily"
@@ -139,6 +141,7 @@ def process_requests(requests: List[AlertsRequest], lines=constants.ALL_LINES):
     all_data = {}
     for line in lines:
         all_data[line] = []
+    lamp_alerts_by_day = {}
 
     for request in requests:
         data = process_single_day(request)
@@ -149,14 +152,28 @@ def process_requests(requests: List[AlertsRequest], lines=constants.ALL_LINES):
         if data is not None and len(data) != 0:
             total_delay, delay_by_type = process_delay_time(data)
         # We should always append zero records just in case
-        all_data[request.route].append(
-            {
-                "date": request.date.isoformat(),
-                "line": request.route,
-                "total_delay_time": total_delay,
-                "delay_by_type": delay_by_type,
+        record = {
+            "date": request.date.isoformat(),
+            "line": request.route,
+            "total_delay_time": total_delay,
+            "delay_by_type": delay_by_type,
+        }
+
+        # How long the same alerts were actually live, next to what they said. Commuter
+        # Rail's stated "N minutes behind schedule" already is the delay (see duration.py).
+        lamp_alerts = None
+        if not request.route.startswith("CR-"):
+            if request.date not in lamp_alerts_by_day:
+                lamp_alerts_by_day[request.date] = duration.load_lamp_alerts(request.date)
+            lamp_alerts = lamp_alerts_by_day[request.date]
+        if lamp_alerts is not None:
+            intervals = duration.live_intervals(lamp_alerts, request.route, request.date, alert_is_delay)
+            record["delay_alert_minutes"] = duration.union_minutes(intervals)
+            record["delay_alert_minutes_by_type"] = {
+                delay_type: duration.union_minutes([i for i in intervals if alert_type({"text": i[0]}) == delay_type])
+                for delay_type in constants.DELAY_BY_TYPE
             }
-        )
+        all_data[request.route].append(record)
 
     df_data = {}
     for line in lines:
@@ -169,6 +186,10 @@ def process_requests(requests: List[AlertsRequest], lines=constants.ALL_LINES):
 
         df = df.join(pd.json_normalize(df["delay_by_type"]))
         df.drop(columns=["delay_by_type"], inplace=True)
+        if "delay_alert_minutes_by_type" in df.columns:
+            by_type = df["delay_alert_minutes_by_type"].apply(lambda v: v if isinstance(v, dict) else {})
+            df = df.join(pd.json_normalize(by_type).add_prefix("delay_alert_minutes_"))
+            df.drop(columns=["delay_alert_minutes_by_type"], inplace=True)
         df["date"] = pd.to_datetime(df["date"])
         df.set_index("date", inplace=True)
         df_data[line] = df
@@ -202,11 +223,25 @@ def get_daily_data_for_week(start_date: date, end_date: date, lines=constants.AL
     return daily_records
 
 
+def aggregate_commuter_rail_df(df_data: dict[str, pd.DataFrame]) -> pd.DataFrame | None:
+    """Combine all CR-* line DataFrames into a single 'CommuterRail' aggregate."""
+    cr_dfs = [df for line, df in df_data.items() if line.startswith("CR-")]
+    if not cr_dfs:
+        return None
+    cr_combined = pd.concat(cr_dfs)
+    cr_combined["line"] = "CommuterRail"
+    return cr_combined
+
+
 def update_weekly_from_daily(start_date: date, end_date: date, lines=constants.ALL_LINES):
     """
     Update weekly table by aggregating daily data from DynamoDB.
     Avoids another api call.
     """
+
+    # Snap to Monday so the first week isn't partial. Otherwise a Sunday start overwrites
+    # that whole week with just Sunday's delays.
+    start_date = start_date - timedelta(days=start_date.weekday())
 
     # Get daily data from DynamoDB instead of API
     daily_records = get_daily_data_for_week(start_date, end_date, lines)
@@ -218,8 +253,15 @@ def update_weekly_from_daily(start_date: date, end_date: date, lines=constants.A
 
     # Aggregate weekly for each line
     weekly_data = []
+    line_dfs = {}
     for line, line_df in df.groupby("line"):
         weekly_data.extend(group_weekly_data(line_df, start_date.isoformat()))
+        line_dfs[line] = line_df
+
+    # Aggregate commuter rail into a single "CommuterRail" entry
+    cr_combined = aggregate_commuter_rail_df(line_dfs)
+    if cr_combined is not None:
+        weekly_data.extend(group_weekly_data(cr_combined, start_date.isoformat()))
 
     dynamo.dynamo_batch_write(json.loads(json.dumps(weekly_data, default=int), parse_float=Decimal), WEEKLY_TABLE_NAME)
 
@@ -235,12 +277,27 @@ def update_table(start_date: date, end_date: date, lines=constants.ALL_LINES):
     for line, df in all_data.items():
         grouped_data.extend(group_daily_data(df, start_date.isoformat()))
 
+    # Aggregate commuter rail into a single "CommuterRail" entry
+    cr_combined = aggregate_commuter_rail_df(all_data)
+    if cr_combined is not None:
+        grouped_data.extend(group_daily_data(cr_combined, start_date.isoformat()))
+
     dynamo.dynamo_batch_write(json.loads(json.dumps(grouped_data), parse_float=Decimal), DAILY_TABLE_NAME)
 
 
-# Testing daily updates. Using random dates. Feel free to change and uncomment as needed.
+def backfill(start_date: date, end_date: date, lines=constants.ALL_LINES):
+    """Rebuild the daily and weekly tables a month at a time, so a long run can be
+    resumed from the last month it printed."""
+    chunk_start = start_date
+    while chunk_start <= end_date:
+        next_month = (chunk_start.replace(day=1) + timedelta(days=32)).replace(day=1)
+        chunk_end = min(next_month - timedelta(days=1), end_date)
+        print(f"Backfilling alert delays {chunk_start} to {chunk_end}")
+        update_table(chunk_start, chunk_end, lines)
+        update_weekly_from_daily(chunk_start, chunk_end, lines)
+        chunk_start = next_month
+
+
+# Usage: python -m chalicelib.delays.process START_DATE END_DATE  (YYYY-MM-DD)
 if __name__ == "__main__":
-    start_date = date(2025, 11, 9)
-    end_date = date(2025, 11, 24)
-    # update_table(start_date, end_date, constants.ALL_LINES)
-    # update_weekly_from_daily(start_date, end_date, constants.ALL_LINES)
+    backfill(date.fromisoformat(sys.argv[1]), date.fromisoformat(sys.argv[2]))
