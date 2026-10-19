@@ -1,12 +1,9 @@
 {
   "Parameters": {
-    "MbtaV2ApiKey": {
+    "MbtaV3ApiKey": {
       "Type": "String",
-      "Description": "MBTA Performance API Key"
-    },
-    "YankeeApiKey": {
-      "Type": "String",
-      "Description": "Yankee shuttle API key"
+      "NoEcho": true,
+      "Description": "MBTA V3 API key"
     },
     "DDApiKey": {
       "Type": "String",
@@ -75,6 +72,9 @@
         "Description": "Stores all v3 current API alerts",
         "Environment": {
           "Variables": {
+            "MBTA_V3_API_KEY": {
+              "Ref": "MbtaV3ApiKey"
+            },
             "DD_API_KEY": {
               "Ref": "DDApiKey"
             },
@@ -282,7 +282,7 @@
           }
         },
         "EphemeralStorage": {
-          "Size": 2048
+          "Size": 4096
         }
       }
     },
@@ -333,6 +333,28 @@
         }
       }
     },
+    "UpdateReliability": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "Description": "Ingests and saves The RIDE and commuter rail daily reliability from the MBTA open data portal",
+        "Environment": {
+          "Variables": {
+            "DD_API_KEY": {
+              "Ref": "DDApiKey"
+            },
+            "DD_VERSION": {
+              "Ref": "GitVersion"
+            },
+            "DD_TAGS": {
+              "Ref": "DDTags"
+            },
+            "DD_GIT_REPOSITORY_URL": {
+              "Ref": "DDGitRepositoryUrl"
+            }
+          }
+        }
+      }
+    },
     "UpdateTimePredictions": {
       "Type": "AWS::Serverless::Function",
       "Properties": {
@@ -359,6 +381,28 @@
       "Type": "AWS::Serverless::Function",
       "Properties": {
         "Description": "Caches landing page data to improve homepage loading times",
+        "Environment": {
+          "Variables": {
+            "DD_API_KEY": {
+              "Ref": "DDApiKey"
+            },
+            "DD_VERSION": {
+              "Ref": "GitVersion"
+            },
+            "DD_TAGS": {
+              "Ref": "DDTags"
+            },
+            "DD_GIT_REPOSITORY_URL": {
+              "Ref": "DDGitRepositoryUrl"
+            }
+          }
+        }
+      }
+    },
+    "StoreHistoricalBaselines": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "Description": "Publishes historical-best baselines (3+ years back) for dashboard comparisons",
         "Environment": {
           "Variables": {
             "DD_API_KEY": {
@@ -608,6 +652,39 @@
         ]
       }
     },
+    "ScheduledServiceRegionalRail": {
+      "Type": "AWS::DynamoDB::Table",
+      "Properties": {
+        "TableName": "ScheduledServiceRegionalRail",
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "routeId",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "date",
+            "AttributeType": "S"
+          }
+        ],
+        "KeySchema": [
+          {
+            "AttributeName": "routeId",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "date",
+            "KeyType": "RANGE"
+          }
+        ],
+        "BillingMode": "PAY_PER_REQUEST",
+        "Tags": [
+          {
+            "Key": "service",
+            "Value": "t-performance-dash"
+          }
+        ]
+      }
+    },
     "Ridership": {
       "Type": "AWS::DynamoDB::Table",
       "Properties": {
@@ -625,6 +702,39 @@
         "KeySchema": [
           {
             "AttributeName": "lineId",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "date",
+            "KeyType": "RANGE"
+          }
+        ],
+        "BillingMode": "PAY_PER_REQUEST",
+        "Tags": [
+          {
+            "Key": "service",
+            "Value": "t-performance-dash"
+          }
+        ]
+      }
+    },
+    "Reliability": {
+      "Type": "AWS::DynamoDB::Table",
+      "Properties": {
+        "TableName": "Reliability",
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "routeId",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "date",
+            "AttributeType": "S"
+          }
+        ],
+        "KeySchema": [
+          {
+            "AttributeName": "routeId",
             "KeyType": "HASH"
           },
           {
@@ -707,13 +817,107 @@
         ]
       }
     },
-    "ShuttleTravelTimes": {
+    "StoreHourlyWeather": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "Description": "Stores hourly Boston weather data from Open-Meteo for chart overlays",
+        "Environment": {
+          "Variables": {
+            "DD_API_KEY": {
+              "Ref": "DDApiKey"
+            },
+            "DD_VERSION": {
+              "Ref": "GitVersion"
+            },
+            "DD_TAGS": {
+              "Ref": "DDTags"
+            },
+            "DD_GIT_REPOSITORY_URL": {
+              "Ref": "DDGitRepositoryUrl"
+            }
+          }
+        }
+      }
+    },
+    "BackfillWeather": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "Description": "Manually-triggered backfill of historical hourly weather from Open-Meteo archive",
+        "Environment": {
+          "Variables": {
+            "DD_API_KEY": {
+              "Ref": "DDApiKey"
+            },
+            "DD_VERSION": {
+              "Ref": "GitVersion"
+            },
+            "DD_TAGS": {
+              "Ref": "DDTags"
+            },
+            "DD_GIT_REPOSITORY_URL": {
+              "Ref": "DDGitRepositoryUrl"
+            }
+          }
+        }
+      }
+    },
+    "GtfsIngestKeysDlq": {
+      "Type": "AWS::SQS::Queue",
+      "Properties": {
+        "QueueName": "gtfs-ingest-keys-dlq",
+        "MessageRetentionPeriod": 1209600
+      }
+    },
+    "GtfsIngestKeysQueue": {
+      "Type": "AWS::SQS::Queue",
+      "Properties": {
+        "QueueName": "gtfs-ingest-keys",
+        "VisibilityTimeout": 960,
+        "RedrivePolicy": {
+          "deadLetterTargetArn": {
+            "Fn::GetAtt": [
+              "GtfsIngestKeysDlq",
+              "Arn"
+            ]
+          },
+          "maxReceiveCount": 3
+        }
+      }
+    },
+    "IngestGtfsFeedOnDemand": {
+      "Type": "AWS::Serverless::Function",
+      "DependsOn": [
+        "GtfsIngestKeysQueue"
+      ],
+      "Properties": {
+        "Environment": {
+          "Variables": {
+            "DD_API_KEY": {
+              "Ref": "DDApiKey"
+            },
+            "DD_VERSION": {
+              "Ref": "GitVersion"
+            },
+            "DD_TAGS": {
+              "Ref": "DDTags"
+            },
+            "DD_GIT_REPOSITORY_URL": {
+              "Ref": "DDGitRepositoryUrl"
+            }
+          }
+        },
+        "EphemeralStorage": {
+          "Size": 4096
+        }
+      }
+    },
+    "DeliveredTripMetricsCR": {
       "Type": "AWS::DynamoDB::Table",
       "Properties": {
-        "TableName": "ShuttleTravelTimes",
+        "TableName": "DeliveredTripMetricsCR",
         "AttributeDefinitions": [
           {
-            "AttributeName": "routeId",
+            "AttributeName": "route",
             "AttributeType": "S"
           },
           {
@@ -723,7 +927,7 @@
         ],
         "KeySchema": [
           {
-            "AttributeName": "routeId",
+            "AttributeName": "route",
             "KeyType": "HASH"
           },
           {
@@ -740,11 +944,88 @@
         ]
       }
     },
-    "S3Bucket": {
-      "Type": "AWS::S3::Bucket",
-      "DeletionPolicy": "Retain",
+    "UpdateTripMetrics": {
+      "Type": "AWS::Serverless::Function",
       "Properties": {
-        "BucketName": "tm-shuttle-positions"
+        "Environment": {
+          "Variables": {
+            "DD_API_KEY": {
+              "Ref": "DDApiKey"
+            },
+            "DD_VERSION": {
+              "Ref": "GitVersion"
+            },
+            "DD_TAGS": {
+              "Ref": "DDTags"
+            },
+            "DD_GIT_REPOSITORY_URL": {
+              "Ref": "DDGitRepositoryUrl"
+            }
+          }
+        }
+      }
+    },
+    "UpdateServiceRidershipDashboard": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "Environment": {
+          "Variables": {
+            "DD_API_KEY": {
+              "Ref": "DDApiKey"
+            },
+            "DD_VERSION": {
+              "Ref": "GitVersion"
+            },
+            "DD_TAGS": {
+              "Ref": "DDTags"
+            },
+            "DD_GIT_REPOSITORY_URL": {
+              "Ref": "DDGitRepositoryUrl"
+            }
+          }
+        }
+      }
+    },
+    "UpdateBusFleetMetrics": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "Environment": {
+          "Variables": {
+            "DD_API_KEY": {
+              "Ref": "DDApiKey"
+            },
+            "DD_VERSION": {
+              "Ref": "GitVersion"
+            },
+            "DD_TAGS": {
+              "Ref": "DDTags"
+            },
+            "DD_GIT_REPOSITORY_URL": {
+              "Ref": "DDGitRepositoryUrl"
+            }
+          }
+        }
+      }
+    },
+    "UpdateCrFleetMetrics": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "Environment": {
+          "Variables": {
+            "DD_API_KEY": {
+              "Ref": "DDApiKey"
+            },
+            "DD_VERSION": {
+              "Ref": "GitVersion"
+            },
+            "DD_TAGS": {
+              "Ref": "DDTags"
+            },
+            "DD_GIT_REPOSITORY_URL": {
+              "Ref": "DDGitRepositoryUrl"
+            }
+          }
+        }
       }
     }
   }

@@ -13,6 +13,21 @@ def get_ridership_by_line_id(
     ridership_by_route_id: Dict[str, Dict],
     routes_by_line_id: Dict[str, Route],
 ):
+    """Aggregate ridership data from route-level to line-level.
+
+    Sums ridership counts across all routes belonging to each line, grouping
+    by date. Handles Green Line branch aggregation and adds The RIDE as a
+    separate line entry.
+
+    Args:
+        ridership_by_route_id: Mapping of route IDs to lists of ridership
+            entry dicts with 'date' and 'count' keys.
+        routes_by_line_id: Mapping of line IDs to lists of Route objects.
+
+    Returns:
+        Mapping of line IDs to sorted lists of ridership entries with
+        summed counts per date.
+    """
     by_line_id = {}
     # Track route_ids that are accounted for by subway/CR/ferry/RIDE
     # so that "line-bus" captures everything else.
@@ -54,8 +69,10 @@ def get_ridership_by_line_id(
     # Subway route_ids from format_subway_data use unofficial_labels_map to rewrite names
     # (e.g. "Red Line" -> "Red", "SL1" -> "741") and include Mattapan.
     # CR route_ids are prefixed with "CR-".
+    # "Silver Line" comes from the gated station data; the bus file already covers SL
+    # routes (741, 742, ...) so counting it again would double-count them in "line-bus".
     for route_id in ridership_by_route_id:
-        if route_id in ("Red", "Orange", "Blue", "Green", "Mattapan") or route_id.startswith("CR-"):
+        if route_id in ("Red", "Orange", "Blue", "Green", "Mattapan", "Silver Line") or route_id.startswith("CR-"):
             consumed_route_ids.add(route_id)
 
     # Aggregate all remaining unconsumed routes into "line-bus"
@@ -74,6 +91,11 @@ def get_ridership_by_line_id(
 
 
 def ingest_ridership_data():
+    """Run the full ridership ingestion pipeline.
+
+    Downloads the latest ridership files for all transit modes, processes
+    and aggregates them by line ID, and writes the results to DynamoDB.
+    """
     routes = get_routes_by_line_id()
     cr_update_cache()
     ferry_update_cache()

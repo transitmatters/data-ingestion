@@ -59,29 +59,31 @@ STATIONS = {
         "NB": 70038,
     },
     # GREEN LINE
+    # Terminal IDs are the platforms where trips in each direction are actually recorded.
+    # Some terminals use either platform.
     "BOSTON_COLLEGE": {
-        "SB": 70106,
-        "NB": 70107,
+        "SB": 70107,
+        "NB": 70106,
     },
     "CLEVELAND_CIRCLE": {
-        "SB": 70238,
-        "NB": 70237,
+        "SB": (70237, 70238),
+        "NB": (70237, 70238),
     },
     "RIVERSIDE": {
-        "SB": 70160,
-        "NB": 70161,
+        "SB": (70160, 70161),
+        "NB": (70160, 70161),
     },
     "HEATH_ST": {
         "SB": 70260,
         "NB": 70260,
     },
     "MEDFORD_TUFTS": {
-        "SB": 70511,
-        "NB": 70512,
+        "SB": 70512,
+        "NB": 70511,
     },
     "UNION_SQUARE": {
-        "SB": 70503,
-        "NB": 70504,
+        "SB": (70503, 70504),
+        "NB": (70503, 70504),
     },
     "SOUTH_ST": {
         "SB": 70111,
@@ -124,6 +126,10 @@ STATIONS = {
         "NB": 70200,
     },
     # Mattapan LINE
+    "ASHMONT_MATTAPAN": {
+        "SB": 70261,
+        "NB": 70261,
+    },
     "MATTAPAN": {
         "SB": 70275,
         "NB": 70276,
