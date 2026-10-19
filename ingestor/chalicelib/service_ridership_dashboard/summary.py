@@ -4,8 +4,8 @@ from .time_series import (
     get_latest_weekly_median_time_series_entry,
     merge_weekly_median_time_series,
 )
-from .types import LineData, SummaryData
-from .util import date_to_string
+from .types import LineData, ModeKind, SummaryData
+from .util import bucket_by, date_to_string, line_kind_to_mode_kind
 
 
 def _line_is_cancelled(line: LineData) -> bool:
@@ -91,3 +91,15 @@ def get_summary_data(line_data: list[LineData], start_date: date, end_date: date
         "startDate": date_to_string(start_date),
         "endDate": date_to_string(end_date),
     }
+
+
+def get_summary_data_by_mode(
+    line_data: list[LineData],
+    start_date: date,
+    end_date: date,
+) -> dict[ModeKind, SummaryData]:
+    lines_by_mode = bucket_by(line_data, lambda line: line_kind_to_mode_kind(line["lineKind"]))
+    mode_summary_data: dict[ModeKind, SummaryData] = {}
+    for mode, lines in lines_by_mode.items():
+        mode_summary_data[mode] = get_summary_data(lines, start_date, end_date)
+    return mode_summary_data

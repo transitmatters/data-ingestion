@@ -1,0 +1,45 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Action": [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ],
+      "Effect": "Allow",
+      "Resource": "arn:*:logs:*:*:*"
+    },
+    {
+      "Action": ["dynamodb:Query"],
+      "Effect": "Allow",
+      "Resource": ["arn:aws:dynamodb:us-east-1:473352343756:table/DeliveredTripMetricsWeekly"]
+    },
+    {
+      "Action": ["dynamodb:Scan"],
+      "Effect": "Allow",
+      "Resource": ["arn:aws:dynamodb:us-east-1:473352343756:table/Ridership"]
+    },
+    {
+      "Action": ["s3:GetObject"],
+      "Effect": "Allow",
+      "Resource": ["arn:aws:s3:::tm-service-ridership-dashboard/latest.json"]
+    },
+    {
+      "Action": ["s3:PutObject"],
+      "Effect": "Allow",
+      "Resource": [
+        "arn:aws:s3:::dashboard.transitmatters.org/static/landing/baselines.json",
+        "arn:aws:s3:::dashboard-beta.labs.transitmatters.org/static/landing/baselines.json"
+      ]
+    },
+    {
+      "Action": ["CloudFront:CreateInvalidation"],
+      "Effect": "Allow",
+      "Resource": [
+        "arn:aws:cloudfront::473352343756:distribution/EH3F0Z8TUZVCQ",
+        "arn:aws:cloudfront::473352343756:distribution/E17EZQSPQV9OWI"
+      ]
+    }
+  ]
+}

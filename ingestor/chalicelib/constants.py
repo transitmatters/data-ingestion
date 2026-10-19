@@ -211,8 +211,9 @@ TERMINI_NEW = {
             },
             "including_terminals": {
                 "stops": [
-                    [STATIONS["CLEVELAND_CIRCLE"]["NB"], STATIONS["NORTH_STATION_GREEN"]["NB"]],
-                    [STATIONS["NORTH_STATION_GREEN"]["SB"], STATIONS["CLEVELAND_CIRCLE"]["SB"]],
+                    # Inbound trips arrive on 70205 and outbound trips depart from 70206
+                    [STATIONS["CLEVELAND_CIRCLE"]["NB"], STATIONS["NORTH_STATION_GREEN"]["SB"]],
+                    [STATIONS["NORTH_STATION_GREEN"]["NB"], STATIONS["CLEVELAND_CIRCLE"]["SB"]],
                 ]
             },
         },
@@ -265,8 +266,8 @@ TERMINI_NEW = {
         },
         "including_terminals": {
             "stops": [
-                [STATIONS["ASHMONT"]["NB"], STATIONS["MATTAPAN"]["NB"]],
-                [STATIONS["MATTAPAN"]["SB"], STATIONS["ASHMONT"]["SB"]],
+                [STATIONS["MATTAPAN"]["NB"], STATIONS["ASHMONT_MATTAPAN"]["NB"]],
+                [STATIONS["ASHMONT_MATTAPAN"]["SB"], STATIONS["MATTAPAN"]["SB"]],
             ],
         },
     },
@@ -377,6 +378,8 @@ ALERT_PATTERNS = {
         "disabled bus",
         "train being taken out of service",
         "train being removed from service",
+        "disabled amtrak train",
+        "disabled freight train",
     ],
     "signal_problem": [
         "signal problem",
@@ -386,6 +389,7 @@ ALERT_PATTERNS = {
         "signal repair",
         "signal work",
         "signal department",
+        "signal personnel",
     ],
     "switch_problem": [
         "switch problem",
@@ -408,7 +412,7 @@ ALERT_PATTERNS = {
         "overhead wire",
         "overhear wires",
         "overheard wires",
-        "catenary wires",
+        "catenary wire",
         "the overhead",
         "wire repair",
         "repairs to the wire",
@@ -419,6 +423,9 @@ ALERT_PATTERNS = {
         "overhead catenary",
         "third rail wiring",
         "power department work",
+        "power outage",
+        "power maintenance",
+        "power equipment",
     ],
     "door_problem": [
         "door problem",
@@ -436,6 +443,7 @@ ALERT_PATTERNS = {
         "medical assistance",
         "medical attention",
         "sick passenger",
+        "medical incident",
     ],
     "flooding": [
         "flooding",
@@ -456,6 +464,7 @@ ALERT_PATTERNS = {
         "pantograph issue",
         "issue with the heating system",
         "air pressure problem",
+        "train issue",
     ],
     "track_work": [
         "track work",
@@ -466,6 +475,12 @@ ALERT_PATTERNS = {
         "maintenance work",
         "overnight maintenance",
         "single track",
+        "track inspection",
+        "inspect the track",
+        "maintenance personnel",
+        "work crews access",
+        "track department personnel",
+        "infrastructure repairs",
     ],
     "car_traffic": [
         "unauthorized vehicle on the tracks",
@@ -483,6 +498,8 @@ ALERT_PATTERNS = {
         "auto blocking the track",
         "auto was removed from the track",
         "accident blocking the tracks",
+        "road vehicle",
+        "vehicle blocking the track",
     ],
 }
 # Initializing all Delay types at 0 for processing
