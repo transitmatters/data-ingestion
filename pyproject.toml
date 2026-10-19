@@ -33,11 +33,6 @@ dev = [
     "moto[dynamodb]>=5",
     "botocore[crt]",
 ]
-
-[tool.pytest.ini_options]
-addopts = "--cov=ingestor/chalicelib --cov-report=term-missing"
-testpaths = ["ingestor/chalicelib/tests"]
-
 docs = [
     "mkdocs-material>=9.7",
     "mkdocstrings[python]>=0.27",
