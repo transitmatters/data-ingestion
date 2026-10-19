@@ -31,6 +31,7 @@ dev = [
     "pre-commit>=4.4.0",
     "pytest-cov>=7.0.0",
     "moto[dynamodb]>=5",
+    "botocore[crt]",
 ]
 
 [tool.pytest.ini_options]
@@ -41,6 +42,10 @@ docs = [
     "mkdocstrings[python]>=0.27",
     "mkdocs-include-markdown-plugin>=7.2.1",
 ]
+[tool.pytest.ini_options]
+addopts = "--cov=ingestor/chalicelib --cov-report=term-missing"
+testpaths = ["ingestor/chalicelib/tests"]
+
 [tool.uv]
 package = false
 
