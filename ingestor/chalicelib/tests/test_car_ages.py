@@ -18,10 +18,10 @@ def test_blue_line_boundary():
 
 
 def test_orange_line_multiple_ranges():
-    assert get_car_build_year(1400, "Orange") == 2019  # start of first range
-    assert get_car_build_year(1415, "Orange") == 2019  # end of first range
-    assert get_car_build_year(1416, "Orange") == 2020  # start of second range
-    assert get_car_build_year(1551, "Orange") == 2025  # end of last range
+    assert get_car_build_year(1400, "Orange") == 2018.5  # start of first range
+    assert get_car_build_year(1403, "Orange") == 2018.5  # end of first range
+    assert get_car_build_year(1404, "Orange") == 2018.75  # start of second range
+    assert get_car_build_year(1551, "Orange") == 2025.75  # end of last range
 
 
 def test_orange_line_out_of_range():
@@ -35,8 +35,8 @@ def test_red_line_old_fleet():
 
 
 def test_red_line_newer_fleet():
-    assert get_car_build_year(1900, "Red") == 2020
-    assert get_car_build_year(1959, "Red") == 2025
+    assert get_car_build_year(1900, "Red") == 2020.5
+    assert get_car_build_year(1959, "Red") == 2026.0
 
 
 def test_green_line():
