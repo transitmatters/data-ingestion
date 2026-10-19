@@ -2,7 +2,7 @@ import json
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, timedelta
 from decimal import Decimal
-from typing import List
+from typing import List, Tuple
 from urllib.parse import urlencode
 
 import pandas as pd
@@ -79,13 +79,12 @@ def generate_requests(
     start_date: date,
     end_date: date,
     max_date_range_size: int = 50,
+    routes: List[Tuple[str, str | None]] = constants.ALL_ROUTES,
 ) -> List[AggTravelTimesRequest]:
     reqs = []
     date_ranges = get_date_ranges(start_date, end_date, max_date_range_size, [constants.GLX_EXTENSION_DATE])
     for start_date, end_date in date_ranges:
-        for line, route in constants.ALL_ROUTES:
-            if line.startswith("line-green"):
-                continue
+        for line, route in routes:
             for includes_terminals in (True, False):
                 route_metadata = constants.get_route_metadata(line, start_date, includes_terminals, route)
                 stop_pairs = route_metadata["stops"]
@@ -105,8 +104,9 @@ def generate_requests(
 def load_travel_time_dataframe(
     start_date: date,
     end_date: date,
+    routes: List[Tuple[str, str | None]] = constants.ALL_ROUTES,
 ) -> pd.DataFrame:
-    reqs = generate_requests(start_date, end_date)
+    reqs = generate_requests(start_date, end_date, routes=routes)
     df_dicts = []
     with ThreadPoolExecutor(max_workers=4) as executor:
         futures = {executor.submit(request_agg_travel_time, req): req for req in reqs}
@@ -137,6 +137,12 @@ def get_df_entry_for_direction_and_exclusivity(df: pd.DataFrame, direction: Dire
     return {f"{prefix}_{key}": value for key, value in entry.iloc[0].to_dict().items() if key in KEYS_TO_KEEP}
 
 
+def is_plausible(exclusive: dict, inclusive: dict, direction: DirectionType):
+    # Terminal-to-terminal trips cover the one-stop-in span, so a shorter mean means the source paired the wrong
+    # events (e.g. ~160s "trips" from Heath St to Medford/Tufts in Sep-Oct 2025)
+    return inclusive[f"dir_{direction}_inclusive_mean"] >= exclusive[f"dir_{direction}_exclusive_mean"]
+
+
 def prepare_dict_for_dynamo(row_dict):
     res = {}
     for key, value in row_dict.items():
@@ -149,8 +155,8 @@ def prepare_dict_for_dynamo(row_dict):
     return res
 
 
-def ingest_trip_metrics(start_date: date, end_date: date):
-    df = load_travel_time_dataframe(start_date, end_date)
+def ingest_trip_metrics(start_date: date, end_date: date, routes: List[Tuple[str, str | None]] = constants.ALL_ROUTES):
+    df = load_travel_time_dataframe(start_date, end_date, routes)
     df = df[df["peak"] == "all"]
     # get all dates
     dates = df["service_date"].unique()
@@ -163,7 +169,14 @@ def ingest_trip_metrics(start_date: date, end_date: date):
             nb_exclusive = get_df_entry_for_direction_and_exclusivity(date_data, "1", False)
             sb_inclusive = get_df_entry_for_direction_and_exclusivity(date_data, "0", True)
             nb_inclusive = get_df_entry_for_direction_and_exclusivity(date_data, "1", True)
-            if sb_exclusive and nb_exclusive and sb_inclusive and nb_inclusive:
+            if (
+                sb_exclusive
+                and nb_exclusive
+                and sb_inclusive
+                and nb_inclusive
+                and is_plausible(sb_exclusive, sb_inclusive, "0")
+                and is_plausible(nb_exclusive, nb_inclusive, "1")
+            ):
                 row_dict = prepare_dict_for_dynamo(
                     {
                         "date": date_str,
