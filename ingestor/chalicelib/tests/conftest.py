@@ -292,8 +292,10 @@ def dynamodb_tables(monkeypatch):
 
         # Replace the module-level resource so production functions use the mock.
         from .. import dynamo as _dynamo_module
+        from ..service_ridership_dashboard import queries as _queries_module
 
         monkeypatch.setattr(_dynamo_module, "dynamodb", resource)
+        monkeypatch.setattr(_queries_module, "dynamodb", resource)
 
         tables = {}
         for spec in _DYNAMODB_TABLES:
