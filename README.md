@@ -15,6 +15,9 @@ So far we have:
 - Store Bluebikes station status data every 5 min.
 - Store ridership data
 - Process and store speed restrictions
+- Store daily reliability for The RIDE and commuter rail from the MBTA open data portal (weekly; backfill with `uv run python -m chalicelib.reliability.the_ride` / `commuter_rail` from `ingestor/`)
+- Store daily scheduled Commuter Rail service measured against Regional Rail standards (frequency, span, clock-face, reverse-peak), alongside the GTFS ingest
+- Store hourly Boston weather data (temperature + condition) for chart overlays
 
 To add a new lambda function, put the methods you need in a new file in chalicelib/.
 Then add your trigger in app.py.
@@ -22,3 +25,15 @@ Then, add a policy.json file for any permissions you might need in .chalice/, up
 Lastly, if you need secret environment variables, update resources.json and make sure they are passed
 with --parameter-override in the cloudformation deploy step of deploy.sh.
 (Non-secret envvars can be added to config.json directly.)
+
+## Development
+
+Install [uv](https://docs.astral.sh/uv/) and the Python version in `.python-version` (`mise install` works), then from the repo root:
+
+```bash
+uv sync --group dev                                                # Install dependencies
+uv run ruff check ingestor && uv run ruff format ingestor --check  # Lint
+uv run pytest ingestor                                             # Run tests
+```
+
+The Chalice app lives in `ingestor/`: `app.py` defines the schedules, `chalicelib/` holds the job code and tests, and `.chalice/` holds per-function config, IAM policies, and the extra CloudFormation resources (DynamoDB tables). Deployment is handled by `devops/deploy.sh`, which CI runs on pushes to `main`.

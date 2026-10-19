@@ -6,6 +6,12 @@ DYNAMO_TABLE_NAME = "Ridership"
 
 
 def ingest_ridership_to_dynamo(entries_by_line_id: Dict[str, List[Dict]]):
+    """Batch write ridership entries to the DynamoDB Ridership table.
+
+    Args:
+        entries_by_line_id: Mapping of line IDs to lists of ridership entry dicts,
+            each containing 'date' (YYYY-MM-DD) and 'count' keys.
+    """
     dynamodb = boto3.resource("dynamodb")
     Ridership = dynamodb.Table(DYNAMO_TABLE_NAME)
     with Ridership.batch_writer() as batch:

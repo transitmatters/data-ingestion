@@ -1,0 +1,58 @@
+{
+  "CR-Fairmount": [
+    "CR-Fairmount_0_DB-2222-01",
+    "CR-Fairmount_1_DB-2230-02"
+  ],
+  "CR-Fitchburg": [
+    "CR-Fitchburg_0_FR-0034-01",
+    "CR-Fitchburg_1_FR-0034-02"
+  ],
+  "CR-Franklin": [
+    "CR-Franklin_0_FB-0109-01",
+    "CR-Franklin_1_FB-0109-02"
+  ],
+  "CR-Greenbush": [
+    "CR-Greenbush_0_GRB-0118-S",
+    "CR-Greenbush_1_GRB-0118-S"
+  ],
+  "CR-Haverhill": [
+    "CR-Haverhill_0_WR-0045-S",
+    "CR-Haverhill_1_WR-0053-S"
+  ],
+  "CR-Kingston": [
+    "CR-Kingston_0_PB-0158-S",
+    "CR-Kingston_1_PB-0158-S"
+  ],
+  "CR-Lowell": [
+    "CR-Lowell_0_NHRML-0055-01",
+    "CR-Lowell_1_NHRML-0055-02"
+  ],
+  "CR-Middleborough": [
+    "CR-Middleborough_0_MM-0023-S",
+    "CR-Middleborough_1_MM-0023-S"
+  ],
+  "CR-Needham": [
+    "CR-Needham_0_NB-0064-S",
+    "CR-Needham_1_NB-0064-S"
+  ],
+  "CR-NewBedford": [
+    "CR-NewBedford_0_MBS-0350-S",
+    "CR-NewBedford_1_MBS-0350-S"
+  ],
+  "CR-Newburyport": [
+    "CR-Newburyport_0_ER-0042-01",
+    "CR-Newburyport_1_ER-0042-02"
+  ],
+  "CR-Providence": [
+    "CR-Providence_0_NEC-2173-01",
+    "CR-Providence_1_NEC-2265-02"
+  ],
+  "CR-Worcester": [
+    "CR-Worcester_0_WML-0025-07",
+    "CR-Worcester_1_WML-0012-05"
+  ],
+  "CapeFlyer": [
+    "CapeFlyer_0_CM-0493-S",
+    "CapeFlyer_1_CM-0493-S"
+  ]
+}

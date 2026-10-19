@@ -1,7 +1,7 @@
 #!/bin/bash -x
 
-if [[ -z "$MBTA_V3_API_KEY" || -z "$DD_API_KEY"  || -z "$YANKEE_API_KEY"  ]]; then
-    echo "Must provide MBTA_V3_API_KEY, YANKEE_API_KEY, and DD_API_KEY in environment" 1>&2
+if [[ -z "$MBTA_V3_API_KEY" || -z "$DD_API_KEY"  ]]; then
+    echo "Must provide MBTA_V3_API_KEY and DD_API_KEY in environment" 1>&2
     exit 1
 fi
 
@@ -30,6 +30,7 @@ echo "Shrinking the deployment package for the lambda layer. It's currently $act
 
 source ../devops/helpers.sh
 shrink > /dev/null 2>&1
+strip_binaries
 
 # Check the size of the new package
 newsize=$(wc -c <"cfn/layer-deployment.zip")
@@ -39,9 +40,10 @@ echo "Difference: $diffsize bytes"
 
 # Check package size before deploying
 check_package_size
+check_unzipped_size
 
 aws cloudformation package --template-file cfn/sam.json --s3-bucket $BUCKET --output-template-file cfn/packaged.yaml
-aws cloudformation deploy --template-file cfn/packaged.yaml --stack-name $STACK_NAME \
+aws cloudformation deploy --template-file cfn/packaged.yaml --stack-name $STACK_NAME --s3-bucket $BUCKET \
     --capabilities CAPABILITY_NAMED_IAM --no-fail-on-empty-changeset \
-    --tags service=ingestor env=prod \
-    --parameter-overrides MbtaV2ApiKey=$MBTA_V2_API_KEY DDApiKey=$DD_API_KEY YankeeApiKey=$YANKEE_API_KEY GitVersion=$GIT_VERSION DDTags=$DD_TAGS
+    --tags service=ingestor env=prod team=tm-labs \
+    --parameter-overrides MbtaV3ApiKey=$MBTA_V3_API_KEY DDApiKey=$DD_API_KEY GitVersion=$GIT_VERSION DDTags=$DD_TAGS
