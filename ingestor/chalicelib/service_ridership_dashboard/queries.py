@@ -45,7 +45,7 @@ def query_scheduled_service(start_date: date, end_date: date, route_id: str) -> 
     table = dynamodb.Table("ScheduledServiceDaily")
     date_condition = Key("date").between(start_date.isoformat(), end_date.isoformat())
     route_condition = Key("routeId").eq(route_id)
-    condition = date_condition & route_condition
+    condition = route_condition & date_condition
     response = table.query(KeyConditionExpression=condition)
     return ddb_json.loads(response["Items"])
 
@@ -64,6 +64,6 @@ def query_ridership(start_date: date, end_date: date, line_id: str) -> list[Ride
     table = dynamodb.Table("Ridership")
     date_condition = Key("date").between(start_date.isoformat(), end_date.isoformat())
     line_condition = Key("lineId").eq(line_id)
-    condition = date_condition & line_condition
+    condition = line_condition & date_condition
     response = table.query(KeyConditionExpression=condition)
     return ddb_json.loads(response["Items"])
