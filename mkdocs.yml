@@ -3,29 +3,45 @@ site_description: Automated data crunching jobs by TransitMatters
 site_url: https://transitmatters.github.io/data-ingestion
 repo_url: https://github.com/transitmatters/data-ingestion
 repo_name: transitmatters/data-ingestion
+edit_uri: edit/main/docs/
+copyright: © TransitMatters
 
+# Styling matches the Labs docs at https://transitmatters.github.io/architecture/
 theme:
   name: material
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default
-      primary: red
-      accent: indigo
+      primary: custom
+      accent: custom
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
-      primary: deep purple
-      accent: amber
+      primary: custom
+      accent: custom
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
+  logo: assets/flask.png
+  favicon: assets/favicon.png
+  icon:
+    repo: fontawesome/brands/github
   features:
+    - content.action.edit
     - content.code.copy
-    - navigation.sections
     - navigation.expand
+    - navigation.indexes
+    - navigation.instant
+    - navigation.sections
+    - navigation.tabs
+    - navigation.top
+    - search.suggest
     - toc.follow
+
+extra_css:
+  - stylesheets/extra.css
 
 markdown_extensions:
   - admonition
@@ -72,3 +88,11 @@ nav:
           - Service Summaries: api/service_ridership_dashboard/service_summaries.md
           - Summary: api/service_ridership_dashboard/summary.md
           - Time Series: api/service_ridership_dashboard/time_series.md
+
+extra:
+  generator: false
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/transitmatters
+    - icon: fontawesome/solid/globe
+      link: https://transitmatters.org/transitmatters-labs
