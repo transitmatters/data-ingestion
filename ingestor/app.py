@@ -17,6 +17,7 @@ from chalicelib import (
     reliability,
     ridership,
     service_ridership_dashboard,
+    shutdowns,
     speed_restrictions,
     trip_metrics,
     weather,
@@ -205,6 +206,20 @@ def update_daily_alert_delays(event):
     today = datetime.now()
     yesterday = (today - timedelta(days=1)).date()
     delays.update_table(yesterday, today.date())
+
+
+# 12:40pm UTC -> 7:40/8:40am ET, after mbta-performance rebuilds the last 30 days of LAMP alerts files at 11:00 UTC
+@app.schedule(Cron(40, 12, "*", "*", "?", "*"))
+def update_shutdowns(event):
+    """Indexes new and revised shuttle, suspension, and station closure alerts into the Shutdowns table."""
+    shutdowns.update_recent()
+
+
+# Manually triggered lambda for backfilling the Shutdowns table. Run it in date order, a year or so at a time.
+# Payload: {"start_date": "YYYY-MM-DD", "end_date": "YYYY-MM-DD"}
+@app.lambda_function()
+def populate_shutdowns(params, context):
+    shutdowns.update_table(date.fromisoformat(params["start_date"]), date.fromisoformat(params["end_date"]))
 
 
 # Manually triggered lambda for populating daily trip metric tables. Only needs to be ran once.
