@@ -50,6 +50,11 @@
           "lambda_timeout": 60,
           "lambda_memory_size": 512
         },
+        "store_overview_data": {
+          "iam_policy_file": "policy-overview.json",
+          "lambda_timeout": 60,
+          "lambda_memory_size": 256
+        },
         "populate_delivered_trip_metrics": {
           "iam_policy_file": "policy-delivered-trip-metrics-daily.json",
           "lambda_timeout": 600
