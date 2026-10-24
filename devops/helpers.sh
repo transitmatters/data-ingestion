@@ -216,7 +216,7 @@ function check_unzipped_size {
     local zipfile="${1:-cfn/layer-deployment.zip}"
     local appzip="${2:-cfn/deployment.zip}"
     local maximumsize=262144000
-    # Datadog-Extension:101 (ingestor/.chalice/config.json); update when bumping the extension
+    # Datadog-Extension-ARM:101 (ingestor/.chalice/config.json); update when bumping the extension
     local extensionsize=11683061
 
     layersize=$(unzip -l "$zipfile" | tail -1 | awk '{print $1}')
@@ -252,7 +252,7 @@ function smoke_layer {
     # Run in the image matching the Python version the layer was built for (python/lib/pythonX.Y)
     local python_version
     python_version="$(basename "$(ls -d "$layer_dir"/python/lib/python3.*)" | sed 's/^python//')"
-    docker run --rm --platform linux/amd64 \
+    docker run --rm --platform linux/arm64 \
         -v "$layer_dir:/opt:ro" \
         -v "$app_dir:/var/task:ro" \
         -v "$helpers_dir/smoke_layer.py:/smoke_layer.py:ro" \

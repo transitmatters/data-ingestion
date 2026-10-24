@@ -10,7 +10,7 @@ on:
 
 jobs:
   check-layer-size:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     # Only run for PRs from the same repository (not forks) to protect secrets
     if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name == 'push'
     env:
