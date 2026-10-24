@@ -106,6 +106,16 @@
           "lambda_memory_size": 256,
           "lambda_timeout": 60
         },
+        "update_shutdowns": {
+          "iam_policy_file": "policy-shutdowns.json",
+          "lambda_memory_size": 256,
+          "lambda_timeout": 300
+        },
+        "populate_shutdowns": {
+          "iam_policy_file": "policy-shutdowns.json",
+          "lambda_memory_size": 256,
+          "lambda_timeout": 900
+        },
         "update_time_predictions": {
           "iam_policy_file": "policy-time-predictions.json",
           "lambda_memory_size": 256,

@@ -241,6 +241,49 @@
         }
       }
     },
+    "UpdateShutdowns": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "Environment": {
+          "Variables": {
+            "DD_API_KEY": {
+              "Ref": "DDApiKey"
+            },
+            "DD_VERSION": {
+              "Ref": "GitVersion"
+            },
+            "DD_TAGS": {
+              "Ref": "DDTags"
+            },
+            "DD_GIT_REPOSITORY_URL": {
+              "Ref": "DDGitRepositoryUrl"
+            }
+          }
+        }
+      }
+    },
+    "PopulateShutdowns": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "Description": "Manually-triggered backfill of the Shutdowns table from LAMP alerts day files",
+        "Environment": {
+          "Variables": {
+            "DD_API_KEY": {
+              "Ref": "DDApiKey"
+            },
+            "DD_VERSION": {
+              "Ref": "GitVersion"
+            },
+            "DD_TAGS": {
+              "Ref": "DDTags"
+            },
+            "DD_GIT_REPOSITORY_URL": {
+              "Ref": "DDGitRepositoryUrl"
+            }
+          }
+        }
+      }
+    },
     "UpdateDeliveredTripMetricsYesterday": {
       "Type": "AWS::Serverless::Function",
       "Properties": {
@@ -574,6 +617,39 @@
           },
           {
             "AttributeName": "date",
+            "AttributeType": "S"
+          }
+        ],
+        "BillingMode": "PAY_PER_REQUEST",
+        "Tags": [
+          {
+            "Key": "service",
+            "Value": "t-performance-dash"
+          }
+        ]
+      }
+    },
+    "ShutdownsDB": {
+      "Type": "AWS::DynamoDB::Table",
+      "Properties": {
+        "TableName": "Shutdowns",
+        "KeySchema": [
+          {
+            "AttributeName": "line",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "alert_id",
+            "KeyType": "RANGE"
+          }
+        ],
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "line",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "alert_id",
             "AttributeType": "S"
           }
         ],
