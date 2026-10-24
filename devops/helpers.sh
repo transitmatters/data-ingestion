@@ -217,7 +217,7 @@ function check_unzipped_size {
     local appzip="${2:-cfn/deployment.zip}"
     local maximumsize=262144000
     # Datadog-Extension-ARM:101 (ingestor/.chalice/config.json); update when bumping the extension
-    local extensionsize=11683061
+    local extensionsize=10220593
 
     layersize=$(unzip -l "$zipfile" | tail -1 | awk '{print $1}')
     appsize=$(unzip -l "$appzip" | tail -1 | awk '{print $1}')
