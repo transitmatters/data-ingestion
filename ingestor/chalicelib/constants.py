@@ -40,6 +40,8 @@ ALL_LINES: list[str] = [
 
 STATIONS = stations.STATIONS
 
+# Speed is "length" over the travel time between the excluding_terminals stops, so "length" must be
+# the distance between those same stops (both directions), not between the terminals.
 TERMINI_NEW = {
     "line-red": {
         "a": {
@@ -50,7 +52,7 @@ TERMINI_NEW = {
                     [STATIONS["SHAWMUT"]["NB"], STATIONS["DAVIS"]["NB"]],
                     [STATIONS["DAVIS"]["SB"], STATIONS["SHAWMUT"]["SB"]],
                 ],
-                "length": Decimal("11.748749681857948") * 2,
+                "length": Decimal("10.152279128638751") * 2,
             },
             "including_terminals": {
                 "stops": [
@@ -67,7 +69,7 @@ TERMINI_NEW = {
                     [STATIONS["QUINCY_ADAMS"]["NB"], STATIONS["DAVIS"]["NB"]],
                     [STATIONS["DAVIS"]["SB"], STATIONS["QUINCY_ADAMS"]["SB"]],
                 ],
-                "length": Decimal("17.625824547766033") * 2,
+                "length": Decimal("14.831580107795467") * 2,
             },
             "including_terminals": {
                 "stops": [
@@ -85,7 +87,7 @@ TERMINI_NEW = {
                 [STATIONS["GREEN_STREET"]["NB"], STATIONS["MALDEN_CENTER"]["NB"]],
                 [STATIONS["MALDEN_CENTER"]["SB"], STATIONS["GREEN_STREET"]["SB"]],
             ],
-            "length": Decimal("11.029177615227074") * 2,
+            "length": Decimal("9.605812260150719") * 2,
         },
         "including_terminals": {
             "stops": [
@@ -102,7 +104,7 @@ TERMINI_NEW = {
                 [STATIONS["GOV_CENTER_BLUE"]["NB"], STATIONS["REVERE_BEACH"]["NB"]],
                 [STATIONS["REVERE_BEACH"]["SB"], STATIONS["GOV_CENTER_BLUE"]["SB"]],
             ],
-            "length": Decimal("5.949268349091304") * 2,
+            "length": Decimal("5.387454635553366") * 2,
         },
         "including_terminals": {
             "stops": [
@@ -120,7 +122,7 @@ TERMINI_NEW = {
                     [STATIONS["SOUTH_ST"]["NB"], STATIONS["BOYLSTON"]["NB"]],
                     [STATIONS["BOYLSTON"]["SB"], STATIONS["SOUTH_ST"]["SB"]],
                 ],
-                "length": Decimal("6.408502086564462") * 2,
+                "length": Decimal("5.371467435799927") * 2,
             },
             "including_terminals": {
                 "stops": [
@@ -137,7 +139,7 @@ TERMINI_NEW = {
                     [STATIONS["ENGLEWOOD"]["NB"], STATIONS["PARK_ST"]["NB"]],
                     [STATIONS["PARK_ST"]["SB"], STATIONS["ENGLEWOOD"]["SB"]],
                 ],
-                "length": Decimal("5.0796123265131605") * 2,
+                "length": Decimal("4.613417971546169") * 2,
             },
             "including_terminals": {
                 "stops": [
@@ -154,7 +156,7 @@ TERMINI_NEW = {
                     [STATIONS["WOODLAND"]["NB"], STATIONS["LECHMERE"]["NB"]],
                     [STATIONS["LECHMERE"]["SB"], STATIONS["WOODLAND"]["SB"]],
                 ],
-                "length": Decimal("14.351562608739952") + Decimal("14.350889348703578"),
+                "length": Decimal("12.768578050435448") * 2,
             },
             "including_terminals": {
                 "stops": [
@@ -171,7 +173,7 @@ TERMINI_NEW = {
                     [STATIONS["BACK_OF_THE_HILL"]["NB"], STATIONS["BALL_SQ"]["NB"]],
                     [STATIONS["BALL_SQ"]["SB"], STATIONS["BACK_OF_THE_HILL"]["SB"]],
                 ],
-                "length": Decimal("8.531917015877275") + Decimal("8.538854223832816"),
+                "length": Decimal("7.869579294420582") + Decimal("7.876516502376123"),
             },
             "including_terminals": {
                 "stops": [
@@ -190,7 +192,7 @@ TERMINI_NEW = {
                     [STATIONS["SOUTH_ST"]["NB"], STATIONS["BOYLSTON"]["NB"]],
                     [STATIONS["BOYLSTON"]["SB"], STATIONS["SOUTH_ST"]["SB"]],
                 ],
-                "length": Decimal("6.12448264013163") * 2,
+                "length": Decimal("5.371467435799927") * 2,
             },
             "including_terminals": {
                 "stops": [
@@ -207,7 +209,7 @@ TERMINI_NEW = {
                     [STATIONS["ENGLEWOOD"]["NB"], STATIONS["GOV_CENTER_GREEN"]["NB"]],
                     [STATIONS["GOV_CENTER_GREEN"]["SB"], STATIONS["ENGLEWOOD"]["SB"]],
                 ],
-                "length": Decimal("5.568063458154377") * 2,
+                "length": Decimal("4.897437417979001") * 2,
             },
             "including_terminals": {
                 "stops": [
@@ -226,7 +228,7 @@ TERMINI_NEW = {
                     [STATIONS["WOODLAND"]["NB"], STATIONS["PARK_ST"]["NB"]],
                     [STATIONS["PARK_ST"]["SB"], STATIONS["WOODLAND"]["SB"]],
                 ],
-                "length": Decimal("11.591020825876871") * 2,
+                "length": Decimal("11.022485221928926") * 2,
             },
             "including_terminals": {
                 "stops": [
@@ -244,7 +246,7 @@ TERMINI_NEW = {
                     [STATIONS["BACK_OF_THE_HILL"]["NB"], STATIONS["GOV_CENTER_GREEN"]["NB"]],
                     [STATIONS["GOV_CENTER_GREEN"]["SB"], STATIONS["BACK_OF_THE_HILL"]["SB"]],
                 ],
-                "length": Decimal("3.740221104375446") * 2,
+                "length": Decimal("3.6736916227978593") + Decimal("3.6518570572854516"),
             },
             "including_terminals": {
                 "stops": [
@@ -262,7 +264,7 @@ TERMINI_NEW = {
                 [STATIONS["CAPEN_ST"]["NB"], STATIONS["CEDAR_GROVE"]["NB"]],
                 [STATIONS["CEDAR_GROVE"]["SB"], STATIONS["CAPEN_ST"]["SB"]],
             ],
-            "length": Decimal("2.49553989700151") + Decimal("2.5088339428984714"),
+            "length": Decimal("1.9374308792899457") * 2,
         },
         "including_terminals": {
             "stops": [
