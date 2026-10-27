@@ -3,7 +3,7 @@ from unittest import mock
 
 import pytest
 
-from ..gtfs.ingest import ingest_feeds
+from ..gtfs.ingest import ingest_feeds, ingest_gtfs_feeds_to_dynamo_and_s3
 
 
 def _feed(key: str, start: date, end: date, exists_remotely: bool = True):
@@ -152,3 +152,18 @@ def test_downloaded_feeds_are_deleted_unless_kept(mock_dynamo, keep_local_feeds,
     )
 
     assert feed.delete_locally.called == deleted
+
+
+@mock.patch("chalicelib.gtfs.ingest.ingest_feeds")
+@mock.patch("chalicelib.gtfs.ingest.MbtaGtfsArchive")
+def test_unlisted_feed_key_raises_a_clear_error(mock_archive, mock_ingest_feeds):
+    """MBTA's archive list can lag the live feed, so an enqueued key may not resolve yet.
+
+    This used to surface as an AttributeError on None; it should name the missing key.
+    """
+    mock_archive.return_value.get_feed_by_key.return_value = None
+
+    with pytest.raises(LookupError, match="20261020"):
+        ingest_gtfs_feeds_to_dynamo_and_s3(feed_key="20261020", boto3_session=mock.MagicMock())
+
+    mock_ingest_feeds.assert_not_called()
