@@ -131,6 +131,10 @@ _TEST_CASES = [
         "car_traffic",
     ),
     ("Green Line: Delays of about 15 minutes due to a disabled vehicle blocking the track area", "car_traffic"),
+    ("Route 39 is experiencing delays of about 20 minutes due to traffic.", "car_traffic"),
+    ("Route 106 is experiencing delays of about 25 minutes due to a disabled bus.", "disabled_vehicle"),
+    ("Route 111 is experiencing delays of about 25 minutes due to police activity.", "police_activity"),
+    ("SL3 is experiencing delays of about 30 minutes due to a drawbridge being raised.", "other"),
 ]
 
 
@@ -138,3 +142,19 @@ _TEST_CASES = [
 def test_alert_type(text, expected):
     alert = Alert(valid_from="2024-01-01T10:00:00", valid_to="2024-01-01T10:00:00", text=text)
     assert alert_type(alert) == expected
+
+
+def test_accident_is_car_traffic_only_for_bus():
+    bus = Alert(
+        valid_from="", valid_to="", text="Route 14 is experiencing delays of about 30 minutes due to an accident."
+    )
+    subway = Alert(
+        valid_from="", valid_to="", text="Red Line: Delays of about 15 minutes due to an accident at Alewife."
+    )
+    assert alert_type(bus, bus=True) == "car_traffic"
+    assert alert_type(subway) == "other"
+
+
+def test_bus_patterns_dont_beat_specific_causes():
+    alert = Alert(valid_from="", valid_to="", text="Route 1 delays of about 20 minutes due to police at an accident.")
+    assert alert_type(alert, bus=True) == "police_activity"

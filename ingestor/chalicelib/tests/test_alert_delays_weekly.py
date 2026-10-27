@@ -33,7 +33,7 @@ def _run_weekly(monkeypatch, rows, start_date, end_date, lines):
     written = []
     monkeypatch.setattr(process.dynamo, "query_dynamo", fake_query)
     monkeypatch.setattr(process.dynamo, "dynamo_batch_write", lambda items, table: written.extend(items))
-    process.update_weekly_from_daily(start_date, end_date, lines)
+    process.update_weekly_from_daily(start_date, end_date, lines, include_bus=False)
     return {(r["line"], r["date"]): r for r in written}
 
 

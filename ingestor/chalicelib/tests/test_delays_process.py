@@ -153,6 +153,23 @@ def test_process_delay_time_unknown_type_goes_to_other():
     assert by_type["other"] == 7
 
 
+def test_process_delay_time_bus_traffic_and_accident():
+    alerts = [
+        make_alert("Route 39 is experiencing delays of about 20 minutes due to traffic."),
+        make_alert("Route 14 is experiencing delays of about 30 minutes due to an accident."),
+    ]
+    total, by_type = process_delay_time(alerts, bus=True)
+    assert total == 50
+    assert by_type["car_traffic"] == 50
+
+
+def test_process_delay_time_more_than():
+    alerts = [make_alert("Route 108 is experiencing delays of more than 30 minutes due to a disabled bus.")]
+    total, by_type = process_delay_time(alerts, bus=True)
+    assert total == 30
+    assert by_type["disabled_vehicle"] == 30
+
+
 # --- aggregate_commuter_rail_df ---
 
 

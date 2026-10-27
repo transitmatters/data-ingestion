@@ -192,7 +192,7 @@ def update_trip_metrics(event):
 # Runs 15 minutes after the daily update
 @app.schedule(Cron(45, 12, "?", "*", "MON,TUE", "*"))
 def update_weekly_alert_delays(event):
-    """Aggregates daily delay data into weekly totals for the last 15 days."""
+    """Aggregates daily delay data into weekly totals for the last 15 days, re-reading bus from LAMP alerts."""
     today = datetime.now()
     one_week_ago = (today - timedelta(days=15)).date()
     delays.update_weekly_from_daily(one_week_ago, today.date())
@@ -202,7 +202,7 @@ def update_weekly_alert_delays(event):
 # 12:30pm UTC, after mbta-performance rebuilds yesterday's LAMP alerts file at 11:00 UTC
 @app.schedule(Cron(30, 12, "*", "*", "?", "*"))
 def update_daily_alert_delays(event):
-    """Processes yesterday's alerts and updates the daily delay table."""
+    """Processes yesterday's subway, commuter rail, and bus alerts and updates the daily delay table."""
     today = datetime.now()
     yesterday = (today - timedelta(days=1)).date()
     delays.update_table(yesterday, today.date())
