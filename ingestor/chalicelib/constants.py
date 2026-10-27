@@ -536,6 +536,13 @@ ALERT_PATTERNS = {
         "vehicle blocking the track",
     ],
 }
+# Checked after ALERT_PATTERNS, for bus alerts only. "an accident" on a bus route is a
+# road crash, but in a subway alert it's too vague to call car traffic.
+BUS_ALERT_PATTERNS = {
+    "car_traffic": [
+        "an accident",
+    ],
+}
 # Initializing all Delay types at 0 for processing
 DELAY_BY_TYPE = {
     "disabled_vehicle": 0,
