@@ -40,6 +40,8 @@ ALL_LINES: list[str] = [
 
 STATIONS = stations.STATIONS
 
+# Speed is "length" over the travel time between the excluding_terminals stops, so "length" must be
+# the distance between those same stops (both directions), not between the terminals.
 TERMINI_NEW = {
     "line-red": {
         "a": {
@@ -50,7 +52,7 @@ TERMINI_NEW = {
                     [STATIONS["SHAWMUT"]["NB"], STATIONS["DAVIS"]["NB"]],
                     [STATIONS["DAVIS"]["SB"], STATIONS["SHAWMUT"]["SB"]],
                 ],
-                "length": Decimal("11.748749681857948") * 2,
+                "length": Decimal("10.152279128638751") * 2,
             },
             "including_terminals": {
                 "stops": [
@@ -67,7 +69,7 @@ TERMINI_NEW = {
                     [STATIONS["QUINCY_ADAMS"]["NB"], STATIONS["DAVIS"]["NB"]],
                     [STATIONS["DAVIS"]["SB"], STATIONS["QUINCY_ADAMS"]["SB"]],
                 ],
-                "length": Decimal("17.625824547766033") * 2,
+                "length": Decimal("14.831580107795467") * 2,
             },
             "including_terminals": {
                 "stops": [
@@ -85,7 +87,7 @@ TERMINI_NEW = {
                 [STATIONS["GREEN_STREET"]["NB"], STATIONS["MALDEN_CENTER"]["NB"]],
                 [STATIONS["MALDEN_CENTER"]["SB"], STATIONS["GREEN_STREET"]["SB"]],
             ],
-            "length": Decimal("11.029177615227074") * 2,
+            "length": Decimal("9.605812260150719") * 2,
         },
         "including_terminals": {
             "stops": [
@@ -102,7 +104,7 @@ TERMINI_NEW = {
                 [STATIONS["GOV_CENTER_BLUE"]["NB"], STATIONS["REVERE_BEACH"]["NB"]],
                 [STATIONS["REVERE_BEACH"]["SB"], STATIONS["GOV_CENTER_BLUE"]["SB"]],
             ],
-            "length": Decimal("5.949268349091304") * 2,
+            "length": Decimal("5.387454635553366") * 2,
         },
         "including_terminals": {
             "stops": [
@@ -120,7 +122,7 @@ TERMINI_NEW = {
                     [STATIONS["SOUTH_ST"]["NB"], STATIONS["BOYLSTON"]["NB"]],
                     [STATIONS["BOYLSTON"]["SB"], STATIONS["SOUTH_ST"]["SB"]],
                 ],
-                "length": Decimal("6.408502086564462") * 2,
+                "length": Decimal("5.371467435799927") * 2,
             },
             "including_terminals": {
                 "stops": [
@@ -137,7 +139,7 @@ TERMINI_NEW = {
                     [STATIONS["ENGLEWOOD"]["NB"], STATIONS["PARK_ST"]["NB"]],
                     [STATIONS["PARK_ST"]["SB"], STATIONS["ENGLEWOOD"]["SB"]],
                 ],
-                "length": Decimal("5.0796123265131605") * 2,
+                "length": Decimal("4.613417971546169") * 2,
             },
             "including_terminals": {
                 "stops": [
@@ -154,7 +156,7 @@ TERMINI_NEW = {
                     [STATIONS["WOODLAND"]["NB"], STATIONS["LECHMERE"]["NB"]],
                     [STATIONS["LECHMERE"]["SB"], STATIONS["WOODLAND"]["SB"]],
                 ],
-                "length": Decimal("14.351562608739952") + Decimal("14.350889348703578"),
+                "length": Decimal("12.768578050435448") * 2,
             },
             "including_terminals": {
                 "stops": [
@@ -171,7 +173,7 @@ TERMINI_NEW = {
                     [STATIONS["BACK_OF_THE_HILL"]["NB"], STATIONS["BALL_SQ"]["NB"]],
                     [STATIONS["BALL_SQ"]["SB"], STATIONS["BACK_OF_THE_HILL"]["SB"]],
                 ],
-                "length": Decimal("8.531917015877275") + Decimal("8.538854223832816"),
+                "length": Decimal("7.869579294420582") + Decimal("7.876516502376123"),
             },
             "including_terminals": {
                 "stops": [
@@ -190,7 +192,7 @@ TERMINI_NEW = {
                     [STATIONS["SOUTH_ST"]["NB"], STATIONS["BOYLSTON"]["NB"]],
                     [STATIONS["BOYLSTON"]["SB"], STATIONS["SOUTH_ST"]["SB"]],
                 ],
-                "length": Decimal("6.12448264013163") * 2,
+                "length": Decimal("5.371467435799927") * 2,
             },
             "including_terminals": {
                 "stops": [
@@ -207,12 +209,13 @@ TERMINI_NEW = {
                     [STATIONS["ENGLEWOOD"]["NB"], STATIONS["GOV_CENTER_GREEN"]["NB"]],
                     [STATIONS["GOV_CENTER_GREEN"]["SB"], STATIONS["ENGLEWOOD"]["SB"]],
                 ],
-                "length": Decimal("5.568063458154377") * 2,
+                "length": Decimal("4.897437417979001") * 2,
             },
             "including_terminals": {
                 "stops": [
-                    [STATIONS["CLEVELAND_CIRCLE"]["NB"], STATIONS["NORTH_STATION_GREEN"]["NB"]],
-                    [STATIONS["NORTH_STATION_GREEN"]["SB"], STATIONS["CLEVELAND_CIRCLE"]["SB"]],
+                    # Inbound trips arrive on 70205 and outbound trips depart from 70206
+                    [STATIONS["CLEVELAND_CIRCLE"]["NB"], STATIONS["NORTH_STATION_GREEN"]["SB"]],
+                    [STATIONS["NORTH_STATION_GREEN"]["NB"], STATIONS["CLEVELAND_CIRCLE"]["SB"]],
                 ]
             },
         },
@@ -225,7 +228,7 @@ TERMINI_NEW = {
                     [STATIONS["WOODLAND"]["NB"], STATIONS["PARK_ST"]["NB"]],
                     [STATIONS["PARK_ST"]["SB"], STATIONS["WOODLAND"]["SB"]],
                 ],
-                "length": Decimal("11.591020825876871") * 2,
+                "length": Decimal("11.022485221928926") * 2,
             },
             "including_terminals": {
                 "stops": [
@@ -243,7 +246,7 @@ TERMINI_NEW = {
                     [STATIONS["BACK_OF_THE_HILL"]["NB"], STATIONS["GOV_CENTER_GREEN"]["NB"]],
                     [STATIONS["GOV_CENTER_GREEN"]["SB"], STATIONS["BACK_OF_THE_HILL"]["SB"]],
                 ],
-                "length": Decimal("3.740221104375446") * 2,
+                "length": Decimal("3.6736916227978593") + Decimal("3.6518570572854516"),
             },
             "including_terminals": {
                 "stops": [
@@ -261,12 +264,12 @@ TERMINI_NEW = {
                 [STATIONS["CAPEN_ST"]["NB"], STATIONS["CEDAR_GROVE"]["NB"]],
                 [STATIONS["CEDAR_GROVE"]["SB"], STATIONS["CAPEN_ST"]["SB"]],
             ],
-            "length": Decimal("2.49553989700151") + Decimal("2.5088339428984714"),
+            "length": Decimal("1.9374308792899457") * 2,
         },
         "including_terminals": {
             "stops": [
-                [STATIONS["ASHMONT"]["NB"], STATIONS["MATTAPAN"]["NB"]],
-                [STATIONS["MATTAPAN"]["SB"], STATIONS["ASHMONT"]["SB"]],
+                [STATIONS["MATTAPAN"]["NB"], STATIONS["ASHMONT_MATTAPAN"]["NB"]],
+                [STATIONS["ASHMONT_MATTAPAN"]["SB"], STATIONS["MATTAPAN"]["SB"]],
             ],
         },
     },
@@ -274,6 +277,22 @@ TERMINI_NEW = {
 
 
 def get_route_metadata(line: str, date: date, include_terminals: bool, route: str | None = None):
+    """Retrieves stop and distance metadata for a given route configuration.
+
+    Accounts for the Green Line Extension (GLX) date when selecting
+    pre- or post-extension terminus configurations.
+
+    Args:
+        line: The line identifier (e.g. "line-red", "line-green").
+        date: The service date, used to select pre/post GLX config.
+        include_terminals: If True, returns terminal-inclusive stops.
+            If False, returns stops excluding terminals with route length.
+        route: Optional branch identifier (e.g. "a", "b"). Required for
+            lines with branches.
+
+    Returns:
+        A dict with "stops" (and optionally "length") for the route.
+    """
     terminals_key = "including_terminals" if include_terminals else "excluding_terminals"
     if line == "line-green":
         if date < GLX_EXTENSION_DATE:
@@ -328,18 +347,34 @@ DD_URL_ALERTS = "https://dashboard-api.labs.transitmatters.org/api/alerts/{date}
 
 
 def commuter_rail_ridership_key(line: str):
+    """Converts a commuter rail line ID to its ridership key format.
+
+    Args:
+        line: A commuter rail line ID (e.g. "CR-Fairmount").
+
+    Returns:
+        The ridership key string (e.g. "line-Fairmount").
+    """
     return f"line-{line[3:]}"
 
 
 def get_monthly_table_update_start():
-    """Get 1st of current month"""
+    """Returns the first day of yesterday's month as a datetime.
+
+    Returns:
+        A datetime representing the 1st of the month containing yesterday.
+    """
     yesterday = datetime.today() - timedelta(days=1)
     first_of_month = datetime(yesterday.year, yesterday.month, 1)
     return first_of_month
 
 
 def get_weekly_table_update_start():
-    """Get Sunday of current week."""
+    """Returns the most recent Monday relative to yesterday.
+
+    Returns:
+        A datetime representing the most recent Monday.
+    """
     yesterday = datetime.now() - timedelta(days=1)
     days_since_monday = yesterday.weekday() % 7
     most_recent_monday = yesterday - timedelta(days=days_since_monday)
@@ -377,6 +412,8 @@ ALERT_PATTERNS = {
         "disabled bus",
         "train being taken out of service",
         "train being removed from service",
+        "disabled amtrak train",
+        "disabled freight train",
     ],
     "signal_problem": [
         "signal problem",
@@ -386,6 +423,7 @@ ALERT_PATTERNS = {
         "signal repair",
         "signal work",
         "signal department",
+        "signal personnel",
     ],
     "switch_problem": [
         "switch problem",
@@ -408,7 +446,7 @@ ALERT_PATTERNS = {
         "overhead wire",
         "overhear wires",
         "overheard wires",
-        "catenary wires",
+        "catenary wire",
         "the overhead",
         "wire repair",
         "repairs to the wire",
@@ -419,6 +457,9 @@ ALERT_PATTERNS = {
         "overhead catenary",
         "third rail wiring",
         "power department work",
+        "power outage",
+        "power maintenance",
+        "power equipment",
     ],
     "door_problem": [
         "door problem",
@@ -436,6 +477,7 @@ ALERT_PATTERNS = {
         "medical assistance",
         "medical attention",
         "sick passenger",
+        "medical incident",
     ],
     "flooding": [
         "flooding",
@@ -456,6 +498,7 @@ ALERT_PATTERNS = {
         "pantograph issue",
         "issue with the heating system",
         "air pressure problem",
+        "train issue",
     ],
     "track_work": [
         "track work",
@@ -466,6 +509,12 @@ ALERT_PATTERNS = {
         "maintenance work",
         "overnight maintenance",
         "single track",
+        "track inspection",
+        "inspect the track",
+        "maintenance personnel",
+        "work crews access",
+        "track department personnel",
+        "infrastructure repairs",
     ],
     "car_traffic": [
         "unauthorized vehicle on the tracks",
@@ -483,6 +532,15 @@ ALERT_PATTERNS = {
         "auto blocking the track",
         "auto was removed from the track",
         "accident blocking the tracks",
+        "road vehicle",
+        "vehicle blocking the track",
+    ],
+}
+# Checked after ALERT_PATTERNS, for bus alerts only. "an accident" on a bus route is a
+# road crash, but in a subway alert it's too vague to call car traffic.
+BUS_ALERT_PATTERNS = {
+    "car_traffic": [
+        "an accident",
     ],
 }
 # Initializing all Delay types at 0 for processing

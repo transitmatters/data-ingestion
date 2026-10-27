@@ -2,5 +2,3 @@
 import os
 
 MBTA_V3_API_KEY = os.environ.get("MBTA_V3_API_KEY", "")
-
-YANKEE_API_KEY = os.environ.get("YANKEE_API_KEY", "")
