@@ -293,6 +293,12 @@ def ingest_gtfs_feeds_to_dynamo_and_s3(
         feeds = archive.get_feeds_for_dates(start_date, end_date)
     elif feed_key:
         feed = archive.get_feed_by_key(feed_key)
+        if feed is None:
+            # MBTA's archived_feeds.txt can lag the live feed, and CloudFront caches it
+            # regardless of query string, so a key mbta-performance just saw may not be
+            # listed yet. Raising lets SQS retry and lands persistent misses in the DLQ;
+            # the daily date-range run also builds the feed once it is listed.
+            raise LookupError(f"GTFS feed {feed_key} is not listed in the MBTA archive yet")
         start_date = feed.start_date
         end_date = feed.end_date
         feeds = [feed]
