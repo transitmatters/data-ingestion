@@ -1,9 +1,15 @@
+import logging
+from collections import defaultdict
 from tempfile import NamedTemporaryFile
 from typing import Dict, Union
 
 import numpy as np
 import pandas as pd
 from pandas.tseries.holiday import USFederalHolidayCalendar
+
+from .stations import STATION_STOPS
+
+logger = logging.getLogger(__name__)
 
 unofficial_labels_map = {
     "SL1": "741",
@@ -178,6 +184,49 @@ def format_ridership_csv(
     return output
 
 
+def get_weekly_peak_averages(df: pd.DataFrame, date_key: str, group_key: str, count_key: str) -> pd.DataFrame:
+    """Average each group's counts over the peak days of each ISO week.
+
+    Peak days are weekdays that aren't federal holidays. Each week is labelled with its Monday.
+
+    Args:
+        df: Daily data with date, group and count columns.
+        date_key: Column name containing dates.
+        group_key: Column name to average within (e.g. route or station).
+        count_key: Column name containing counts.
+
+    Returns:
+        DataFrame with year, week, group_key, count_key and date_key (the week's Monday) columns.
+    """
+    df[date_key] = pd.to_datetime(df[date_key])
+
+    # add holidays
+    cal = USFederalHolidayCalendar()
+    holidays = cal.holidays(start=df[date_key].min(), end=df[date_key].max())
+
+    # mark as holiday and weekday
+    df["holiday"] = df[date_key].dt.normalize().isin(holidays)
+    df["weekday"] = df[date_key].dt.dayofweek
+
+    # define peak, mark weekdays, convert service date back
+    conditions = [(df["holiday"] == False) & (df["weekday"] < 5)]  # noqa: E712
+    choices = ["peak"]
+    df["peak"] = np.select(conditions, choices, default="offpeak")
+    df["week"] = df[date_key].dt.isocalendar().week
+    df["year"] = df[date_key].dt.isocalendar().year
+    df[date_key] = df[date_key].dt.date.astype(str)
+
+    # select date of the week
+    dates = df[df["weekday"] == 0]
+    dates = dates[[date_key, "week", "year"]].drop_duplicates()
+
+    # limit data to just peak, merge back dates
+    final = df[df["peak"] == "peak"]
+    final = final.groupby(["year", "week", group_key])[count_key].mean().round().reset_index()
+
+    return final.merge(dates, on=["week", "year"], how="left")
+
+
 def format_subway_data(path_to_csv_file: str):
     """Format subway gated station validation data into weekly peak-day averages.
 
@@ -190,35 +239,8 @@ def format_subway_data(path_to_csv_file: str):
     Returns:
         Dict mapping route IDs to lists of dicts with 'date' and 'count' keys.
     """
-    # read data, convert to datetime
     df = pd.read_csv(path_to_csv_file)
-    df["servicedate"] = pd.to_datetime(df["servicedate"])
-
-    # add holidays
-    cal = USFederalHolidayCalendar()
-    holidays = cal.holidays(start=df["servicedate"].min(), end=df["servicedate"].max())
-
-    # mark as holiday and weekday
-    df["holiday"] = df["servicedate"].dt.normalize().isin(holidays)
-    df["weekday"] = df["servicedate"].dt.dayofweek
-
-    # define peak, mark weekdays, convert service date back
-    conditions = [(df["holiday"] == False) & (df["weekday"] < 5)]  # noqa: E712
-    choices = ["peak"]
-    df["peak"] = np.select(conditions, choices, default="offpeak")
-    df["week"] = df["servicedate"].dt.isocalendar().week
-    df["year"] = df["servicedate"].dt.isocalendar().year
-    df["servicedate"] = df["servicedate"].dt.date.astype(str)
-
-    # select date of the week
-    dates = df[df["weekday"] == 0]
-    dates = dates[["servicedate", "week", "year"]].drop_duplicates()
-
-    # limit data to just peak, merge back dates
-    final = df[df["peak"] == "peak"]
-    final = final.groupby(["year", "week", "route_or_line"])["validations"].mean().round().reset_index()
-
-    final = final.merge(dates, on=["week", "year"], how="left")
+    final = get_weekly_peak_averages(df, "servicedate", "route_or_line", "validations")
 
     # get list of bus routes
     routelist = list(set(final["route_or_line"].tolist()))
@@ -238,6 +260,42 @@ def format_subway_data(path_to_csv_file: str):
         output[rewritten_route_id] = dictdata
 
     return output
+
+
+def format_subway_station_data(path_to_csv_file: str):
+    """Format subway gated station validations into weekly peak-day averages per station, by line.
+
+    Args:
+        path_to_csv_file: Path to the "Gated Station Validations by station" CSV file.
+
+    Returns:
+        Dict mapping line IDs to date-sorted lists of dicts with 'date' and 'stations' keys, where
+        'stations' maps each parent stop ID on the line to its average peak-day validations that week.
+        Transfer stations appear under every line that serves them.
+    """
+    df = pd.read_csv(path_to_csv_file)
+
+    unknown_names = set(df["stationname"]) - STATION_STOPS.keys()
+    if unknown_names:
+        logger.warning(f"Skipping stations missing from STATION_STOPS: {sorted(unknown_names)}")
+    df = df[df["stationname"].isin(STATION_STOPS.keys())].copy()
+
+    # Some stations were renamed over the years (e.g. "Charles MGH" -> "Charles/MGH")
+    df["stop_id"] = df["stationname"].map(lambda name: STATION_STOPS[name][0])
+    df = df.groupby(["servicedate", "stop_id"], as_index=False)["validations"].sum()
+
+    weekly = get_weekly_peak_averages(df, "servicedate", "stop_id", "validations").dropna(subset=["servicedate"])
+
+    lines_by_stop_id = {stop_id: line_ids for stop_id, line_ids in STATION_STOPS.values()}
+    stations_by_line_and_date: Dict[str, Dict[str, Dict[str, int]]] = defaultdict(lambda: defaultdict(dict))
+    for row in weekly.itertuples(index=False):
+        for line_id in lines_by_stop_id[row.stop_id]:
+            stations_by_line_and_date[line_id][row.servicedate][row.stop_id] = int(row.validations)
+
+    return {
+        line_id: [{"date": date, "stations": stations} for date, stations in sorted(by_date.items())]
+        for line_id, by_date in stations_by_line_and_date.items()
+    }
 
 
 def format_bus_data(path_to_excel_file: str):

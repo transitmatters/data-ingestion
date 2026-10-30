@@ -662,6 +662,39 @@
         ]
       }
     },
+    "StationRidershipDB": {
+      "Type": "AWS::DynamoDB::Table",
+      "Properties": {
+        "TableName": "StationRidership",
+        "KeySchema": [
+          {
+            "AttributeName": "lineId",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "date",
+            "KeyType": "RANGE"
+          }
+        ],
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "lineId",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "date",
+            "AttributeType": "S"
+          }
+        ],
+        "BillingMode": "PAY_PER_REQUEST",
+        "Tags": [
+          {
+            "Key": "service",
+            "Value": "t-performance-dash"
+          }
+        ]
+      }
+    },
     "DeliveredTripMetricsMonthlyDB": {
       "Type": "AWS::DynamoDB::Table",
       "Properties": {

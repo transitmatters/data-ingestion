@@ -1,6 +1,6 @@
-from ...ridership.dynamo import ingest_ridership_to_dynamo
+from ...ridership.dynamo import ingest_ridership_to_dynamo, ingest_station_ridership_to_dynamo
 from ...ridership.ingest import get_ridership_by_line_id
-from ...ridership.process import get_ridership_by_route_id
+from ...ridership.process import format_subway_station_data, get_ridership_by_route_id
 from ...ridership.gtfs import get_routes_by_line_id
 import argparse
 
@@ -17,6 +17,7 @@ python -m ingestor.chalicelib.ridership.backfill.manual --subway-file /path/to/s
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Backfill ridership data with manual file paths")
     parser.add_argument("--subway-file", required=False, help="Path to subway ridership file")
+    parser.add_argument("--subway-station-file", required=False, help="Path to subway ridership by station file")
     parser.add_argument("--bus-file", required=False, help="Path to bus ridership file")
     parser.add_argument("--cr-file", required=False, help="Path to commuter rail ridership file")
     parser.add_argument("--ferry-file", required=False, help="Path to ferry ridership file")
@@ -31,3 +32,5 @@ if __name__ == "__main__":
     )
     ridership_by_line_id = get_ridership_by_line_id(ridership_by_route_id, routes)
     ingest_ridership_to_dynamo(ridership_by_line_id)
+    if args.subway_station_file:
+        ingest_station_ridership_to_dynamo(format_subway_station_data(args.subway_station_file))

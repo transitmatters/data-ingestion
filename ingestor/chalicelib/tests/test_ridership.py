@@ -3,7 +3,13 @@ from tempfile import NamedTemporaryFile
 import pandas as pd
 
 from ..ridership.ingest import get_ridership_by_line_id
-from ..ridership.process import format_ridership_csv, format_subway_data, pre_process_csv, unofficial_ferry_labels_map
+from ..ridership.process import (
+    format_ridership_csv,
+    format_subway_data,
+    format_subway_station_data,
+    pre_process_csv,
+    unofficial_ferry_labels_map,
+)
 
 
 def _write_daily_csv(rows):
@@ -66,4 +72,42 @@ def test_holidays_are_left_out_of_the_peak_average():
     pd.DataFrame(rows, columns=["date", "line", "riders"]).to_csv(path, index=False)
     assert format_ridership_csv(path, "date", "line", "riders") == {
         "Red Line": [{"date": "2026-09-07", "count": 100.0}]
+    }
+
+
+def _write_station_csv(rows):
+    path = NamedTemporaryFile(suffix=".csv", delete=False).name
+    pd.DataFrame(rows, columns=["servicedate", "stationname", "validations"]).to_csv(path, index=False)
+    return path
+
+
+def test_station_ridership_averages_peak_days_by_line():
+    # Mon 2026-09-07 is Labor Day and Sat 2026-09-12 is a weekend, so only Tue-Fri count
+    path = _write_station_csv(
+        [("2026-09-07", "Harvard", 1000), ("2026-09-12", "Harvard", 1000)]
+        + [(f"2026-09-{d:02d}", "Harvard", 100 + d) for d in range(8, 12)]
+    )
+    assert format_subway_station_data(path) == {
+        "line-Red": [{"date": "2026-09-07", "stations": {"place-harsq": 110}}],
+    }
+
+
+def test_station_ridership_lists_transfer_stations_under_each_line():
+    path = _write_station_csv([("2026-09-14", "Park Street", 500), ("2026-09-14", "Kenmore", 300)])
+    by_line = format_subway_station_data(path)
+    assert by_line["line-Red"] == [{"date": "2026-09-14", "stations": {"place-pktrm": 500}}]
+    assert by_line["line-Green"] == [{"date": "2026-09-14", "stations": {"place-kencl": 300, "place-pktrm": 500}}]
+
+
+def test_station_ridership_merges_renamed_stations_and_skips_unknown_ones():
+    path = _write_station_csv(
+        [
+            ("2026-09-14", "Charles MGH", 40),
+            ("2026-09-14", "Charles/MGH", 60),
+            ("2026-09-14", "10 Park Plaza", 5),
+            ("2026-09-14", "World Trade Center", 900),
+        ]
+    )
+    assert format_subway_station_data(path) == {
+        "line-Red": [{"date": "2026-09-14", "stations": {"place-chmnl": 100}}],
     }
