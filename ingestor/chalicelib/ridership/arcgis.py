@@ -9,6 +9,7 @@ from .config import (
     CR_RIDERSHIP_ARCGIS_URL,
     FERRY_RIDERSHIP_ARCGIS_URL,
     THE_RIDE_RIDERSHIP_ARCGIS_URL,
+    RIDERSHIP_SUBWAY_STATION_CSV_REGEX,
 )
 
 
@@ -39,15 +40,15 @@ def ride_update_cache():
     requests.get(THE_RIDE_UPDATE_CACHE_URL)
 
 
-def download_latest_ridership_files() -> Tuple[str | None, str | None, str | None, str | None, str | None]:
+def download_latest_ridership_files() -> Tuple[str | None, str | None, str | None, str | None, str | None, str | None]:
     """Download the latest ridership files for all transit modes.
 
-    Fetches subway and bus data from SharePoint, and commuter rail, ferry,
-    and The RIDE data from ArcGIS.
+    Fetches subway (by line and by station) and bus data from SharePoint, and
+    commuter rail, ferry, and The RIDE data from ArcGIS.
 
     Returns:
-        Tuple of file paths (subway, bus, commuter rail, ferry, The RIDE),
-        where each element may be None if the download failed.
+        Tuple of file paths (subway, subway by station, bus, commuter rail,
+        ferry, The RIDE), where each element may be None if the download failed.
     """
     sharepoint = SharepointConnection()
 
@@ -55,6 +56,9 @@ def download_latest_ridership_files() -> Tuple[str | None, str | None, str | Non
     ferry_tmp_path = NamedTemporaryFile().name
     ride_tmp_path = NamedTemporaryFile().name
     subway_tmp_path = sharepoint.fetch_sharepoint_file(bus_data=False)
+    subway_station_tmp_path = sharepoint.fetch_sharepoint_file(
+        file_regex=RIDERSHIP_SUBWAY_STATION_CSV_REGEX, bus_data=False
+    )
     bus_tmp_path = sharepoint.fetch_sharepoint_file(bus_data=True)
 
     with open(cr_tmp_path, "wb") as file:
@@ -66,4 +70,4 @@ def download_latest_ridership_files() -> Tuple[str | None, str | None, str | Non
     with open(ride_tmp_path, "wb") as file:
         req = requests.get(THE_RIDE_RIDERSHIP_ARCGIS_URL)
         file.write(req.content)
-    return subway_tmp_path, bus_tmp_path, cr_tmp_path, ferry_tmp_path, ride_tmp_path
+    return subway_tmp_path, subway_station_tmp_path, bus_tmp_path, cr_tmp_path, ferry_tmp_path, ride_tmp_path

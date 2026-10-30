@@ -4,9 +4,9 @@ from mbta_gtfs_sqlite.models import Route
 
 from ..gtfs.utils import bucket_by
 from .arcgis import cr_update_cache, download_latest_ridership_files, ferry_update_cache, ride_update_cache
-from .dynamo import ingest_ridership_to_dynamo
+from .dynamo import ingest_ridership_to_dynamo, ingest_station_ridership_to_dynamo
 from .gtfs import get_routes_by_line_id
-from .process import get_ridership_by_route_id
+from .process import format_subway_station_data, get_ridership_by_route_id
 
 
 def get_ridership_by_line_id(
@@ -100,10 +100,14 @@ def ingest_ridership_data():
     cr_update_cache()
     ferry_update_cache()
     ride_update_cache()
-    subway_file, bus_file, cr_file, ferry_file, ride_file = download_latest_ridership_files()
+    subway_file, subway_station_file, bus_file, cr_file, ferry_file, ride_file = download_latest_ridership_files()
     ridership_by_route_id = get_ridership_by_route_id(subway_file, bus_file, cr_file, ferry_file, ride_file)
     ridership_by_line_id = get_ridership_by_line_id(ridership_by_route_id, routes)
     ingest_ridership_to_dynamo(ridership_by_line_id)
+    if subway_station_file:
+        ingest_station_ridership_to_dynamo(format_subway_station_data(subway_station_file))
+    else:
+        print("No subway station ridership file found; skipping station ridership")
 
 
 if __name__ == "__main__":
