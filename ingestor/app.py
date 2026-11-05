@@ -1,7 +1,8 @@
-import importlib
+import ast
 import json
 import os
 from datetime import date, datetime, timedelta
+from pathlib import Path
 
 from chalice import Chalice, ConvertToMiddleware, Cron
 from datadog_lambda.wrapper import datadog_lambda_wrapper
@@ -14,55 +15,29 @@ from datadog_lambda.wrapper import datadog_lambda_wrapper
 # Those imports should still happen during Lambda's Init phase, though, not on the first
 # invocation: Init appears to run unthrottled (~1 vCPU) while the handler only gets its
 # memory tier's share (~0.1 vCPU at 192 MB), so loading the same modules in the handler took
-# ~3x longer. Lambda sets _HANDLER to "app.<function_name>", which lets each function load
-# just its own modules up front. Most of these jobs cold-start on every run, so this matters.
+# ~3x longer. Most of these jobs cold-start on every run, so this matters.
 #
-# Keep this in sync with the imports inside each handler (test_app_preload.py checks it).
-HANDLER_MODULES: dict[str, tuple[str, ...]] = {
-    "store_current_alerts": ("chalicelib.alerts",),
-    "bb_store_station_status": ("chalicelib.bluebikes",),
-    "bb_store_station_info": ("chalicelib.bluebikes",),
-    "bb_calc_daily_stats": ("chalicelib.bluebikes",),
-    "update_delivered_trip_metrics": ("chalicelib.daily_speeds",),
-    "update_agg_trip_metrics": ("chalicelib.agg_speed_tables",),
-    "update_delivered_trip_metrics_yesterday": ("chalicelib.daily_speeds",),
-    "update_bus_fleet_metrics": ("chalicelib.bus_fleet",),
-    "update_cr_fleet_metrics": ("chalicelib.cr_fleet",),
-    "update_ridership": ("chalicelib.ridership",),
-    "update_speed_restrictions": ("chalicelib.speed_restrictions",),
-    "update_reliability": ("chalicelib.reliability",),
-    "update_time_predictions": ("chalicelib.predictions",),
-    "update_gtfs": ("chalicelib.gtfs",),
-    "ingest_gtfs_feed_on_demand": ("chalicelib.gtfs",),
-    "update_trip_metrics": ("chalicelib.trip_metrics",),
-    "update_weekly_alert_delays": ("chalicelib.delays",),
-    "update_daily_alert_delays": ("chalicelib.delays",),
-    "update_shutdowns": ("chalicelib.shutdowns",),
-    "populate_shutdowns": ("chalicelib.shutdowns",),
-    "populate_delivered_trip_metrics": ("chalicelib.constants", "chalicelib.daily_speeds"),
-    "populate_agg_delivered_trip_metrics": ("chalicelib.agg_speed_tables", "chalicelib.constants"),
-    "store_landing_data": ("chalicelib.constants", "chalicelib.landing"),
-    "store_historical_baselines": ("chalicelib.baselines.build",),
-    "update_service_ridership_dashboard": ("chalicelib.service_ridership_dashboard",),
-    "store_overview_data": ("chalicelib.overview.build",),
-    "store_hourly_weather": ("chalicelib.weather",),
-    "backfill_weather": ("chalicelib.weather",),
-}
+# Lambda sets _HANDLER to "app.<function_name>". At Init we find that function below and run
+# its imports early (parsing this file takes ~1 ms). Nothing to maintain: just import what a
+# handler needs at the top of its body, as the handlers below do.
 
 
-def preload_handler_modules(handler: str | None) -> None:
-    """Imports the chalicelib modules for the Lambda function being initialized.
+def preload_handler_imports(function_name: str) -> None:
+    """Runs the import statements at the top of a handler's body, ahead of its first call.
 
     Args:
-        handler: The value of Lambda's _HANDLER, e.g. "app.bb_store_station_status". None or an
-            unknown function (local runs, tests, chalice deploy) imports nothing.
+        function_name: The handler's name, e.g. "bb_store_station_status". Does nothing if no
+            handler in this file has that name.
     """
-    function_name = (handler or "").rpartition(".")[2]
-    for module in HANDLER_MODULES.get(function_name, ()):
-        importlib.import_module(module)
+    for node in ast.parse(Path(__file__).read_text()).body:
+        if isinstance(node, ast.FunctionDef) and node.name == function_name:
+            imports = [stmt for stmt in node.body if isinstance(stmt, (ast.Import, ast.ImportFrom))]
+            exec(compile(ast.Module(body=imports, type_ignores=[]), __file__, "exec"), {})
 
 
-preload_handler_modules(os.environ.get("_HANDLER"))
+# _HANDLER is unset outside Lambda (local runs, tests, chalice deploy), so nothing is preloaded there.
+if os.environ.get("_HANDLER"):
+    preload_handler_imports(os.environ["_HANDLER"].rpartition(".")[2])
 
 app = Chalice(app_name="ingestor")
 
