@@ -1,7 +1,6 @@
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import date
-
-from tqdm import tqdm
 
 from .queries import RidershipRow, query_ridership
 from .util import date_from_string
@@ -54,13 +53,10 @@ def ridership_by_line_id(start_date: date, end_date: date, line_ids: list[str]) 
     Returns:
         A dictionary mapping line IDs to their respective ridership-by-date dictionaries.
     """
-    ridership_by_line_id: RidershipByLineId = {}
-    for line_id in (progress := tqdm(line_ids)):
-        progress.set_description(f"Loading ridership for {line_id}")
-        entries_for_line_id = _get_ridership_for_line_id(
-            start_date=start_date,
-            end_date=end_date,
-            line_id=line_id,
+    # DynamoDB queries are I/O-bound; run them concurrently instead of one line at a time.
+    with ThreadPoolExecutor(max_workers=16) as executor:
+        results = executor.map(
+            lambda line_id: _get_ridership_for_line_id(start_date=start_date, end_date=end_date, line_id=line_id),
+            line_ids,
         )
-        ridership_by_line_id[line_id] = entries_for_line_id
-    return ridership_by_line_id
+        return dict(zip(line_ids, results))

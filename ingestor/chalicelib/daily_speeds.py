@@ -1,4 +1,5 @@
 import json
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from urllib.parse import urlencode
@@ -63,15 +64,42 @@ def send_requests(api_requests):
     Raises:
         requests.exceptions.HTTPError: If any request returns a non-200 status.
     """
+    return aggregate_responses(fetch_travel_times(request) for request in api_requests)
+
+
+def fetch_travel_times(request):
+    """Fetches one Data Dashboard aggregate travel times response.
+
+    Args:
+        request: The API URL to fetch.
+
+    Returns:
+        The parsed JSON list, with numbers as Decimals.
+
+    Raises:
+        requests.exceptions.HTTPError: If the request returns a non-200 status.
+    """
+    response = requests.get(request, timeout=30)
+    try:
+        response.raise_for_status()
+    except requests.exceptions.HTTPError:
+        print(response.content.decode("utf-8"))
+        raise
+    return json.loads(response.content.decode("utf-8"), parse_float=Decimal, parse_int=Decimal)
+
+
+def aggregate_responses(responses):
+    """Aggregates travel time responses into per-service-date totals.
+
+    Args:
+        responses: An iterable of parsed responses from fetch_travel_times.
+
+    Returns:
+        A dict keyed by service_date with aggregated median, mean, count,
+        and entries values.
+    """
     speed_object = {}
-    for request in api_requests:
-        response = requests.get(request)
-        try:
-            response.raise_for_status()
-        except requests.exceptions.HTTPError:
-            print(response.content.decode("utf-8"))
-            raise
-        data = json.loads(response.content.decode("utf-8"), parse_float=Decimal, parse_int=Decimal)
+    for data in responses:
         for item in data:
             if item["service_date"] in speed_object:
                 speed_object[item["service_date"]]["median"] += item["50%"]
@@ -197,24 +225,38 @@ def update_daily_table(date: date, routes: list[tuple[str, str | None]] | None =
     """
     speed_objects = []
     routes = routes or constants.ALL_ROUTES
+    delta = timedelta(days=1)
+    date_string = date.strftime(constants.DATE_FORMAT_BACKEND)
 
-    # Compute fleet age metrics once per line (shared across routes like red-a/red-b)
-    lines_in_scope = set(r[0] for r in routes)
-    fleet_age_metrics: dict[str, dict[str, Decimal] | None] = {}
-    for line in lines_in_scope:
-        fleet_age_metrics[line] = get_fleet_age_metrics_for_line(date, line)
-        if fleet_age_metrics[line] is not None:
-            print(f"Fleet age metrics for {line} on {date}: {fleet_age_metrics[line]}")
+    # Every request below goes to the Data Dashboard API and is I/O-bound, so they're all
+    # issued up front on a thread pool, then combined in the original route/request order.
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        # Compute fleet age metrics once per line (shared across routes like red-a/red-b)
+        lines_in_scope = set(r[0] for r in routes)
+        fleet_age_futures = {
+            line: executor.submit(get_fleet_age_metrics_for_line, date, line) for line in lines_in_scope
+        }
 
-    for route in routes:
-        line = route[0]
-        route = route[1]
-        route_metadata = constants.get_route_metadata(line, date, False, route)
-        delta = timedelta(days=1)
-        date_string = date.strftime(constants.DATE_FORMAT_BACKEND)
+        route_plans = []
+        for line, route in routes:
+            route_metadata = constants.get_route_metadata(line, date, False, route)
+            API_requests = get_agg_tt_api_requests(route_metadata["stops"], date, delta)
+            response_futures = [executor.submit(fetch_travel_times, request) for request in API_requests]
+            route_plans.append((line, route, route_metadata, API_requests, response_futures))
+
+        fleet_age_metrics: dict[str, dict[str, Decimal] | None] = {}
+        for line, future in fleet_age_futures.items():
+            fleet_age_metrics[line] = future.result()
+            if fleet_age_metrics[line] is not None:
+                print(f"Fleet age metrics for {line} on {date}: {fleet_age_metrics[line]}")
+
+        route_results = [
+            (line, route, route_metadata, API_requests, aggregate_responses(f.result() for f in response_futures))
+            for line, route, route_metadata, API_requests, response_futures in route_plans
+        ]
+
+    for line, route, route_metadata, API_requests, speed_object in route_results:
         print(f"Calculating update on [{line}/{route if route else '(no-route)'}] for date: {date_string}")
-        API_requests = get_agg_tt_api_requests(route_metadata["stops"], date, delta)
-        speed_object = send_requests(API_requests)
         formatted_speed_object = format_tt_objects(
             speed_object,
             route_metadata,

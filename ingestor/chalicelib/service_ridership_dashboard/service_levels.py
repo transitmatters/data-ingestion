@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import date
 
@@ -21,6 +22,9 @@ class ServiceLevelsEntry:
 
 ServiceLevelsByDate = dict[date, ServiceLevelsEntry]
 ServiceLevelsByLineId = dict[str, ServiceLevelsByDate]
+
+# DynamoDB queries are I/O-bound; run them concurrently instead of one route at a time.
+QUERY_WORKERS = 16
 
 
 def _divide_by_two_to_get_unidirectional_trip_counts(trip_counts: list[int]):
@@ -76,20 +80,28 @@ def get_service_level_entries_by_line_id(
     Returns:
         A dictionary mapping line IDs to dictionaries of date-to-ServiceLevelsEntry mappings.
     """
+    route_ids = list(dict.fromkeys(route.route_id for routes in routes_by_line.values() for route in routes))
+    with ThreadPoolExecutor(max_workers=QUERY_WORKERS) as executor:
+        rows_by_route_id: dict[str, list[ScheduledServiceRow]] = dict(
+            zip(
+                route_ids,
+                executor.map(
+                    lambda route_id: query_scheduled_service(
+                        start_date=start_date,
+                        end_date=end_date,
+                        route_id=route_id,
+                    ),
+                    route_ids,
+                ),
+            )
+        )
+
     entries: dict[str, list[ServiceLevelsEntry]] = {}
     for line, routes in (progress := tqdm(routes_by_line.items())):
         entries.setdefault(line.line_id, [])
-        progress.set_description(f"Loading service levels for {line.line_id}")
+        progress.set_description(f"Building service levels for {line.line_id}")
         results_by_date_str: dict[str, list[ScheduledServiceRow]] = bucket_by(
-            [
-                row
-                for route in routes
-                for row in query_scheduled_service(
-                    start_date=start_date,
-                    end_date=end_date,
-                    route_id=route.route_id,
-                )
-            ],
+            [row for route in routes for row in rows_by_route_id[route.route_id]],
             lambda row: row["date"],
         )
         for today in date_range(start_date, end_date):
