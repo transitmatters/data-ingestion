@@ -1,5 +1,4 @@
 import json
-from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from urllib.parse import urlencode
@@ -228,35 +227,23 @@ def update_daily_table(date: date, routes: list[tuple[str, str | None]] | None =
     delta = timedelta(days=1)
     date_string = date.strftime(constants.DATE_FORMAT_BACKEND)
 
-    # Every request below goes to the Data Dashboard API and is I/O-bound, so they're all
-    # issued up front on a thread pool, then combined in the original route/request order.
-    with ThreadPoolExecutor(max_workers=8) as executor:
-        # Compute fleet age metrics once per line (shared across routes like red-a/red-b)
-        lines_in_scope = set(r[0] for r in routes)
-        fleet_age_futures = {
-            line: executor.submit(get_fleet_age_metrics_for_line, date, line) for line in lines_in_scope
-        }
+    # Requests to the Data Dashboard API stay one at a time. When #237 sent 8 at once, each
+    # run cold-started 5-6 API Lambda instances (~5.8s Init each), and this job slowed from
+    # ~9s to ~12s. Serial requests reuse the API's one or two warm instances.
 
-        route_plans = []
-        for line, route in routes:
-            route_metadata = constants.get_route_metadata(line, date, False, route)
-            API_requests = get_agg_tt_api_requests(route_metadata["stops"], date, delta)
-            response_futures = [executor.submit(fetch_travel_times, request) for request in API_requests]
-            route_plans.append((line, route, route_metadata, API_requests, response_futures))
+    # Compute fleet age metrics once per line (shared across routes like red-a/red-b)
+    lines_in_scope = set(r[0] for r in routes)
+    fleet_age_metrics: dict[str, dict[str, Decimal] | None] = {}
+    for line in lines_in_scope:
+        fleet_age_metrics[line] = get_fleet_age_metrics_for_line(date, line)
+        if fleet_age_metrics[line] is not None:
+            print(f"Fleet age metrics for {line} on {date}: {fleet_age_metrics[line]}")
 
-        fleet_age_metrics: dict[str, dict[str, Decimal] | None] = {}
-        for line, future in fleet_age_futures.items():
-            fleet_age_metrics[line] = future.result()
-            if fleet_age_metrics[line] is not None:
-                print(f"Fleet age metrics for {line} on {date}: {fleet_age_metrics[line]}")
-
-        route_results = [
-            (line, route, route_metadata, API_requests, aggregate_responses(f.result() for f in response_futures))
-            for line, route, route_metadata, API_requests, response_futures in route_plans
-        ]
-
-    for line, route, route_metadata, API_requests, speed_object in route_results:
+    for line, route in routes:
+        route_metadata = constants.get_route_metadata(line, date, False, route)
         print(f"Calculating update on [{line}/{route if route else '(no-route)'}] for date: {date_string}")
+        API_requests = get_agg_tt_api_requests(route_metadata["stops"], date, delta)
+        speed_object = send_requests(API_requests)
         formatted_speed_object = format_tt_objects(
             speed_object,
             route_metadata,
