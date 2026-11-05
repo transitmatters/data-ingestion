@@ -1,9 +1,7 @@
-import io
 import time
 import zlib
 
 import boto3
-import pandas as pd
 
 s3 = boto3.client("s3")
 cloudfront = boto3.client("cloudfront")
@@ -54,13 +52,18 @@ def upload_df_as_csv(bucket, key, df):
         key: The S3 object key.
         df: The DataFrame to upload.
     """
-    key = str(key)
+    upload_csv(bucket, key, df.to_csv(index=False))
 
-    buffer = io.BytesIO()
-    df.to_csv(buffer, compression=None, encoding="utf-8", index=False)
-    buffer.seek(0)
 
-    s3.upload_fileobj(buffer, bucket, Key=key, ExtraArgs={"ContentType": "text/csv"})
+def upload_csv(bucket, key, body):
+    """Uploads CSV text to S3 with a text/csv content type.
+
+    Args:
+        bucket: The S3 bucket name.
+        key: The S3 object key.
+        body: The CSV content as a string.
+    """
+    s3.put_object(Bucket=bucket, Key=str(key), Body=body.encode("utf-8"), ContentType="text/csv")
 
 
 def download_csv_as_df(bucket, key):
@@ -73,6 +76,9 @@ def download_csv_as_df(bucket, key):
     Returns:
         A DataFrame parsed from the CSV content.
     """
+    # Imported here so jobs that never read CSVs (e.g. the 5-minute Bluebikes poller) don't pay for pandas.
+    import pandas as pd
+
     key = str(key)
     obj = s3.get_object(Bucket=bucket, Key=key)
     return pd.read_csv(obj["Body"])

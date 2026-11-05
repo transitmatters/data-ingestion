@@ -1,14 +1,18 @@
+import csv
 import datetime
+import io
 import json
 import sys
+from concurrent.futures import ThreadPoolExecutor
 
-import numpy as np
-import pandas as pd
 import pytz
 import requests
-from geopy import distance
 
 from chalicelib import s3
+
+# pandas and numpy are imported inside the daily functions that use them. The station status
+# poller runs every 5 minutes on a small memory size, and loading pandas there pushed it to its
+# memory limit, where each run slowed from ~1s to ~14s.
 
 BUCKET = "tm-bluebikes"
 TZ = pytz.timezone("US/Eastern")
@@ -54,13 +58,34 @@ def store_station_status():
     if not stations:
         print("No stations found in the response.")
         return
-    df = pd.DataFrame.from_records(stations)
-    df["datetimepulled"] = timestamp
-
     date = datetime.datetime.fromtimestamp(timestamp, TZ).date()
     key = get_station_status_key(date, timestamp)
 
-    s3.upload_df_as_csv(BUCKET, key, df)
+    s3.upload_csv(BUCKET, key, station_status_to_csv(stations, timestamp))
+
+
+def station_status_to_csv(stations, timestamp):
+    """Serializes station status records to CSV without pandas.
+
+    Matches what pd.DataFrame.from_records(stations).to_csv(index=False) produced: columns
+    in first-seen order, a datetimepulled column, and empty cells for missing keys.
+
+    Args:
+        stations: A list of station status dicts from the GBFS feed.
+        timestamp: The feed's last_updated epoch timestamp.
+
+    Returns:
+        The CSV content as a string.
+    """
+    columns = list(dict.fromkeys(key for station in stations for key in station))
+    columns.append("datetimepulled")
+
+    buffer = io.StringIO()
+    writer = csv.DictWriter(buffer, fieldnames=columns, restval="", lineterminator="\n")
+    writer.writeheader()
+    for station in stations:
+        writer.writerow({**station, "datetimepulled": timestamp})
+    return buffer.getvalue()
 
 
 ##################
@@ -79,14 +104,16 @@ def get_station_info_key(date):
 
 def store_station_info():
     """Fetches Bluebikes station and region info and uploads merged data to S3."""
+    import pandas as pd
+
     # get station info
-    resp = requests.get("https://gbfs.bluebikes.com/gbfs/en/station_information.json")
+    resp = requests.get("https://gbfs.bluebikes.com/gbfs/en/station_information.json", timeout=15)
 
     station_info = json.loads(resp.content)
     station_df = pd.DataFrame(station_info.get("data").get("stations"))
 
     # get region info
-    region_resp = requests.get("https://gbfs.bluebikes.com/gbfs/en/system_regions.json")
+    region_resp = requests.get("https://gbfs.bluebikes.com/gbfs/en/system_regions.json", timeout=15)
 
     region_info = json.loads(region_resp.content)
     region_df = pd.DataFrame(region_info.get("data").get("regions"))
@@ -103,25 +130,6 @@ def store_station_info():
 ##################
 # Neighbor stations and ridability calculated daily
 ##################
-def get_distance(df, lat, lon, n_lat, n_lon):
-    """Calculates geodesic distance between two points in a DataFrame row.
-
-    Args:
-        df: A DataFrame row (or Series) containing coordinate columns.
-        lat: Column name for the first point's latitude.
-        lon: Column name for the first point's longitude.
-        n_lat: Column name for the neighbor's latitude.
-        n_lon: Column name for the neighbor's longitude.
-
-    Returns:
-        The distance in kilometers between the two points.
-    """
-    loc = (df[lat], df[lon])
-    n_loc = (df[n_lat], df[n_lon])
-    dist = distance.distance(loc, n_loc).km
-    return dist
-
-
 def haversine(lat, lon, n_lat, n_lon):
     """Calculates haversine distance compatible with numpy arrays.
 
@@ -134,6 +142,8 @@ def haversine(lat, lon, n_lat, n_lon):
     Returns:
         Distance(s) in kilometers between the point pairs.
     """
+    import numpy as np
+
     radius = 6371.0
     d_lat = np.radians(lat - n_lat)
     d_lon = np.radians(lon - n_lon)
@@ -168,6 +178,8 @@ def calc_neighbors(date, exclude=[]):
     Returns:
         A DataFrame of station neighbor pairs with distances.
     """
+    import pandas as pd
+
     # get station info
     df = s3.download_csv_as_df(BUCKET, get_station_info_key(date))
 
@@ -220,8 +232,12 @@ def gather_single_day_data(single_day):
     Returns:
         A DataFrame containing all station status observations for the day.
     """
+    import pandas as pd
+
     keys = s3.ls(BUCKET, f"station_status/{single_day}")
-    dfs = [s3.download_csv_as_df(BUCKET, key) for key in keys]
+    # ~288 small files a day; fetching them one at a time spent most of the job waiting on S3.
+    with ThreadPoolExecutor(max_workers=16) as executor:
+        dfs = list(executor.map(lambda key: s3.download_csv_as_df(BUCKET, key), keys))
     df = pd.concat(dfs)
 
     return df
@@ -241,6 +257,9 @@ def calc_daily_stats(day):
     Returns:
         A DataFrame with per-station rideability scores for the day.
     """
+    import numpy as np
+    import pandas as pd
+
     df = gather_single_day_data(day)
 
     # find uninstalled stations to exclude from neighbor calculation
