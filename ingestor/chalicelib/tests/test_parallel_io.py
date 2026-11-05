@@ -1,7 +1,6 @@
-"""Tests for the thread-pooled I/O in the service ridership dashboard and daily trip metrics jobs.
+"""Tests for the service ridership dashboard's thread-pooled queries and the daily trip metrics job.
 
-The concurrency must not change results: these check pagination, and that parallel
-fetching produces the same output as the old one-at-a-time path.
+These check pagination, and that the output matches the one-at-a-time path.
 """
 
 import json
@@ -127,7 +126,7 @@ class _Response:
 
 
 def _serial_reference(fleet_metrics):
-    """What update_daily_table wrote before it fetched concurrently: one route, one request at a time."""
+    """The expected rows: one route, one request at a time."""
     expected = []
     date_string = DAY.strftime(constants.DATE_FORMAT_BACKEND)
     for line, route in ROUTES:
