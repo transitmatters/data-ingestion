@@ -1,5 +1,8 @@
+import ast
 import json
+import os
 from datetime import date, datetime, timedelta
+from pathlib import Path
 
 from chalice import Chalice, ConvertToMiddleware, Cron
 from datadog_lambda.wrapper import datadog_lambda_wrapper
@@ -8,6 +11,33 @@ from datadog_lambda.wrapper import datadog_lambda_wrapper
 # rather than up here. That way a function only loads (and is billed for) its own
 # dependencies; importing all of them pulled pandas, numpy and the GTFS stack into every
 # Lambda, including the small 5-minute jobs.
+#
+# Those imports should still happen during Lambda's Init phase, though, not on the first
+# invocation: Init appears to run unthrottled (~1 vCPU) while the handler only gets its
+# memory tier's share (~0.1 vCPU at 192 MB), so loading the same modules in the handler took
+# ~3x longer. Most of these jobs cold-start on every run, so this matters.
+#
+# Lambda sets _HANDLER to "app.<function_name>". At Init we find that function below and run
+# its imports early (parsing this file takes ~1 ms). Nothing to maintain: just import what a
+# handler needs at the top of its body, as the handlers below do.
+
+
+def preload_handler_imports(function_name: str) -> None:
+    """Runs the import statements at the top of a handler's body, ahead of its first call.
+
+    Args:
+        function_name: The handler's name, e.g. "bb_store_station_status". Does nothing if no
+            handler in this file has that name.
+    """
+    for node in ast.parse(Path(__file__).read_text()).body:
+        if isinstance(node, ast.FunctionDef) and node.name == function_name:
+            imports = [stmt for stmt in node.body if isinstance(stmt, (ast.Import, ast.ImportFrom))]
+            exec(compile(ast.Module(body=imports, type_ignores=[]), __file__, "exec"), {})
+
+
+# _HANDLER is unset outside Lambda (local runs, tests, chalice deploy), so nothing is preloaded there.
+if os.environ.get("_HANDLER"):
+    preload_handler_imports(os.environ["_HANDLER"].rpartition(".")[2])
 
 app = Chalice(app_name="ingestor")
 
