@@ -72,7 +72,7 @@
         },
         "update_agg_trip_metrics": {
           "iam_policy_file": "policy-agg-trip-metric-tables.json",
-          "lambda_memory_size": 192
+          "lambda_memory_size": 256
         },
         "populate_agg_delivered_trip_metrics": {
           "iam_policy_file": "policy-agg-trip-metric-tables.json"
