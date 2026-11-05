@@ -2,29 +2,12 @@ import json
 from datetime import date, datetime, timedelta
 
 from chalice import Chalice, ConvertToMiddleware, Cron
-from chalicelib import (
-    agg_speed_tables,
-    alerts,
-    bluebikes,
-    bus_fleet,
-    constants,
-    cr_fleet,
-    daily_speeds,
-    delays,
-    gtfs,
-    landing,
-    predictions,
-    reliability,
-    ridership,
-    service_ridership_dashboard,
-    shutdowns,
-    speed_restrictions,
-    trip_metrics,
-    weather,
-)
-from chalicelib.baselines.build import store_historical_baselines as build_and_publish_baselines
-from chalicelib.overview.build import store_overview
 from datadog_lambda.wrapper import datadog_lambda_wrapper
+
+# Every function shares this file, so chalicelib modules are imported inside each handler
+# rather than up here. That way a function only loads (and is billed for) its own
+# dependencies; importing all of them pulled pandas, numpy and the GTFS stack into every
+# Lambda, including the small 5-minute jobs.
 
 app = Chalice(app_name="ingestor")
 
@@ -41,6 +24,8 @@ app.register_middleware(ConvertToMiddleware(datadog_lambda_wrapper))
 @app.schedule(Cron("0", "0-6,9-23", "*", "*", "?", "*"))
 def store_current_alerts(event):
     """Fetches and stores current MBTA V3 alerts to S3."""
+    from chalicelib import alerts
+
     alerts.save_v3_alerts()
 
 
@@ -59,6 +44,8 @@ def store_current_alerts(event):
 @app.schedule(Cron("0/5", "*", "*", "*", "?", "*"))
 def bb_store_station_status(event):
     """Stores current Bluebikes station status snapshot to S3."""
+    from chalicelib import bluebikes
+
     bluebikes.store_station_status()
 
 
@@ -66,6 +53,8 @@ def bb_store_station_status(event):
 @app.schedule(Cron(0, 10, "*", "*", "?", "*"))
 def bb_store_station_info(event):
     """Stores daily Bluebikes station info to S3."""
+    from chalicelib import bluebikes
+
     bluebikes.store_station_info()
 
 
@@ -73,6 +62,8 @@ def bb_store_station_info(event):
 @app.schedule(Cron(0, 6, "*", "*", "?", "*"))
 def bb_calc_daily_stats(event):
     """Calculates daily Bluebikes rideability statistics for yesterday."""
+    from chalicelib import bluebikes
+
     yesterday = date.today() - timedelta(days=1)
     bluebikes.calc_daily_stats(yesterday)
 
@@ -81,6 +72,8 @@ def bb_calc_daily_stats(event):
 @app.schedule(Cron("0/30", "0-6,9-23", "*", "*", "?", "*"))
 def update_delivered_trip_metrics(event):
     """Updates daily trip metrics for today (or yesterday before 9 AM UTC)."""
+    from chalicelib import daily_speeds
+
     today = datetime.now()
     if today.hour < 9:
         today = today - timedelta(days=1)
@@ -92,6 +85,8 @@ def update_delivered_trip_metrics(event):
 @app.schedule(Cron(10, "7,12", "*", "*", "?", "*"))
 def update_agg_trip_metrics(event):
     """Updates weekly and monthly aggregate trip metric tables."""
+    from chalicelib import agg_speed_tables
+
     agg_speed_tables.update_tables("weekly")
     agg_speed_tables.update_tables("monthly")
 
@@ -101,6 +96,8 @@ def update_agg_trip_metrics(event):
 @app.schedule(Cron(0, 12, "*", "*", "?", "*"))
 def update_delivered_trip_metrics_yesterday(event):
     """Re-updates trip metrics for yesterday and two days ago after MBTA data cleanup."""
+    from chalicelib import daily_speeds
+
     today = datetime.now()
     yesterday = (today - timedelta(days=1)).date()
     two_days_ago = (today - timedelta(days=2)).date()
@@ -111,6 +108,8 @@ def update_delivered_trip_metrics_yesterday(event):
 # 12:30 UTC -> 7:30/8:30am ET, after the MBTA's next-day data cleanup
 @app.schedule(Cron(30, 12, "*", "*", "?", "*"))
 def update_bus_fleet_metrics(event):
+    from chalicelib import bus_fleet
+
     yesterday = (datetime.now() - timedelta(days=1)).date()
     bus_fleet.update_bus_fleet_table(yesterday)
 
@@ -118,6 +117,8 @@ def update_bus_fleet_metrics(event):
 # 12:35 UTC -> 7:35/8:35am ET
 @app.schedule(Cron(35, 12, "*", "*", "?", "*"))
 def update_cr_fleet_metrics(event):
+    from chalicelib import cr_fleet
+
     yesterday = (datetime.now() - timedelta(days=1)).date()
     cr_fleet.update_cr_fleet_table(yesterday)
 
@@ -126,6 +127,8 @@ def update_cr_fleet_metrics(event):
 @app.schedule(Cron(10, 7, "*", "*", "?", "*"))
 def update_ridership(event):
     """Ingests the latest ridership data into DynamoDB."""
+    from chalicelib import ridership
+
     ridership.ingest_ridership_data()
 
 
@@ -138,12 +141,16 @@ def update_ridership(event):
 # @app.schedule(Cron(20, 7, "?", "*", "MON-FRI", "*")) to resume.
 @app.lambda_function()
 def update_speed_restrictions(event, context):
+    from chalicelib import speed_restrictions
+
     speed_restrictions.update_speed_restrictions(max_lookback_months=2)
 
 
 # 7:50am UTC -> 2:50/3:50am ET every Monday (source data is published monthly)
 @app.schedule(Cron(50, 7, "?", "*", "MON", "*"))
 def update_reliability(event):
+    from chalicelib import reliability
+
     reliability.update_reliability()
 
 
@@ -151,6 +158,8 @@ def update_reliability(event):
 @app.schedule(Cron(30, 7, "*", "*", "?", "*"))
 def update_time_predictions(event):
     """Updates prediction accuracy data from MassDOT ArcGIS."""
+    from chalicelib import predictions
+
     predictions.update_predictions()
 
 
@@ -158,6 +167,8 @@ def update_time_predictions(event):
 @app.schedule(Cron(0, "8,23", "*", "*", "?", "*"))
 def update_gtfs(event):
     """Ingests GTFS feeds from the last 3 days into DynamoDB and S3."""
+    from chalicelib import gtfs
+
     # Look ahead as well as back. get_feeds_for_dates matches feeds *covering*
     # the range, so a backward-looking window never sees a feed until the day it
     # activates -- leaving mbta-performance without a gtfs.sqlite3 until the next
@@ -175,6 +186,8 @@ def update_gtfs(event):
 # single build; failures land in gtfs-ingest-keys-dlq after 3 attempts.
 @app.on_sqs_message(queue="gtfs-ingest-keys", batch_size=1)
 def ingest_gtfs_feed_on_demand(event):
+    from chalicelib import gtfs
+
     for record in event:
         message = json.loads(record.body)
         feed_key = message["feed_key"]
@@ -189,6 +202,8 @@ def ingest_gtfs_feed_on_demand(event):
 @app.schedule(Cron(40, 7, "*", "*", "?", "*"))
 def update_trip_metrics(event):
     """Ingests trip metrics for the last 7 days."""
+    from chalicelib import trip_metrics
+
     trip_metrics.ingest_recent_trip_metrics(lookback_days=7)
 
 
@@ -198,6 +213,8 @@ def update_trip_metrics(event):
 @app.schedule(Cron(45, 12, "?", "*", "MON,TUE", "*"))
 def update_weekly_alert_delays(event):
     """Aggregates daily delay data into weekly totals for the last 15 days, re-reading bus from LAMP alerts."""
+    from chalicelib import delays
+
     today = datetime.now()
     one_week_ago = (today - timedelta(days=15)).date()
     delays.update_weekly_from_daily(one_week_ago, today.date())
@@ -208,6 +225,8 @@ def update_weekly_alert_delays(event):
 @app.schedule(Cron(30, 12, "*", "*", "?", "*"))
 def update_daily_alert_delays(event):
     """Processes yesterday's subway, commuter rail, and bus alerts and updates the daily delay table."""
+    from chalicelib import delays
+
     today = datetime.now()
     yesterday = (today - timedelta(days=1)).date()
     delays.update_table(yesterday, today.date())
@@ -217,6 +236,8 @@ def update_daily_alert_delays(event):
 @app.schedule(Cron(40, 12, "*", "*", "?", "*"))
 def update_shutdowns(event):
     """Indexes new and revised shuttle, suspension, and station closure alerts into the Shutdowns table."""
+    from chalicelib import shutdowns
+
     shutdowns.update_recent()
 
 
@@ -224,6 +245,8 @@ def update_shutdowns(event):
 # Payload: {"start_date": "YYYY-MM-DD", "end_date": "YYYY-MM-DD"}
 @app.lambda_function()
 def populate_shutdowns(params, context):
+    from chalicelib import shutdowns
+
     shutdowns.update_table(date.fromisoformat(params["start_date"]), date.fromisoformat(params["end_date"]))
 
 
@@ -236,6 +259,8 @@ def populate_delivered_trip_metrics(params, context):
         params: Lambda function parameters (unused).
         context: Lambda context object (unused).
     """
+    from chalicelib import constants, daily_speeds
+
     start_date = datetime.strptime("2016-01-15", constants.DATE_FORMAT_BACKEND)
     end_date = datetime.now()
     for route in constants.ALL_ROUTES:
@@ -251,6 +276,8 @@ def populate_agg_delivered_trip_metrics(params, context):
         params: Lambda function parameters (unused).
         context: Lambda context object (unused).
     """
+    from chalicelib import agg_speed_tables, constants
+
     for line in constants.LINES:
         print(f"Populating monthly and weekly aggregate trip metrics for {line}")
         agg_speed_tables.populate_table(line, "monthly")
@@ -263,6 +290,8 @@ def populate_agg_delivered_trip_metrics(params, context):
 @app.schedule(Cron(0, 9, "?", "*", "MON-FRI", "*"))
 def store_landing_data(event):
     """Uploads trip metrics and ridership data for the landing page to S3."""
+    from chalicelib import constants, landing
+
     print(
         f"Uploading ridership and trip metric data for landing page from {constants.NINETY_DAYS_AGO_STRING} to {constants.ONE_WEEK_AGO_STRING}"
     )
@@ -277,6 +306,8 @@ def store_landing_data(event):
 # 3+ years. It only moves when a week crosses the 3-year line, so weekly is plenty.
 @app.schedule(Cron(15, 8, "?", "*", "MON", "*"))
 def store_historical_baselines(event):
+    from chalicelib.baselines.build import store_historical_baselines as build_and_publish_baselines
+
     build_and_publish_baselines()
 
 
@@ -284,6 +315,8 @@ def store_historical_baselines(event):
 @app.schedule(Cron(30, 9, "*", "*", "?", "*"))
 def update_service_ridership_dashboard(event):
     """Generates and uploads the service ridership dashboard JSON."""
+    from chalicelib import service_ridership_dashboard
+
     service_ridership_dashboard.create_service_ridership_dash_json()
 
 
@@ -292,6 +325,8 @@ def update_service_ridership_dashboard(event):
 # page scoreboard.
 @app.schedule(Cron(0, 13, "*", "*", "?", "*"))
 def store_overview_data(event):
+    from chalicelib.overview.build import store_overview
+
     store_overview()
 
 
@@ -300,6 +335,8 @@ def store_overview_data(event):
 # Every hour at :05 — fetch latest Boston hourly weather and merge into today's S3 file.
 @app.schedule(Cron(5, "*", "*", "*", "?", "*"))
 def store_hourly_weather(event):
+    from chalicelib import weather
+
     weather.ingest_hourly_weather()
 
 
@@ -307,4 +344,6 @@ def store_hourly_weather(event):
 # Payload: {"start_date": "YYYY-MM-DD", "end_date": "YYYY-MM-DD"}
 @app.lambda_function()
 def backfill_weather(params, context):
+    from chalicelib import weather
+
     weather.backfill_weather(params["start_date"], params["end_date"])
