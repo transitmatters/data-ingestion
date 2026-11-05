@@ -1,3 +1,4 @@
+import threading
 from datetime import date
 from typing import TypedDict
 
@@ -5,8 +6,26 @@ import boto3
 from boto3.dynamodb.conditions import Key
 from dynamodb_json import json_util as ddb_json
 
-# Create a DynamoDB resource
-dynamodb = boto3.resource("dynamodb")
+# boto3 resources aren't thread-safe, and these queries run from a thread pool, so each
+# thread gets its own.
+_local = threading.local()
+
+
+def _table(name: str):
+    if not hasattr(_local, "dynamodb"):
+        _local.dynamodb = boto3.resource("dynamodb")
+    return _local.dynamodb.Table(name)
+
+
+def _query_all(table, **kwargs) -> list:
+    """Run a DynamoDB query, following LastEvaluatedKey so results over 1 MB aren't truncated."""
+    items = []
+    while True:
+        response = table.query(**kwargs)
+        items.extend(response["Items"])
+        if "LastEvaluatedKey" not in response:
+            return items
+        kwargs["ExclusiveStartKey"] = response["LastEvaluatedKey"]
 
 
 class ByHour(TypedDict):
@@ -42,12 +61,11 @@ def query_scheduled_service(start_date: date, end_date: date, route_id: str) -> 
     Returns:
         A list of ScheduledServiceRow dicts from DynamoDB.
     """
-    table = dynamodb.Table("ScheduledServiceDaily")
+    table = _table("ScheduledServiceDaily")
     date_condition = Key("date").between(start_date.isoformat(), end_date.isoformat())
     route_condition = Key("routeId").eq(route_id)
     condition = route_condition & date_condition
-    response = table.query(KeyConditionExpression=condition)
-    return ddb_json.loads(response["Items"])
+    return ddb_json.loads(_query_all(table, KeyConditionExpression=condition))
 
 
 def query_ridership(start_date: date, end_date: date, line_id: str) -> list[RidershipRow]:
@@ -61,9 +79,8 @@ def query_ridership(start_date: date, end_date: date, line_id: str) -> list[Ride
     Returns:
         A list of RidershipRow dicts from DynamoDB.
     """
-    table = dynamodb.Table("Ridership")
+    table = _table("Ridership")
     date_condition = Key("date").between(start_date.isoformat(), end_date.isoformat())
     line_condition = Key("lineId").eq(line_id)
     condition = line_condition & date_condition
-    response = table.query(KeyConditionExpression=condition)
-    return ddb_json.loads(response["Items"])
+    return ddb_json.loads(_query_all(table, KeyConditionExpression=condition))
