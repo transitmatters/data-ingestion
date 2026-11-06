@@ -83,6 +83,9 @@ def bb_store_station_status(event):
 @app.schedule(Cron(0, 10, "*", "*", "?", "*"))
 def bb_store_station_info(event):
     """Stores daily Bluebikes station info to S3."""
+    # bluebikes imports pandas inside its functions so the 5-minute poller never loads it.
+    # Importing it here too lets the Init preload load it at full CPU (see above).
+    import pandas  # noqa: F401
     from chalicelib import bluebikes
 
     bluebikes.store_station_info()
@@ -92,6 +95,9 @@ def bb_store_station_info(event):
 @app.schedule(Cron(0, 6, "*", "*", "?", "*"))
 def bb_calc_daily_stats(event):
     """Calculates daily Bluebikes rideability statistics for yesterday."""
+    # bluebikes imports pandas inside its functions so the 5-minute poller never loads it.
+    # Importing it here too lets the Init preload load it at full CPU (see above).
+    import pandas  # noqa: F401
     from chalicelib import bluebikes
 
     yesterday = date.today() - timedelta(days=1)

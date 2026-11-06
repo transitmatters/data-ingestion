@@ -1,7 +1,4 @@
-"""Tests for the service ridership dashboard's thread-pooled queries and the daily trip metrics job.
-
-These check pagination, and that the output matches the one-at-a-time path.
-"""
+"""Tests for the service ridership dashboard's queries and the daily trip metrics job."""
 
 import json
 from dataclasses import dataclass
@@ -86,7 +83,7 @@ def test_service_levels_combine_routes_per_line(monkeypatch):
         ]
 
     monkeypatch.setattr(service_levels, "query_scheduled_service", fake_query)
-    # r2 is shared by both lines, to check each line still gets its own copy of the rows.
+    # r2 is shared by both lines, to check each line gets its rows.
     routes_by_line = {
         _line("line-A"): [_route("r1"), _route("r2")],
         _line("line-B"): [_route("r2"), _route("r3")],

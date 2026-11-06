@@ -34,6 +34,12 @@ def test_init_preloads_heavy_modules_when_the_function_needs_them():
     assert {"chalicelib.agg_speed_tables", "pandas"} <= loaded
 
 
+def test_init_preloads_pandas_for_bluebikes_daily_jobs():
+    # bluebikes imports pandas inside its functions, so these handlers import it for the preload
+    for handler in ("app.bb_store_station_info", "app.bb_calc_daily_stats"):
+        assert {"chalicelib.bluebikes", "pandas"} <= _loaded_after_import(handler)
+
+
 def test_init_preloads_from_module_import_function():
     # store_overview_data does `from chalicelib.overview.build import store_overview`
     assert "chalicelib.overview.build" in _loaded_after_import("app.store_overview_data")

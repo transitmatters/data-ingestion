@@ -17,7 +17,6 @@ set feed_info_id=1 on the FeedInfo row itself (pointing to its own eventual
 id=1) without any circular-insert problem.
 """
 
-import threading
 from datetime import date
 
 import boto3
@@ -296,9 +295,7 @@ def dynamodb_tables(monkeypatch):
         from ..service_ridership_dashboard import queries as _queries_module
 
         monkeypatch.setattr(_dynamo_module, "dynamodb", resource)
-        # queries.py keeps a per-thread resource; start from an empty one so every thread
-        # (including thread-pool workers) creates its resource inside the moto context.
-        monkeypatch.setattr(_queries_module, "_local", threading.local())
+        monkeypatch.setattr(_queries_module, "dynamodb", resource)
 
         tables = {}
         for spec in _DYNAMODB_TABLES:
