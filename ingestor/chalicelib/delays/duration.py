@@ -54,8 +54,9 @@ def service_day_bounds(day: date) -> tuple[datetime, datetime]:
     return start, datetime.combine(day + timedelta(days=1), start.timetz())
 
 
-def live_intervals(alerts: dict, line: str, day: date, is_delay) -> list[tuple[str, datetime, datetime]]:
-    """(header, start, end) for every delay alert on `line`, clipped to `day`'s service day.
+def live_intervals(alerts: dict, routes: set[str], day: date, is_delay) -> list[tuple[str, datetime, datetime]]:
+    """(header, start, end) for every delay alert on any of `routes`, clipped to `day`'s
+    service day. An alert on several of them is still only listed once.
 
     An alert is live from when it was both posted and in its active period until
     the earlier of its period end and MBTA closing it. Alerts with neither an end
@@ -68,7 +69,7 @@ def live_intervals(alerts: dict, line: str, day: date, is_delay) -> list[tuple[s
         header = attrs.get("header") or attrs.get("short_header")
         if attrs.get("effect") not in DASHBOARD_EFFECTS or not header or not is_delay({"text": header}):
             continue
-        if line not in {entity.get("route") for entity in attrs.get("informed_entity", [])}:
+        if routes.isdisjoint(entity.get("route") for entity in attrs.get("informed_entity", [])):
             continue
         created = _parse(attrs.get("created_at"))
         closed = _parse(attrs.get("closed_timestamp"))
