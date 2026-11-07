@@ -44,6 +44,7 @@ from .config import (
     RowConfig,
 )
 from .frequency import combine_coverage, goal_coverage, midday_headway
+from .reliability import reliability_cell
 from .series import Window, from_record, is_finite, js_round, mean, median, take_window, trend_of
 from .status import headline_for
 
@@ -60,6 +61,8 @@ SLOW_ZONE_KEYS = {
 }
 
 COMING_SOON = "Coming to the home page soon."
+
+NOT_MEASURED = {"reliability": "Runs to a timetable, so it isn't judged on headways."}
 
 
 def line_href(row: RowConfig, page: str) -> str:
@@ -143,6 +146,14 @@ def subway_cells(row: RowConfig, src: sources.Sources, frequency_lines: list[dic
         headline_raw=True,
         href=line_href(row, "speed"),
     )
+
+    cells["reliability"] = reliability_cell(
+        None if src.subway_headways is None else src.subway_headways.get(line, []),
+        now=now,
+        href=line_href(row, "reliability"),
+        notes=["Trunk stops count every branch's trains together."] if line in ("line-red", "line-green") else None,
+    )
+
     slow_zone_days = slow_zone_window(src.delay_totals, [SLOW_ZONE_KEYS[line]])
     slow_zones = judged_cell(
         "speed",
@@ -235,6 +246,25 @@ def frequent_bus_fleet_cell(row: RowConfig, src: sources.Sources, lines: list[di
     )
 
 
+def bus_reliability_cell(row: RowConfig, src: sources.Sources, lines: list[dict]) -> dict:
+    if src.bus_headways is None:
+        return reliability_cell(None, now=src.now, href=row["href"])
+    rows_by_line = [
+        [r for route in line.get("routeIds", []) for r in src.bus_headways.get(route, [])] for line in lines
+    ]
+    # Bus rows from before headways were counted carry no headway fields.
+    with_data = sum(1 for rows in rows_by_line if any(r.get("headways_75_125") is not None for r in rows))
+    return reliability_cell(
+        [r for rows in rows_by_line for r in rows],
+        now=src.now,
+        href=row["href"],
+        notes=[
+            "Mid-route timepoints only.",
+            *([f"{with_data} of {len(lines)} routes have headway data."] if with_data < len(lines) else []),
+        ],
+    )
+
+
 def build_cells(row: RowConfig, src: sources.Sources) -> dict[str, dict]:
     now, baselines, srd = src.now, src.baselines, src.service_ridership
     as_of = srd["summaryData"]["endDate"]
@@ -299,6 +329,7 @@ def build_cells(row: RowConfig, src: sources.Sources) -> dict[str, dict]:
                 href=row["href"],
                 notes=["Silver Line branches that share a street count together."],
             ),
+            "reliability": bus_reliability_cell(row, src, lines),
             "speed": na_cell("speed", "mph", COMING_SOON),
             "fleet": frequent_bus_fleet_cell(row, src, lines),
         }
@@ -314,6 +345,7 @@ def build_cells(row: RowConfig, src: sources.Sources) -> dict[str, dict]:
                 as_of=as_of,
                 href=row["href"],
             ),
+            "reliability": bus_reliability_cell(row, src, lines),
             "speed": na_cell("speed", "mph", COMING_SOON),
             "fleet": bus_fleet_cell(
                 None if src.bus_fleet is None else src.bus_fleet.get(sources.SYSTEM_WIDE_ROUTE, []),
@@ -336,7 +368,8 @@ def build_cells(row: RowConfig, src: sources.Sources) -> dict[str, dict]:
 def build_row(row: RowConfig, src: sources.Sources) -> dict:
     built = build_cells(row, src)
     cells = {
-        metric: built.get(metric) or na_cell(metric, METRICS[metric]["score_unit"], "Not measured.")
+        metric: built.get(metric)
+        or na_cell(metric, METRICS[metric]["score_unit"], NOT_MEASURED.get(metric, "Not measured."))
         for metric in METRIC_ORDER
     }
     return {

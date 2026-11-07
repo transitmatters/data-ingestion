@@ -27,7 +27,7 @@ DISABLED = "Red Line: Delays of about 15 minutes due to a disabled train at Harv
 
 
 def _minutes(alerts, line="Red"):
-    return duration.union_minutes(duration.live_intervals(alerts, line, DAY, process.alert_is_delay))
+    return duration.union_minutes(duration.live_intervals(alerts, {line}, DAY, process.alert_is_delay))
 
 
 def test_closed_timestamp_beats_placeholder_end():
@@ -67,7 +67,8 @@ def test_clipped_to_service_day():
     alerts = _alert("1", DISABLED, "2026-10-08T01:00:00-04:00", closed="2026-10-08T04:00:00-04:00")
     assert _minutes(alerts) == 60
     assert (
-        duration.union_minutes(duration.live_intervals(alerts, "Red", date(2026, 10, 7), process.alert_is_delay)) == 120
+        duration.union_minutes(duration.live_intervals(alerts, {"Red"}, date(2026, 10, 7), process.alert_is_delay))
+        == 120
     )
 
 

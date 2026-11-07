@@ -40,7 +40,11 @@ def _run_weekly(monkeypatch, rows, start_date, end_date, lines):
 def test_weekly_starting_on_sunday_writes_full_weeks(monkeypatch):
     # The Monday cron run starts its 15-day lookback on a Sunday
     first_monday = date(2026, 9, 7)
-    rows = _daily_rows("Red", first_monday, 21) + _daily_rows("CR-Lowell", first_monday, 21)
+    rows = (
+        _daily_rows("Red", first_monday, 21)
+        + _daily_rows("CR-Lowell", first_monday, 21)
+        + _daily_rows("CommuterRail", first_monday, 21)
+    )
     run_date = date(2026, 9, 28)
     weekly = _run_weekly(monkeypatch, rows, run_date - timedelta(days=15), run_date, ["Red", "CR-Lowell"])
 
@@ -53,3 +57,14 @@ def test_weekly_starting_on_sunday_writes_full_weeks(monkeypatch):
         assert weekly[("Red", week_start.isoformat())]["total_delay_time"] == full_week
         assert weekly[("Red", week_start.isoformat())]["other"] == full_week
         assert weekly[("CommuterRail", week_start.isoformat())]["total_delay_time"] == full_week
+
+
+def test_weekly_commuter_rail_sums_daily_commuter_rail_rows(monkeypatch):
+    # An alert on two lines is in both lines' rows but only once in CommuterRail's
+    monday = date(2026, 9, 7)
+    rows = _daily_rows("CR-Lowell", monday, 7) + _daily_rows("CR-Fitchburg", monday, 7)
+    rows += _daily_rows("CommuterRail", monday, 7)
+    weekly = _run_weekly(monkeypatch, rows, monday, monday + timedelta(days=6), ["CR-Lowell", "CR-Fitchburg"])
+    one_line = sum(r["total_delay_time"] for r in rows[:7])
+    assert weekly[("CR-Lowell", monday.isoformat())]["total_delay_time"] == one_line
+    assert weekly[("CommuterRail", monday.isoformat())]["total_delay_time"] == one_line

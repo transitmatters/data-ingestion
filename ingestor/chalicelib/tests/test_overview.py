@@ -7,6 +7,7 @@ from ..overview import build, sources
 from ..overview.bus_fleet import bus_fleet_cell
 from ..overview.cells import baseline_for, format_number, part_of, worst_of
 from ..overview.frequency import combine_coverage, goal_coverage
+from ..overview.reliability import reliability_cell
 from ..overview.series import take_window, trend_of
 from ..overview.status import headline_for, status_for
 
@@ -250,6 +251,43 @@ def test_bus_fleet_needs_four_weeks_and_says_why_it_has_no_status():
     assert "No recent fleet data." in empty["notes"]
 
 
+def headway_rows(start: str, days: int, within: int, outside: int) -> list[dict]:
+    return daily(
+        start,
+        days,
+        headways_under_50=outside,
+        headways_50_75=0,
+        headways_75_125=within,
+        headways_125_150=0,
+        headways_over_150=0,
+    )
+
+
+def test_reliability_pools_counts_over_the_last_four_complete_weeks():
+    result = reliability_cell(
+        [
+            *headway_rows("2026-07-13", 49, within=10, outside=90),  # older weeks, outside the score
+            *headway_rows("2026-08-31", 21, within=60, outside=40),
+            *headway_rows("2026-09-21", 14, within=1, outside=0),  # few headways barely move it
+            *headway_rows("2026-10-05", 6, within=0, outside=1000),  # this week isn't complete yet
+        ],
+        now=NOW,
+    )
+    assert result["score"] == pytest.approx((2 * 7 * 60 + 14) / (2 * 7 * 100 + 14))
+    assert result["asOf"] == "2026-09-28"
+    assert result["secondary"] == "60% within 50–150% of schedule"
+    assert result["baselineLabel"] == "40% bunched (half the scheduled gap or less)"
+    assert (result["direction"], result["scoreUnit"]) == ("higher", "pct")
+
+
+def test_reliability_needs_four_weeks_and_says_why_it_has_no_status():
+    assert reliability_cell(headway_rows("2026-09-14", 21, within=9, outside=1), now=NOW)["status"] == "insufficient"
+    assert reliability_cell(None, now=NOW)["notes"] == ["Couldn't load headway data."]
+    empty = reliability_cell(daily("2026-09-01", 30), now=NOW)
+    assert empty["score"] is None
+    assert "No recent headway data." in empty["notes"]
+
+
 def service_ridership() -> dict:
     regime = {"weekday": {"cancelled": False, "tripsPerHour": hours(**{f"h{h}": 8 for h in range(5, 24)})}}
     bus_regime = {"weekday": {"cancelled": False, "tripsPerHour": hours(**{f"h{h}": 4 for h in range(6, 22)})}}
@@ -295,6 +333,8 @@ def test_build_overview_end_to_end():
         service_ridership=service_ridership(),
         bus_fleet={"all": fleet_rows, "1": fleet_rows},
         now=NOW,
+        subway_headways={"line-red": headway_rows("2026-08-31", 41, within=70, outside=30)},
+        bus_headways={"1": headway_rows("2026-08-31", 41, within=50, outside=50), "9": daily("2026-08-31", 41)},
     )
     overview = build.build_overview(src)
     rows = {row["id"]: row for row in overview["rows"]}
@@ -312,6 +352,16 @@ def test_build_overview_end_to_end():
     # Pullman-Standard is under 1% of cars, so UTDC is the oldest still in service.
     assert red["fleet"]["secondary"] == "Oldest in service: UTDC (1987–89), 30% of cars"
     assert red["fleet"]["score"] == 2026 - 1987
+
+    assert red["reliability"]["score"] == pytest.approx(0.7)
+    assert red["reliability"]["status"] == "good"
+    assert red["reliability"]["href"] == "/red/reliability"
+    assert list(red) == ["service", "frequency", "reliability", "speed", "fleet"]
+    assert rows["blue"]["cells"]["reliability"]["status"] == "insufficient"
+    bus_reliability = rows["all-bus"]["cells"]["reliability"]
+    assert bus_reliability["score"] == pytest.approx(0.5)
+    assert bus_reliability["notes"] == ["Mid-route timepoints only.", "1 of 2 routes have headway data."]
+    assert rows["commuter-rail"]["cells"]["reliability"]["status"] == "na"
 
     frequent = rows["frequent-bus"]["cells"]["fleet"]
     assert frequent["score"] == pytest.approx(0.8)

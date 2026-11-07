@@ -13,11 +13,14 @@ from boto3.dynamodb.conditions import Key
 from .. import constants, dynamo
 from . import duration
 from .aggregate import group_daily_data, group_weekly_data
-from .bus import BUS_AGGREGATE, bus_alerts_by_route
+from .bus import BUS_AGGREGATE, bus_alerts, bus_alerts_by_route, line_routes
 from .types import Alert, AlertsRequest
 
 WEEKLY_TABLE_NAME = "AlertDelaysWeekly"
 DAILY_TABLE_NAME = "AlertDelaysDaily"
+
+# All Commuter Rail lines together, each alert counted once
+COMMUTER_RAIL_AGGREGATE = "CommuterRail"
 
 
 def generate_requests(start_date: date, end_date: date, lines=constants.ALL_LINES) -> List[AlertsRequest]:
@@ -150,9 +153,10 @@ def _lamp_alerts(day: date, lamp_alerts_by_day: Optional[dict]):
     return lamp_alerts_by_day[day]
 
 
-def _add_live_minutes(record: dict, lamp_alerts: dict, line: str, day: date, bus: bool = False):
-    """How long the same alerts were actually live, next to what they said."""
-    intervals = duration.live_intervals(lamp_alerts, line, day, alert_is_delay)
+def _add_live_minutes(record: dict, lamp_alerts: dict, routes: set[str], day: date, bus: bool = False):
+    """How long the same alerts were actually live, next to what they said. For several
+    routes, this is the time at least one of their alerts was up."""
+    intervals = duration.live_intervals(lamp_alerts, routes, day, alert_is_delay)
     record["delay_alert_minutes"] = duration.union_minutes(intervals)
     record["delay_alert_minutes_by_type"] = {
         delay_type: duration.union_minutes([i for i in intervals if alert_type({"text": i[0]}, bus) == delay_type])
@@ -167,9 +171,16 @@ def process_requests(requests: List[AlertsRequest], lines=constants.ALL_LINES, l
         all_data[line] = []
     if lamp_alerts_by_day is None:
         lamp_alerts_by_day = {}
+    # Each day's Commuter Rail alerts across all lines. /api/alerts rows have no id, so
+    # an alert posted on several lines is recognized by its text and start time.
+    cr_alerts_by_day: dict[date, dict[tuple, Alert]] = {}
 
     for request in requests:
         data = process_single_day(request)
+        if request.route.startswith("CR-"):
+            day_alerts = cr_alerts_by_day.setdefault(request.date, {})
+            for alert in data or []:
+                day_alerts.setdefault((alert["text"], alert["valid_from"]), alert)
         # Initializing at 0 regardless of condition
         total_delay = 0
         delay_by_type = constants.DELAY_BY_TYPE.copy()
@@ -190,47 +201,70 @@ def process_requests(requests: List[AlertsRequest], lines=constants.ALL_LINES, l
         if not request.route.startswith("CR-"):
             lamp_alerts = _lamp_alerts(request.date, lamp_alerts_by_day)
         if lamp_alerts is not None:
-            _add_live_minutes(record, lamp_alerts, request.route, request.date)
+            _add_live_minutes(record, lamp_alerts, {request.route}, request.date)
         all_data[request.route].append(record)
+
+    for day, alerts in cr_alerts_by_day.items():
+        total_delay, delay_by_type = process_delay_time(list(alerts.values()))
+        all_data.setdefault(COMMUTER_RAIL_AGGREGATE, []).append(
+            {
+                "date": day.isoformat(),
+                "line": COMMUTER_RAIL_AGGREGATE,
+                "total_delay_time": total_delay,
+                "delay_by_type": delay_by_type,
+            }
+        )
 
     return _to_dataframes(all_data)
 
 
 def _bus_day_records(day: date, lamp_alerts: dict) -> list[dict]:
-    """One record per bus route that had delay alerts on `day`, plus the "Bus" total.
+    """One record per bus route and combined route that had delay alerts on `day`,
+    plus the "Bus" total.
 
     Routes without delays get no record (there are ~150 of them), but the total is
     always written so a quiet day reads as zero rather than missing.
     """
-    total = {
-        "date": day.isoformat(),
-        "line": BUS_AGGREGATE,
-        "total_delay_time": 0,
-        "delay_by_type": constants.DELAY_BY_TYPE.copy(),
-        "delay_alert_minutes": 0,
-        "delay_alert_minutes_by_type": constants.DELAY_BY_TYPE.copy(),
-    }
     records = []
-    for route, alerts in bus_alerts_by_route(lamp_alerts).items():
+    for line, alerts in bus_alerts_by_route(lamp_alerts).items():
         total_delay, delay_by_type = process_delay_time(alerts, bus=True)
         if total_delay == 0:
             continue
         record = {
             "date": day.isoformat(),
-            "line": route,
+            "line": line,
             "total_delay_time": total_delay,
             "delay_by_type": delay_by_type,
         }
-        _add_live_minutes(record, lamp_alerts, route, day, bus=True)
+        _add_live_minutes(record, lamp_alerts, line_routes(line), day, bus=True)
         records.append(record)
+    return [*records, _bus_total_record(day, lamp_alerts)]
 
-        # Summed per route, so an alert on two routes counts twice, like the CommuterRail total
-        total["total_delay_time"] += total_delay
-        total["delay_alert_minutes"] += record["delay_alert_minutes"]
-        for delay_type in constants.DELAY_BY_TYPE:
-            total["delay_by_type"][delay_type] += delay_by_type[delay_type]
-            total["delay_alert_minutes_by_type"][delay_type] += record["delay_alert_minutes_by_type"][delay_type]
-    return [*records, total]
+
+def _bus_total_record(day: date, lamp_alerts: dict) -> dict:
+    """All of `day`'s bus delay alerts, each counted once however many routes it's posted on.
+
+    Alert minutes add up each alert's own live time rather than the union across all of
+    bus, so delays on two routes at the same time both count.
+    """
+    alerts = bus_alerts(lamp_alerts)
+    total_delay, delay_by_type = process_delay_time([row for _, rows in alerts.values() for row in rows], bus=True)
+    record = {
+        "date": day.isoformat(),
+        "line": BUS_AGGREGATE,
+        "total_delay_time": total_delay,
+        "delay_by_type": delay_by_type,
+        "delay_alert_minutes": 0,
+        "delay_alert_minutes_by_type": constants.DELAY_BY_TYPE.copy(),
+    }
+    for alert_id, (routes, _) in alerts.items():
+        intervals = duration.live_intervals({alert_id: lamp_alerts[alert_id]}, routes, day, alert_is_delay)
+        if not intervals:
+            continue
+        minutes = duration.union_minutes(intervals)
+        record["delay_alert_minutes"] += minutes
+        record["delay_alert_minutes_by_type"][alert_type({"text": intervals[0][0]}, bus=True)] += minutes
+    return record
 
 
 def process_bus_days(start_date: date, end_date: date, lamp_alerts_by_day=None) -> dict[str, pd.DataFrame]:
@@ -299,16 +333,6 @@ def get_daily_data_for_week(start_date: date, end_date: date, lines=constants.AL
     return daily_records
 
 
-def aggregate_commuter_rail_df(df_data: dict[str, pd.DataFrame]) -> pd.DataFrame | None:
-    """Combine all CR-* line DataFrames into a single 'CommuterRail' aggregate."""
-    cr_dfs = [df for line, df in df_data.items() if line.startswith("CR-")]
-    if not cr_dfs:
-        return None
-    cr_combined = pd.concat(cr_dfs)
-    cr_combined["line"] = "CommuterRail"
-    return cr_combined
-
-
 def update_weekly_from_daily(start_date: date, end_date: date, lines=constants.ALL_LINES, include_bus=True):
     """
     Update weekly table by aggregating daily data from DynamoDB.
@@ -321,24 +345,20 @@ def update_weekly_from_daily(start_date: date, end_date: date, lines=constants.A
     # that whole week with just Sunday's delays.
     start_date = start_date - timedelta(days=start_date.weekday())
 
-    # Get daily data from DynamoDB instead of API
+    # Get daily data from DynamoDB instead of API. The daily CommuterRail rows already
+    # count an alert posted on several lines once, so the weekly total adds those up.
+    if any(line.startswith("CR-") for line in lines):
+        lines = [*lines, COMMUTER_RAIL_AGGREGATE]
     daily_records = get_daily_data_for_week(start_date, end_date, lines)
 
     # Aggregate weekly for each line
     weekly_data = []
-    line_dfs = {}
     if daily_records:
         df = pd.DataFrame(daily_records)
         df["date"] = pd.to_datetime(df["date"])
         df.set_index("date", inplace=True)
-        for line, line_df in df.groupby("line"):
+        for _, line_df in df.groupby("line"):
             weekly_data.extend(group_weekly_data(line_df, start_date.isoformat()))
-            line_dfs[line] = line_df
-
-    # Aggregate commuter rail into a single "CommuterRail" entry
-    cr_combined = aggregate_commuter_rail_df(line_dfs)
-    if cr_combined is not None:
-        weekly_data.extend(group_weekly_data(cr_combined, start_date.isoformat()))
 
     if include_bus:
         for line_df in process_bus_days(start_date, end_date).values():
@@ -356,13 +376,8 @@ def update_table(start_date: date, end_date: date, lines=constants.ALL_LINES, in
     all_data = process_requests(alert_requests, lines, lamp_alerts_by_day)
 
     grouped_data = []
-    for line, df in all_data.items():
+    for df in all_data.values():
         grouped_data.extend(group_daily_data(df, start_date.isoformat()))
-
-    # Aggregate commuter rail into a single "CommuterRail" entry
-    cr_combined = aggregate_commuter_rail_df(all_data)
-    if cr_combined is not None:
-        grouped_data.extend(group_daily_data(cr_combined, start_date.isoformat()))
 
     if include_bus:
         for df in process_bus_days(start_date, end_date, lamp_alerts_by_day).values():

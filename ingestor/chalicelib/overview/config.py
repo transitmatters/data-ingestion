@@ -12,9 +12,11 @@ METRICS = {
     "frequency": {"direction": "higher", "thresholds": (1, 0.9, 0.75), "score_unit": "pct", "stale_days": 21},
     "speed": {"direction": "higher", "thresholds": (1, 0.95, 0.88), "score_unit": "pct", "stale_days": 21},
     "fleet": {"direction": "lower", "thresholds": (15, 25, 35), "score_unit": "years", "stale_days": 21},
+    # Share of headways within 75-125% of the scheduled headway. Judged on complete weeks only.
+    "reliability": {"direction": "higher", "thresholds": (0.8, 0.65, 0.5), "score_unit": "pct", "stale_days": 10},
 }
 
-METRIC_ORDER = ["service", "frequency", "speed", "fleet"]
+METRIC_ORDER = ["service", "frequency", "reliability", "speed", "fleet"]
 
 # Slow zones have no column of their own: subway Speed takes the worse of speed and slow zones.
 SLOW_ZONES = {"direction": "lower", "thresholds": (30, 60, 180), "score_unit": "seconds", "stale_days": 7}
