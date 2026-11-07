@@ -1,9 +1,8 @@
-import pandas as pd
 from datetime import date
 
 from .. import constants
+from ..delays import process
 from ..delays.process import (
-    aggregate_commuter_rail_df,
     alert_is_delay,
     generate_requests,
     is_line_active,
@@ -170,42 +169,38 @@ def test_process_delay_time_more_than():
     assert by_type["disabled_vehicle"] == 30
 
 
-# --- aggregate_commuter_rail_df ---
+# --- process_requests: CommuterRail ---
 
 
-def _make_line_df(line: str, dates=None):
-    if dates is None:
-        dates = ["2024-01-01", "2024-01-02"]
-    df = pd.DataFrame(
-        {
-            "total_delay_time": [10, 5],
-            "line": [line, line],
-        },
-        index=pd.to_datetime(dates),
-    )
-    return df
-
-
-def test_aggregate_commuter_rail_df_no_cr_lines():
-    df_data = {"Red": _make_line_df("Red"), "Blue": _make_line_df("Blue")}
-    result = aggregate_commuter_rail_df(df_data)
-    assert result is None
-
-
-def test_aggregate_commuter_rail_df_single_cr_line():
-    df_data = {"CR-Framingham": _make_line_df("CR-Framingham")}
-    result = aggregate_commuter_rail_df(df_data)
-    assert result is not None
-    assert (result["line"] == "CommuterRail").all()
-
-
-def test_aggregate_commuter_rail_df_multiple_cr_lines():
-    df_data = {
-        "CR-Framingham": _make_line_df("CR-Framingham"),
-        "CR-Worcester": _make_line_df("CR-Worcester"),
-        "Red": _make_line_df("Red"),
+def test_process_requests_commuter_rail_counts_shared_alert_once(monkeypatch):
+    shared = make_alert("Trains are running 20 minutes behind schedule due to a signal problem.")
+    by_line = {
+        "CR-Providence": [shared, make_alert("Providence Train 801 is 10 minutes late.")],
+        "CR-Franklin": [shared],
     }
-    result = aggregate_commuter_rail_df(df_data)
-    assert result is not None
-    assert len(result) == 4  # 2 rows from each CR line
-    assert (result["line"] == "CommuterRail").all()
+    monkeypatch.setattr(process, "process_single_day", lambda request: by_line[request.route])
+    day = date(2024, 1, 1)
+    lines = list(by_line)
+    dfs = process.process_requests(generate_requests(day, day, lines), lines)
+
+    assert dfs["CR-Providence"].iloc[0]["total_delay_time"] == 30
+    assert dfs["CR-Franklin"].iloc[0]["total_delay_time"] == 20
+    total = dfs[process.COMMUTER_RAIL_AGGREGATE].iloc[0]
+    assert total["line"] == process.COMMUTER_RAIL_AGGREGATE
+    assert total["total_delay_time"] == 30
+    assert "delay_alert_minutes" not in dfs[process.COMMUTER_RAIL_AGGREGATE].columns
+
+
+def test_process_requests_commuter_rail_quiet_day_writes_zero(monkeypatch):
+    monkeypatch.setattr(process, "process_single_day", lambda request: [])
+    day = date(2024, 1, 1)
+    dfs = process.process_requests(generate_requests(day, day, ["CR-Lowell"]), ["CR-Lowell"])
+    assert dfs[process.COMMUTER_RAIL_AGGREGATE].iloc[0]["total_delay_time"] == 0
+
+
+def test_process_requests_no_commuter_rail_without_cr_lines(monkeypatch):
+    monkeypatch.setattr(process, "process_single_day", lambda request: [])
+    monkeypatch.setattr(process.duration, "load_lamp_alerts", lambda day: None)
+    day = date(2024, 1, 1)
+    dfs = process.process_requests(generate_requests(day, day, ["Red"]), ["Red"])
+    assert process.COMMUTER_RAIL_AGGREGATE not in dfs

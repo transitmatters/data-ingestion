@@ -23,6 +23,8 @@ def _alert(alert_id, header, routes, route_type=3, effect="DELAY", start="2026-1
     }
 
 
+SL = "741,742,743,746"
+
 LAMP = {
     **_alert(
         "1",
@@ -42,7 +44,7 @@ LAMP = {
 
 def test_bus_alerts_by_route_keeps_bus_routes_only():
     by_route = bus.bus_alerts_by_route(LAMP)
-    assert set(by_route) == {"39", "741", "742", "1"}
+    assert set(by_route) == {"39", "741", "742", "1", SL}
     assert by_route["39"][0]["text"].startswith("Route 39")
     assert by_route["39"][0]["valid_from"] == "2026-10-20T07:30:00-04:00"
 
@@ -66,7 +68,7 @@ def _bus_days(monkeypatch, files, start=DAY, end=DAY):
 def test_process_bus_days_writes_only_routes_with_delays(monkeypatch):
     dfs = _bus_days(monkeypatch, {DAY: LAMP})
     # Route 1 only has a detour, so it gets no row
-    assert set(dfs) == {"39", "741", "742", bus.BUS_AGGREGATE}
+    assert set(dfs) == {"39", "741", "742", SL, bus.BUS_AGGREGATE}
 
     route_39 = dfs["39"].iloc[0]
     assert route_39["total_delay_time"] == 20
@@ -78,13 +80,49 @@ def test_process_bus_days_writes_only_routes_with_delays(monkeypatch):
     assert dfs["741"].iloc[0]["car_traffic"] == 25
 
 
-def test_process_bus_days_sums_routes_into_bus(monkeypatch):
+def test_process_bus_days_counts_each_alert_once_in_bus(monkeypatch):
     total = _bus_days(monkeypatch, {DAY: LAMP})[bus.BUS_AGGREGATE].iloc[0]
     assert total["line"] == bus.BUS_AGGREGATE
-    # SL1's alert also covers SL2, so it counts on both routes
-    assert total["total_delay_time"] == 20 + 25 + 25
-    assert total["car_traffic"] == 70
-    assert total["delay_alert_minutes"] == 40 + 120 + 120
+    # SL1's alert also covers SL2, but counts once
+    assert total["total_delay_time"] == 20 + 25
+    assert total["car_traffic"] == 45
+    # Route 39's and SL1's alerts overlap in time, but are on different routes, so both count
+    assert total["delay_alert_minutes"] == 40 + 120
+    assert total["delay_alert_minutes_car_traffic"] == 160
+
+
+def test_process_bus_days_group_counts_shared_alert_once(monkeypatch):
+    lamp = {
+        **_alert("1", "SL1 is experiencing delays of about 25 minutes due to traffic.", ["741", "742", "746"]),
+        **_alert(
+            "2",
+            "SLW is experiencing delays of about 10 minutes due to traffic.",
+            ["746"],
+            start="2026-10-20T09:00:00-04:00",
+        ),
+    }
+    lamp["2"]["attributes"]["active_period"][0]["end"] = "2026-10-20T10:00:00-04:00"
+    dfs = _bus_days(monkeypatch, {DAY: lamp})
+
+    # Single routes still count every alert posted on them
+    assert dfs["741"].iloc[0]["total_delay_time"] == 25
+    assert dfs["746"].iloc[0]["total_delay_time"] == 25 + 10
+    assert dfs["746"].iloc[0]["delay_alert_minutes"] == 150  # 7:30 to 10:00
+
+    group = dfs[SL].iloc[0]
+    assert group["line"] == SL
+    assert group["total_delay_time"] == 25 + 10
+    assert group["car_traffic"] == 35
+    # The union of 7:30-9:30 and 9:00-10:00, not 120 + 120 + 150
+    assert group["delay_alert_minutes"] == 150
+    assert group["delay_alert_minutes_car_traffic"] == 150
+
+    assert dfs[bus.BUS_AGGREGATE].iloc[0]["total_delay_time"] == 35
+
+
+def test_process_bus_days_no_group_row_without_delays(monkeypatch):
+    dfs = _bus_days(monkeypatch, {DAY: _alert("1", "Route 114 is detoured.", ["114"], effect="DETOUR")})
+    assert "114,116,117" not in dfs
 
 
 def test_process_bus_days_quiet_day_still_writes_bus(monkeypatch):
@@ -104,9 +142,10 @@ def test_update_table_writes_bus_daily_rows(monkeypatch):
     monkeypatch.setattr(process.dynamo, "dynamo_batch_write", lambda items, table: written.extend(items))
     process.update_table(DAY, DAY, lines=[])
     rows = {r["line"]: r for r in written}
-    assert set(rows) == {"39", "741", "742", bus.BUS_AGGREGATE}
+    assert set(rows) == {"39", "741", "742", SL, bus.BUS_AGGREGATE}
     assert rows["39"]["date"] == DAY.isoformat()
-    assert rows[bus.BUS_AGGREGATE]["total_delay_time"] == 70
+    assert rows[SL]["total_delay_time"] == 25
+    assert rows[bus.BUS_AGGREGATE]["total_delay_time"] == 45
 
 
 def test_update_weekly_bus_only(monkeypatch):
@@ -119,4 +158,5 @@ def test_update_weekly_bus_only(monkeypatch):
     process.update_weekly_from_daily(monday, monday + timedelta(days=6), lines=[])
     rows = {(r["line"], r["date"]): r for r in written}
     assert rows[("39", monday.isoformat())]["total_delay_time"] == 7 * 20
-    assert rows[(bus.BUS_AGGREGATE, monday.isoformat())]["total_delay_time"] == 7 * 70
+    assert rows[(SL, monday.isoformat())]["total_delay_time"] == 7 * 25
+    assert rows[(bus.BUS_AGGREGATE, monday.isoformat())]["total_delay_time"] == 7 * 45

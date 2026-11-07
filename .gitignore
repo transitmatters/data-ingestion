@@ -7,3 +7,4 @@ feeds
 .cursor
 .ruff_cache
 .venv
+.coverage
