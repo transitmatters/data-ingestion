@@ -7,7 +7,7 @@ from decimal import ROUND_HALF_UP, Decimal
 from .config import METRICS, MIN_WEEKS
 from .frequency import combine_coverage, goal_coverage
 from .series import Point, Window, days_between, is_finite, js_round, mean, median, take_window, trend_of
-from .status import status_for
+from .status import SEVERITY, is_measured, status_for
 
 # Cell fields that are always present, even when null. The rest are left out when unset.
 REQUIRED_FIELDS = {"metric", "status", "score", "value", "unit", "trend"}
@@ -118,8 +118,10 @@ def judged_cell(
     # Days to add to `as_of` before judging staleness (weekly points are dated by week start).
     as_of_offset_days: float = 6,
     min_points: int = MIN_WEEKS,
+    # How to judge a measure that isn't a column of its own, like slow zones.
+    method: dict | None = None,
 ) -> dict:
-    method = METRICS[metric]
+    method = method or METRICS[metric]
     direction = direction or method["direction"]
     thresholds = list(thresholds or method["thresholds"])
     notes = list(notes or [])
@@ -150,6 +152,33 @@ def judged_cell(
             "href": href,
         }
     )
+
+
+def part_of(label: str, cell: dict, unit_label: str | None = None) -> dict:
+    """One measure behind a combined cell, shown as the score it's judged on."""
+    part = {
+        "label": label,
+        "status": cell["status"],
+        "score": cell["score"],
+        "scoreUnit": cell.get("scoreUnit"),
+        "unitLabel": unit_label,
+        "direction": cell.get("direction"),
+        "thresholds": cell.get("thresholds"),
+        "href": cell.get("href"),
+    }
+    return {key: value for key, value in part.items() if key == "score" or value is not None}
+
+
+def worst_of(primary: dict, parts: list[tuple[dict, dict]]) -> dict:
+    """`primary` with the worst status among `parts`, each a (part, cell) pair with `primary` among
+    them. No averaging: one bad measure sets the cell. A part without enough data is still listed
+    but left out of the status, so the others decide it."""
+    measured = [part["status"] for part, _ in parts if is_measured(part["status"])]
+    status = max(measured, key=lambda s: SEVERITY.get(s, 0)) if measured else "insufficient"
+    notes = list(primary.get("notes") or []) + [
+        f"{part['label']}: {note}" for part, cell in parts if cell is not primary for note in cell.get("notes") or []
+    ]
+    return compact({**primary, "status": status, "notes": notes or None, "parts": [part for part, _ in parts]})
 
 
 def ratio_cell(
@@ -192,7 +221,9 @@ def ratio_cell(
         now=now,
         href=href,
         notes=notes,
-        secondary=f"{format_number(raw_value)} {raw_unit_label}" if raw_value is not None else None,
+        secondary=f"{format_number(raw_value)} {raw_unit_label}"
+        if raw_value is not None and not headline_raw
+        else None,
         baseline_label=(
             f"Best: {format_number(baseline.value)} {raw_unit_label}"
             + (f" ({baseline.label})" if baseline.label else "")

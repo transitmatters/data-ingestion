@@ -20,9 +20,11 @@ from .cells import (
     judged_cell,
     mph,
     na_cell,
+    part_of,
     ratio_cell,
     sum_histories,
     trip_metrics_series,
+    worst_of,
 )
 from .config import (
     CR_ELECTRIFIED_SHARE,
@@ -36,6 +38,7 @@ from .config import (
     METRICS,
     ROWS,
     SINGLE_TYPE_FLEETS,
+    SLOW_ZONES,
     SUBWAY_FREQUENCY_LINE_IDS,
     WINDOW_WEEKS,
     RowConfig,
@@ -57,8 +60,6 @@ SLOW_ZONE_KEYS = {
 }
 
 COMING_SOON = "Coming to the home page soon."
-
-NOT_MEASURED = {"slowZones": "Slow zones are tracked on the subway only."}
 
 
 def line_href(row: RowConfig, page: str) -> str:
@@ -131,7 +132,7 @@ def subway_cells(row: RowConfig, src: sources.Sources, frequency_lines: list[dic
     else:
         cells["frequency"] = {**na_cell("frequency", "pct", "Not in the schedule data yet."), "status": "insufficient"}
 
-    cells["speed"] = ratio_cell(
+    speed = ratio_cell(
         "speed",
         trip_metrics_series(trips, mph),
         baseline_for(baselines, "speed", [line]),
@@ -142,16 +143,23 @@ def subway_cells(row: RowConfig, src: sources.Sources, frequency_lines: list[dic
         headline_raw=True,
         href=line_href(row, "speed"),
     )
-
-    slow_zones = slow_zone_window(src.delay_totals, [SLOW_ZONE_KEYS[line]])
-    cells["slowZones"] = judged_cell(
-        "slowZones",
-        mean(slow_zones.values) if slow_zones.values else None,
+    slow_zone_days = slow_zone_window(src.delay_totals, [SLOW_ZONE_KEYS[line]])
+    slow_zones = judged_cell(
+        "speed",
+        mean(slow_zone_days.values) if slow_zone_days.values else None,
         unit="seconds",
-        window=slow_zones,
+        window=slow_zone_days,
         now=now,
         as_of_offset_days=0,
         href=line_href(row, "slowzones"),
+        method=SLOW_ZONES,
+    )
+    cells["speed"] = worst_of(
+        speed,
+        [
+            (part_of("Speed", speed, "of best"), speed),
+            (part_of("Slow zones", slow_zones, "a day"), slow_zones),
+        ],
     )
 
     age_window = take_window(trip_metrics_series(trips, lambda d: d.get("avg_car_age")), drop_low_weeks=False)
@@ -328,8 +336,7 @@ def build_cells(row: RowConfig, src: sources.Sources) -> dict[str, dict]:
 def build_row(row: RowConfig, src: sources.Sources) -> dict:
     built = build_cells(row, src)
     cells = {
-        metric: built.get(metric)
-        or na_cell(metric, METRICS[metric]["score_unit"], NOT_MEASURED.get(metric, "Not measured."))
+        metric: built.get(metric) or na_cell(metric, METRICS[metric]["score_unit"], "Not measured.")
         for metric in METRIC_ORDER
     }
     return {

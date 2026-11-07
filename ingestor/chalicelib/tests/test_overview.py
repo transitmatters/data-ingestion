@@ -5,7 +5,7 @@ import pytest
 
 from ..overview import build, sources
 from ..overview.bus_fleet import bus_fleet_cell
-from ..overview.cells import baseline_for, format_number
+from ..overview.cells import baseline_for, format_number, part_of, worst_of
 from ..overview.frequency import combine_coverage, goal_coverage
 from ..overview.series import take_window, trend_of
 from ..overview.status import headline_for, status_for
@@ -133,6 +133,61 @@ def test_headline_is_worst_of_and_lists_the_worst_first():
     assert headline_for(wins, 2)["kind"] == "strong"
 
 
+def judged(status: str, score: float | None, direction: str, thresholds, notes: list[str] | None = None) -> dict:
+    return {
+        "metric": "speed",
+        "status": status,
+        "score": score,
+        "value": score,
+        "unit": "pct",
+        "trend": None,
+        "direction": direction,
+        "thresholds": list(thresholds),
+        "notes": notes,
+    }
+
+
+def speed_and_slow_zones(speed: dict, slow_zones: dict) -> dict:
+    return worst_of(speed, [(part_of("Speed", speed), speed), (part_of("Slow zones", slow_zones), slow_zones)])
+
+
+def test_worst_of_takes_the_worse_part():
+    speed = judged("good", 0.96, "higher", (1, 0.95, 0.88))
+    slow = judged("problem", 240, "lower", (30, 60, 180), notes=["Latest data is from Oct 3."])
+    merged = speed_and_slow_zones(speed, slow)
+    assert merged["status"] == "problem"
+    assert merged["score"] == 0.96  # the headline stays the speed
+    assert [(p["label"], p["status"], p["score"]) for p in merged["parts"]] == [
+        ("Speed", "good", 0.96),
+        ("Slow zones", "problem", 240),
+    ]
+    assert merged["notes"] == ["Slow zones: Latest data is from Oct 3."]
+
+    assert (
+        speed_and_slow_zones(judged("room", 0.9, "higher", (1, 0.95, 0.88)), judged("win", 10, "lower", (30, 60, 180)))[
+            "status"
+        ]
+        == "room"
+    )
+
+
+def test_worst_of_lets_the_measured_part_decide():
+    no_baseline = judged("insufficient", None, "higher", (1, 0.95, 0.88))
+    assert speed_and_slow_zones(no_baseline, judged("good", 45, "lower", (30, 60, 180)))["status"] == "good"
+    assert (
+        speed_and_slow_zones(no_baseline, judged("insufficient", None, "lower", (30, 60, 180)))["status"]
+        == "insufficient"
+    )
+
+
+def test_headline_ranks_a_combined_cell_by_its_furthest_part():
+    speed = judged("good", 0.96, "higher", (1, 0.95, 0.88))
+    combined = speed_and_slow_zones(speed, judged("room", 170, "lower", (30, 60, 180)))
+    # Slow zones sit 183% past good, further than service's 8%.
+    held_back = headline_for([cell("service", "room", 0.85), combined], 2)["heldBackBy"]
+    assert held_back == ["speed", "service"]
+
+
 def line(weekday: list[int], saturday: list[int] | None = None, regime: str = "current") -> dict:
     days = {"weekday": {"cancelled": False, "tripsPerHour": weekday}}
     if saturday is not None:
@@ -236,7 +291,7 @@ def test_build_overview_end_to_end():
     src = sources.Sources(
         trip_metrics={"line-red": trips},
         baselines={"metrics": {"service": {"series": {"line-red": {"value": 200, "bestWindow": None}}}}},
-        delay_totals={"data": [{"date": f"{day}T00:00:00", "Red": 45} for day, _ in weekly("2026-07-19", [0] * 12)]},
+        delay_totals={"data": [{"date": f"{d['date']}T00:00:00", "Red": 45} for d in daily("2026-07-19", 84)]},
         service_ridership=service_ridership(),
         bus_fleet={"all": fleet_rows, "1": fleet_rows},
         now=NOW,
@@ -247,7 +302,13 @@ def test_build_overview_end_to_end():
     red = rows["red"]["cells"]
     assert red["service"]["status"] == "win"
     assert red["frequency"]["score"] == 1
-    assert red["speed"]["status"] == "insufficient"  # no speed baseline
+    # No speed baseline, so 45 s a day of slow zones decides it.
+    assert red["speed"]["status"] == "good"
+    assert [(part["label"], part["status"]) for part in red["speed"]["parts"]] == [
+        ("Speed", "insufficient"),
+        ("Slow zones", "good"),
+    ]
+    assert "slowZones" not in red
     # Pullman-Standard is under 1% of cars, so UTDC is the oldest still in service.
     assert red["fleet"]["secondary"] == "Oldest in service: UTDC (1987–89), 30% of cars"
     assert red["fleet"]["score"] == 2026 - 1987
