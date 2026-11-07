@@ -159,6 +159,16 @@ def update_cr_fleet_metrics(event):
     cr_fleet.update_cr_fleet_table(yesterday)
 
 
+# 12:20 UTC -> 7:20/8:20am ET, before the overview. Redoes the day before too, in case gobble
+# stood in for LAMP the first time.
+@app.schedule(Cron(20, 12, "*", "*", "?", "*"))
+def update_headway_reliability(event):
+    from chalicelib.headway_reliability import ingest
+
+    yesterday = (datetime.now() - timedelta(days=1)).date()
+    ingest.update_days(yesterday - timedelta(days=1), yesterday)
+
+
 # 7:10am UTC -> 2:10/3:10am ET every day
 @app.schedule(Cron(10, 7, "*", "*", "?", "*"))
 def update_ridership(event):
