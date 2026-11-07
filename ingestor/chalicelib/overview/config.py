@@ -13,9 +13,11 @@ METRICS = {
     "speed": {"direction": "higher", "thresholds": (1, 0.95, 0.88), "score_unit": "pct", "stale_days": 21},
     "slowZones": {"direction": "lower", "thresholds": (30, 60, 180), "score_unit": "seconds", "stale_days": 7},
     "fleet": {"direction": "lower", "thresholds": (15, 25, 35), "score_unit": "years", "stale_days": 21},
+    # Share of headways within 75-125% of the scheduled headway. Judged on complete weeks only.
+    "reliability": {"direction": "higher", "thresholds": (0.8, 0.65, 0.5), "score_unit": "pct", "stale_days": 10},
 }
 
-METRIC_ORDER = ["service", "frequency", "speed", "slowZones", "fleet"]
+METRIC_ORDER = ["service", "frequency", "reliability", "speed", "slowZones", "fleet"]
 
 # Headway goals in minutes.
 FREQUENCY_GOALS = {"subway": 10, "frequentBus": 15, "bus": 15, "commuterRail": 30}
