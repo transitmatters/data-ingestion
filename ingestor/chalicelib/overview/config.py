@@ -78,9 +78,10 @@ CR_ELECTRIFIED_THRESHOLDS = (1, 0.5, 0.1)
 # Bus fleet is judged on the share of trips run by battery-electric or hybrid buses.
 BUS_FLEET_THRESHOLDS = (0.9, 0.75, 0.5)
 
-# GTFS route_desc "Frequent Bus" routes, as grouped in the service & ridership data (SL1–3 and SLW
-# are one line there, SL4/SL5 another, 15 rides with 171).
-FREQUENT_BUS_LINE_IDS = [
+# The Frequent Bus row is every service & ridership line with a route the MBTA describes as
+# "Frequent Bus" (GTFS route_desc). This is that list as of Nov 2026, used when the MBTA's API can't
+# be reached. SL1–3 and SLW are one line there, SL4/SL5 another, and 15 rides with 171.
+FALLBACK_FREQUENT_BUS_LINE_IDS = [
     "line-SLWaterfront",
     "line-SLWashington",
     "line-1",

@@ -3,19 +3,20 @@ plus daily bus fleet rows."""
 
 import json
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 
 import boto3
+import requests
 from boto3.dynamodb.conditions import Key
 
-from .. import landing, s3
+from .. import keys, landing, s3
 from ..baselines.sources import SERVICE_RIDERSHIP_BUCKET, SERVICE_RIDERSHIP_KEY, _paginate
 from ..delays.process import DAILY_TABLE_NAME as ALERT_DELAYS_TABLE
 from ..headway_reliability.buckets import HEADWAY_FIELDS
-from .config import FREQUENT_BUS_LINE_IDS, ROWS
+from .config import FALLBACK_FREQUENT_BUS_LINE_IDS, ROWS
 from .delays import SUBWAY_DELAY_LINES, bus_delay_lines
 from .delivered import BUS_TRIP_FIELDS, EXTENDED_FIELDS, SCHEDULED_FIELDS, SUBWAY_ROUTES
 
@@ -43,6 +44,9 @@ SCHEDULED_SERVICE_TABLE = "ScheduledServiceDaily"
 # Enough to cover the delivered share's 4 complete weeks.
 DELIVERED_WEEKS = 5
 
+MBTA_ROUTES_URL = "https://api-v3.mbta.com/routes"
+FREQUENT_BUS_DESCRIPTION = "Frequent Bus"
+
 SUBWAY_LINES = [row["line"] for row in ROWS if row["id"] in ("red", "orange", "blue", "green", "mattapan")]
 
 # File names for --inputs.
@@ -58,6 +62,7 @@ LOCAL_FILES = {
     "delays": "delays.json",
     "subway_delivered": "subway_delivered.json",
     "subway_scheduled": "subway_scheduled.json",
+    "frequent_bus_routes": "frequent_bus_routes.json",
 }
 
 
@@ -82,6 +87,8 @@ class Sources:
     # per subway line; None when they couldn't be loaded.
     subway_delivered: dict[str, list[dict]] | None = None
     subway_scheduled: dict[str, list[dict]] | None = None
+    # Service & ridership line ids in the Frequent Bus row.
+    frequent_bus_line_ids: list[str] = field(default_factory=lambda: list(FALLBACK_FREQUENT_BUS_LINE_IDS))
 
 
 def _plain(value):
@@ -94,10 +101,42 @@ def _plain(value):
     return value
 
 
-def bus_fleet_routes(service_ridership: dict) -> list[str]:
+def get_frequent_bus_routes() -> list[str] | None:
+    """GTFS route ids the MBTA describes as Frequent Bus, or None if its API can't be reached."""
+    try:
+        response = requests.get(
+            MBTA_ROUTES_URL,
+            params={"filter[type]": 3, "fields[route]": "description"},
+            headers={"x-api-key": keys.MBTA_V3_API_KEY} if keys.MBTA_V3_API_KEY else {},
+            timeout=10,
+        )
+        response.raise_for_status()
+    except requests.RequestException as e:
+        print(f"Couldn't load Frequent Bus routes from the MBTA: {e}")
+        return None
+    routes = [
+        route["id"]
+        for route in response.json()["data"]
+        if route["attributes"].get("description") == FREQUENT_BUS_DESCRIPTION
+    ]
+    return routes or None
+
+
+def frequent_bus_line_ids(service_ridership: dict, routes: list[str] | None) -> list[str]:
+    """Service & ridership bus lines with any of `routes`, or the fallback list without them."""
+    if not routes:
+        return list(FALLBACK_FREQUENT_BUS_LINE_IDS)
+    return [
+        line_id
+        for line_id, line in service_ridership["lineData"].items()
+        if line.get("lineKind") in ("bus", "silver") and set(routes).intersection(line.get("routeIds", []))
+    ]
+
+
+def bus_fleet_routes(service_ridership: dict, line_ids: list[str]) -> list[str]:
     """The system-wide row plus every GTFS route behind the Frequent Bus lines."""
     routes = [SYSTEM_WIDE_ROUTE]
-    for line_id in FREQUENT_BUS_LINE_IDS:
+    for line_id in line_ids:
         routes += service_ridership["lineData"].get(line_id, {}).get("routeIds", [])
     return routes
 
@@ -200,8 +239,9 @@ def _download_json(bucket: str, key: str):
 
 def load(now: datetime) -> Sources:
     service_ridership = _download_json(SERVICE_RIDERSHIP_BUCKET, SERVICE_RIDERSHIP_KEY)
+    frequent_line_ids = frequent_bus_line_ids(service_ridership, get_frequent_bus_routes())
     try:
-        bus_fleet = get_bus_fleet(bus_fleet_routes(service_ridership), now)
+        bus_fleet = get_bus_fleet(bus_fleet_routes(service_ridership, frequent_line_ids), now)
     except Exception as e:  # the scoreboard still stands without bus fleet cells
         print(f"Couldn't load bus fleet rows: {e}")
         bus_fleet = None
@@ -219,6 +259,7 @@ def load(now: datetime) -> Sources:
         delays=get_delays(service_ridership, now),
         subway_delivered=subway_delivered,
         subway_scheduled=subway_scheduled,
+        frequent_bus_line_ids=frequent_line_ids,
     )
 
 
@@ -227,11 +268,12 @@ def load_local(directory: str, now: datetime) -> Sources:
         path = Path(directory) / LOCAL_FILES[name]
         return json.loads(path.read_text()) if path.exists() else None
 
+    service_ridership = read("service_ridership")
     return Sources(
         trip_metrics=read("trip_metrics") or {},
         baselines=read("baselines"),
         delay_totals=read("delay_totals") or {"data": []},
-        service_ridership=read("service_ridership"),
+        service_ridership=service_ridership,
         bus_fleet=read("bus_fleet"),
         now=now,
         subway_headways=read("subway_headways"),
@@ -240,4 +282,5 @@ def load_local(directory: str, now: datetime) -> Sources:
         delays=read("delays"),
         subway_delivered=read("subway_delivered"),
         subway_scheduled=read("subway_scheduled"),
+        frequent_bus_line_ids=frequent_bus_line_ids(service_ridership, read("frequent_bus_routes")),
     )
