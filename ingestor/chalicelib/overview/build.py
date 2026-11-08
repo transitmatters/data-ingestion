@@ -44,7 +44,7 @@ from .config import (
     RowConfig,
 )
 from .frequency import combine_coverage, goal_coverage, midday_headway
-from .reliability import reliability_cell
+from .reliability import cr_reliability_cell, reliability_cell
 from .series import Window, from_record, is_finite, js_round, mean, median, take_window, trend_of
 from .status import headline_for
 
@@ -285,6 +285,7 @@ def build_cells(row: RowConfig, src: sources.Sources) -> dict[str, dict]:
                 as_of=as_of,
                 href=row["href"],
             ),
+            "reliability": cr_reliability_cell(src.cr_reliability, now=now, href="/commuter-rail/reliability"),
             "speed": na_cell("speed", "mph", "Not measured for Commuter Rail yet."),
             "fleet": judged_cell(
                 "fleet",

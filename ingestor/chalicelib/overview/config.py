@@ -18,6 +18,10 @@ METRICS = {
 
 METRIC_ORDER = ["service", "frequency", "reliability", "speed", "fleet"]
 
+# Commuter Rail's Reliability cell is the MBTA's on-time share, not headways. "Good" is the MBTA's
+# 92% target. The MBTA publishes in batches months apart, so data stays usable for longer.
+CR_RELIABILITY = {"direction": "higher", "thresholds": (0.95, 0.92, 0.85), "score_unit": "pct", "stale_days": 150}
+
 # Slow zones have no column of their own: subway Speed takes the worse of speed and slow zones.
 SLOW_ZONES = {"direction": "lower", "thresholds": (30, 60, 180), "score_unit": "seconds", "stale_days": 7}
 
