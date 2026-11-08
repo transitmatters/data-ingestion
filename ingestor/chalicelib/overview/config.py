@@ -11,13 +11,15 @@ METRICS = {
     "service": {"direction": "higher", "thresholds": (1, 0.92, 0.8), "score_unit": "pct", "stale_days": 21},
     "frequency": {"direction": "higher", "thresholds": (1, 0.9, 0.75), "score_unit": "pct", "stale_days": 21},
     "speed": {"direction": "higher", "thresholds": (1, 0.95, 0.88), "score_unit": "pct", "stale_days": 21},
-    "slowZones": {"direction": "lower", "thresholds": (30, 60, 180), "score_unit": "seconds", "stale_days": 7},
     "fleet": {"direction": "lower", "thresholds": (15, 25, 35), "score_unit": "years", "stale_days": 21},
     # Share of headways within 75-125% of the scheduled headway. Judged on complete weeks only.
     "reliability": {"direction": "higher", "thresholds": (0.8, 0.65, 0.5), "score_unit": "pct", "stale_days": 10},
 }
 
-METRIC_ORDER = ["service", "frequency", "reliability", "speed", "slowZones", "fleet"]
+METRIC_ORDER = ["service", "frequency", "reliability", "speed", "fleet"]
+
+# Slow zones have no column of their own: subway Speed takes the worse of speed and slow zones.
+SLOW_ZONES = {"direction": "lower", "thresholds": (30, 60, 180), "score_unit": "seconds", "stale_days": 7}
 
 # Headway goals in minutes.
 FREQUENCY_GOALS = {"subway": 10, "frequentBus": 15, "bus": 15, "commuterRail": 30}
@@ -111,17 +113,17 @@ class RowConfig(TypedDict):
 
 
 ROWS: list[RowConfig] = [
-    {"id": "red", "label": "Red Line", "group": "core", "line": "line-red", "href": "/red", "minMeasured": 4},
+    {"id": "red", "label": "Red Line", "group": "core", "line": "line-red", "href": "/red", "minMeasured": 3},
     {
         "id": "orange",
         "label": "Orange Line",
         "group": "core",
         "line": "line-orange",
         "href": "/orange",
-        "minMeasured": 4,
+        "minMeasured": 3,
     },
-    {"id": "blue", "label": "Blue Line", "group": "core", "line": "line-blue", "href": "/blue", "minMeasured": 4},
-    {"id": "green", "label": "Green Line", "group": "core", "line": "line-green", "href": "/green", "minMeasured": 4},
+    {"id": "blue", "label": "Blue Line", "group": "core", "line": "line-blue", "href": "/blue", "minMeasured": 3},
+    {"id": "green", "label": "Green Line", "group": "core", "line": "line-green", "href": "/green", "minMeasured": 3},
     {
         "id": "commuter-rail",
         "label": "Commuter Rail",
@@ -153,7 +155,7 @@ ROWS: list[RowConfig] = [
         "group": "also",
         "line": "line-mattapan",
         "href": "/mattapan",
-        "minMeasured": 3,
+        "minMeasured": 2,
     },
     # Scheduled service is the only measure for ferries so far.
     {

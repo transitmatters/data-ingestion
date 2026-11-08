@@ -33,12 +33,15 @@ SEVERITY = {"problem": 3, "room": 2, "good": 1}
 
 
 def _gap_to_good(cell: dict) -> float:
-    """How far a score sits from "good", as a fraction of the good threshold."""
+    """How far a score sits from "good", as a fraction of the good threshold. A combined cell is as
+    far off as its furthest part."""
+    if cell.get("parts"):
+        return max((_gap_to_good(part) for part in cell["parts"] if is_measured(part["status"])), default=0)
     if cell["score"] is None:
         return 0
-    method = METRICS[cell["metric"]]
-    good = cell.get("thresholds", method["thresholds"])[1]
-    direction = cell.get("direction", method["direction"])
+    method = METRICS.get(cell.get("metric")) or {}
+    good = (cell.get("thresholds") or method["thresholds"])[1]
+    direction = cell.get("direction") or method["direction"]
     gap = good - cell["score"] if direction == "higher" else cell["score"] - good
     return max(0, gap / abs(good or 1))
 
