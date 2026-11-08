@@ -13,8 +13,10 @@ from boto3.dynamodb.conditions import Key
 
 from .. import landing, s3
 from ..baselines.sources import SERVICE_RIDERSHIP_BUCKET, SERVICE_RIDERSHIP_KEY, _paginate
+from ..delays.process import DAILY_TABLE_NAME as ALERT_DELAYS_TABLE
 from ..headway_reliability.buckets import HEADWAY_FIELDS
 from .config import FREQUENT_BUS_LINE_IDS, ROWS
+from .delays import SUBWAY_DELAY_LINES, bus_delay_lines
 
 DASHBOARD_BUCKET = landing.BUCKETS[0]
 TRIP_METRICS_KEY = landing.TRIP_METRICS_KEY_JSON
@@ -33,6 +35,8 @@ CR_RELIABILITY_TABLE = "Reliability"
 CR_RELIABILITY_FIELDS = ["otpNumerator", "otpDenominator", "cancelled", "peak"]
 # Long enough to reach back past the gap between the MBTA's batches.
 CR_RELIABILITY_WEEKS = 30
+ALERT_DELAYS_FIELDS = ["delay_alert_minutes"]
+ALERT_DELAYS_WEEKS = 13
 
 SUBWAY_LINES = [row["line"] for row in ROWS if row["id"] in ("red", "orange", "blue", "green", "mattapan")]
 
@@ -46,6 +50,7 @@ LOCAL_FILES = {
     "subway_headways": "subway_headways.json",
     "bus_headways": "bus_headways.json",
     "cr_reliability": "cr_reliability.json",
+    "delays": "delays.json",
 }
 
 
@@ -64,6 +69,8 @@ class Sources:
     bus_headways: dict[str, list[dict]] | None = None
     # Daily on-time counts from every Commuter Rail line, pooled; None when they couldn't be loaded.
     cr_reliability: list[dict] | None = None
+    # Daily alert delay rows per AlertDelaysDaily line; None when they couldn't be loaded.
+    delays: dict[str, list[dict]] | None = None
 
 
 def _plain(value):
@@ -146,6 +153,16 @@ def get_cr_reliability(routes: list[str], now: datetime) -> list[dict] | None:
     return [row for rows in by_route.values() for row in rows]
 
 
+def get_delays(service_ridership: dict, now: datetime) -> dict[str, list[dict]] | None:
+    bus_lines = [line for line in service_ridership["lineData"].values() if line.get("lineKind") in ("bus", "silver")]
+    lines = [*SUBWAY_DELAY_LINES.values(), *bus_delay_lines(bus_lines)]
+    try:
+        return _query_daily(ALERT_DELAYS_TABLE, lines, ALERT_DELAYS_FIELDS, ALERT_DELAYS_WEEKS, now, key="line")
+    except Exception as e:  # the scoreboard still stands without delay cells
+        print(f"Couldn't load alert delay rows: {e}")
+        return None
+
+
 def _download_json(bucket: str, key: str):
     return json.loads(s3.download(bucket, key, compressed=False))
 
@@ -167,6 +184,7 @@ def load(now: datetime) -> Sources:
         subway_headways=get_headways(SUBWAY_HEADWAYS_TABLE, SUBWAY_LINES, now),
         bus_headways=get_headways(BUS_FLEET_TABLE, bus_routes(service_ridership), now),
         cr_reliability=get_cr_reliability(cr_routes(service_ridership), now),
+        delays=get_delays(service_ridership, now),
     )
 
 
@@ -185,4 +203,5 @@ def load_local(directory: str, now: datetime) -> Sources:
         subway_headways=read("subway_headways"),
         bus_headways=read("bus_headways"),
         cr_reliability=read("cr_reliability"),
+        delays=read("delays"),
     )

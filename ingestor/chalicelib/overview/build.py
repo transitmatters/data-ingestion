@@ -43,6 +43,7 @@ from .config import (
     WINDOW_WEEKS,
     RowConfig,
 )
+from .delays import bus_delays_cell, subway_delays_cell
 from .frequency import combine_coverage, goal_coverage, midday_headway
 from .reliability import cr_reliability_cell, reliability_cell
 from .series import Window, from_record, is_finite, js_round, mean, median, take_window, trend_of
@@ -152,6 +153,14 @@ def subway_cells(row: RowConfig, src: sources.Sources, frequency_lines: list[dic
         now=now,
         href=line_href(row, "reliability"),
         notes=["Trunk stops count every branch's trains together."] if line in ("line-red", "line-green") else None,
+    )
+
+    cells["delays"] = subway_delays_cell(
+        line,
+        frequency_lines[0] if frequency_lines else None,
+        src.delays,
+        now=now,
+        href=line_href(row, "delays"),
     )
 
     slow_zone_days = slow_zone_window(src.delay_totals, [SLOW_ZONE_KEYS[line]])
@@ -286,6 +295,7 @@ def build_cells(row: RowConfig, src: sources.Sources) -> dict[str, dict]:
                 href=row["href"],
             ),
             "reliability": cr_reliability_cell(src.cr_reliability, now=now, href="/commuter-rail/reliability"),
+            "delays": na_cell("delays", "pct", "Late trains count against on-time % in Reliability instead."),
             "speed": na_cell("speed", "mph", "Not measured for Commuter Rail yet."),
             "fleet": judged_cell(
                 "fleet",
@@ -331,6 +341,7 @@ def build_cells(row: RowConfig, src: sources.Sources) -> dict[str, dict]:
                 notes=["Silver Line branches that share a street count together."],
             ),
             "reliability": bus_reliability_cell(row, src, lines),
+            "delays": bus_delays_cell(lines, src.delays, now=now),
             "speed": na_cell("speed", "mph", COMING_SOON),
             "fleet": frequent_bus_fleet_cell(row, src, lines),
         }
@@ -347,6 +358,7 @@ def build_cells(row: RowConfig, src: sources.Sources) -> dict[str, dict]:
                 href=row["href"],
             ),
             "reliability": bus_reliability_cell(row, src, lines),
+            "delays": bus_delays_cell(lines, src.delays, now=now),
             "speed": na_cell("speed", "mph", COMING_SOON),
             "fleet": bus_fleet_cell(
                 None if src.bus_fleet is None else src.bus_fleet.get(sources.SYSTEM_WIDE_ROUTE, []),

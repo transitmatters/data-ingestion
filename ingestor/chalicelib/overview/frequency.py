@@ -18,6 +18,22 @@ class GoalCoverage:
     total: float = 0
 
 
+def _service_day_hours(line: dict, day: str, regime: str = "current") -> list[float]:
+    """Trips per hour from the first trip of `day` to the last, or [] if it doesn't run."""
+    levels = ((line.get("serviceRegimes") or {}).get(regime) or {}).get(day)
+    if not levels or levels.get("cancelled") or not levels.get("tripsPerHour"):
+        return []
+    tph = levels["tripsPerHour"]
+    hours = tph[SERVICE_DAY_START_HOUR:] + tph[:SERVICE_DAY_START_HOUR]
+    running = [i for i, trips in enumerate(hours) if trips > 0]
+    return hours[running[0] : running[-1] + 1] if running else []
+
+
+def service_span_hours(line: dict, day: str) -> int:
+    """Hours from the first to the last trip on a weekday, saturday or sunday."""
+    return len(_service_day_hours(line, day))
+
+
 def goal_coverage(line: dict, goal_minutes: float, regime: str = "current") -> GoalCoverage:
     """Hours from the first to the last trip of each service day. Gaps with no trips count as
     service hours that miss the goal: a line that runs every two hours isn't "on time" in the hour
@@ -25,15 +41,7 @@ def goal_coverage(line: dict, goal_minutes: float, regime: str = "current") -> G
     needed = 60 / goal_minutes
     coverage = GoalCoverage()
     for day, weight in DAY_WEIGHTS.items():
-        levels = ((line.get("serviceRegimes") or {}).get(regime) or {}).get(day)
-        if not levels or levels.get("cancelled") or not levels.get("tripsPerHour"):
-            continue
-        tph = levels["tripsPerHour"]
-        hours = tph[SERVICE_DAY_START_HOUR:] + tph[:SERVICE_DAY_START_HOUR]
-        running = [i for i, trips in enumerate(hours) if trips > 0]
-        if not running:
-            continue
-        span = hours[running[0] : running[-1] + 1]
+        span = _service_day_hours(line, day, regime)
         coverage.total += len(span) * weight
         coverage.met += sum(1 for trips in span if trips >= needed) * weight
     return coverage

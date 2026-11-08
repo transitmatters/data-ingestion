@@ -14,9 +14,11 @@ METRICS = {
     "fleet": {"direction": "lower", "thresholds": (15, 25, 35), "score_unit": "years", "stale_days": 21},
     # Share of headways within 75-125% of the scheduled headway. Judged on complete weeks only.
     "reliability": {"direction": "higher", "thresholds": (0.8, 0.65, 0.5), "score_unit": "pct", "stale_days": 10},
+    # Share of the service day with a delay alert up.
+    "delays": {"direction": "lower", "thresholds": (0.02, 0.04, 0.08), "score_unit": "pct", "stale_days": 10},
 }
 
-METRIC_ORDER = ["service", "frequency", "reliability", "speed", "fleet"]
+METRIC_ORDER = ["service", "frequency", "reliability", "delays", "speed", "fleet"]
 
 # Commuter Rail's Reliability cell is the MBTA's on-time share, not headways. "Good" is the MBTA's
 # 92% target. The MBTA publishes in batches months apart, so data stays usable for longer.
