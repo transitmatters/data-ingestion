@@ -7,6 +7,7 @@ from ..overview import build, sources
 from ..overview.bus_fleet import bus_fleet_cell
 from ..overview.cells import baseline_for, format_number, part_of, worst_of
 from ..overview.delays import bus_delay_line, bus_delays_cell, subway_delays_cell
+from ..overview.delivered import bus_delivered_share, subway_delivered_share, with_delivered
 from ..overview.frequency import combine_coverage, goal_coverage
 from ..overview.reliability import cr_reliability_cell, reliability_cell
 from ..overview.series import take_window, trend_of
@@ -340,6 +341,13 @@ def service_ridership() -> dict:
     }
 
 
+def extended_rows(start: str, days: int, trips: int, mean_seconds: float) -> list[dict]:
+    """Both directions with `trips` trips of `mean_seconds` each."""
+    fields = {f"dir_{d}_exclusive_count": trips for d in (0, 1)}
+    fields |= {f"dir_{d}_inclusive_mean": mean_seconds for d in (0, 1)}
+    return daily(start, days, **fields)
+
+
 def test_build_overview_end_to_end():
     weeks = weekly("2026-07-13", [None] * 12)
     trips = [
@@ -364,7 +372,15 @@ def test_build_overview_end_to_end():
         bus_fleet={"all": fleet_rows, "1": fleet_rows},
         now=NOW,
         subway_headways={"line-red": headway_rows("2026-08-31", 41, within=70, outside=30)},
-        bus_headways={"1": headway_rows("2026-08-31", 41, within=50, outside=50), "9": daily("2026-08-31", 41)},
+        bus_headways={
+            "1": [
+                {**r, "scheduled_trips": 100, "unobserved_trips": 4}
+                for r in headway_rows("2026-08-31", 41, within=50, outside=50)
+            ],
+            "9": daily("2026-08-31", 41),
+        },
+        subway_delivered={"line-red": extended_rows("2026-09-07", 34, trips=50, mean_seconds=2160)},
+        subway_scheduled={"line-red": daily("2026-09-07", 34, serviceMinutes=3600)},
         cr_reliability=cr_rows("2026-06-01", 30, on_time=93, trips=100),
         delays={
             "Red": daily("2026-08-31", 41, delay_alert_minutes=57),
@@ -399,6 +415,9 @@ def test_build_overview_end_to_end():
     # Route 1 has 96 of 960 minutes under an alert and route 9 none.
     assert rows["all-bus"]["cells"]["delays"]["score"] == pytest.approx(0.05)
     assert rows["commuter-rail"]["cells"]["delays"]["status"] == "na"
+    assert red["service"]["secondary"] == "200 trips/day · 100% of scheduled service delivered"
+    assert rows["all-bus"]["cells"]["service"]["secondary"] == "96% of scheduled trips delivered"
+    assert "secondary" not in rows["ferry"]["cells"]["service"]
     assert rows["blue"]["cells"]["reliability"]["status"] == "insufficient"
     bus_reliability = rows["all-bus"]["cells"]["reliability"]
     assert bus_reliability["score"] == pytest.approx(0.5)
@@ -461,3 +480,31 @@ def test_delays_skip_days_without_alert_data():
     assert cell["status"] == "insufficient"
     assert cell["notes"] == ["Alerts on any branch, counted once.", "No recent delay alert data."]
     assert subway_delays_cell("line-red", line, None, now=NOW, href="/red/delays")["status"] == "insufficient"
+
+
+# --- Delivered service ---
+
+
+def test_subway_delivered_share_pools_recent_days_with_both():
+    # 2 × 50 trips × 36 min = 60 hours delivered against 75 scheduled
+    delivered = extended_rows("2026-09-07", 34, trips=50, mean_seconds=2160)
+    scheduled = daily("2026-09-07", 34, serviceMinutes=4500)
+    # A day without a schedule row is left out rather than counted as zero scheduled
+    scheduled = [row for row in scheduled if row["date"] != "2026-09-30"]
+    assert subway_delivered_share(delivered, scheduled, NOW) == pytest.approx(0.8)
+    assert subway_delivered_share(None, scheduled, NOW) is None
+    assert subway_delivered_share(delivered, [], NOW) is None
+
+
+def test_bus_delivered_share_counts_unobserved_trips_as_missed():
+    rows = daily("2026-09-07", 28, scheduled_trips=200, unobserved_trips=10)
+    # The current week is incomplete, and old rows have no trip counts
+    rows += daily("2026-10-05", 6, scheduled_trips=200, unobserved_trips=200) + daily("2026-08-31", 7)
+    assert bus_delivered_share(rows, NOW) == pytest.approx(0.95)
+    assert bus_delivered_share(None, NOW) is None
+
+
+def test_with_delivered_caps_overdelivery_and_keeps_trips_per_day():
+    cell = {"secondary": "217 trips/day"}
+    assert with_delivered(cell, 1.02, "service")["secondary"] == "217 trips/day · 100% of scheduled service delivered"
+    assert with_delivered(cell, None, "service") is cell

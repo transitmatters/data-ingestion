@@ -44,6 +44,7 @@ from .config import (
     RowConfig,
 )
 from .delays import bus_delays_cell, subway_delays_cell
+from .delivered import bus_delivered_share, subway_delivered_share, with_delivered
 from .frequency import combine_coverage, goal_coverage, midday_headway
 from .reliability import cr_reliability_cell, reliability_cell
 from .series import Window, from_record, is_finite, js_round, mean, median, take_window, trend_of
@@ -113,15 +114,19 @@ def subway_cells(row: RowConfig, src: sources.Sources, frequency_lines: list[dic
     trips = src.trip_metrics.get(line)
     cells: dict[str, dict] = {}
 
-    cells["service"] = ratio_cell(
+    cells["service"] = with_delivered(
+        ratio_cell(
+            "service",
+            trip_metrics_series(trips, lambda d: d.get("count")),
+            baseline_for(baselines, "service", [line]),
+            now=now,
+            aggregate="median",
+            unit="pct",
+            raw_unit_label="trips/day",
+            href=line_href(row, "service"),
+        ),
+        subway_delivered_share((src.subway_delivered or {}).get(line), (src.subway_scheduled or {}).get(line), now),
         "service",
-        trip_metrics_series(trips, lambda d: d.get("count")),
-        baseline_for(baselines, "service", [line]),
-        now=now,
-        aggregate="median",
-        unit="pct",
-        raw_unit_label="trips/day",
-        href=line_href(row, "service"),
     )
 
     if frequency_lines:
@@ -255,6 +260,12 @@ def frequent_bus_fleet_cell(row: RowConfig, src: sources.Sources, lines: list[di
     )
 
 
+def bus_routes_rows(src: sources.Sources, lines: list[dict]) -> list[dict] | None:
+    if src.bus_headways is None:
+        return None
+    return [r for line in lines for route in line.get("routeIds", []) for r in src.bus_headways.get(route, [])]
+
+
 def bus_reliability_cell(row: RowConfig, src: sources.Sources, lines: list[dict]) -> dict:
     if src.bus_headways is None:
         return reliability_cell(None, now=src.now, href=row["href"])
@@ -321,16 +332,20 @@ def build_cells(row: RowConfig, src: sources.Sources) -> dict[str, dict]:
             [f"{len(with_service)} of {len(lines)} routes have a baseline."] if len(with_service) < len(lines) else []
         )
         return {
-            "service": ratio_cell(
-                "service",
-                sum_histories([line.get("serviceHistory") for line in with_service]),
-                baseline_for(baselines, "scheduledService", [line["id"] for line in with_service]),
-                now=now,
-                aggregate="median",
-                unit="pct",
-                raw_unit_label="scheduled trips/day",
-                href=row["href"],
-                notes=route_note,
+            "service": with_delivered(
+                ratio_cell(
+                    "service",
+                    sum_histories([line.get("serviceHistory") for line in with_service]),
+                    baseline_for(baselines, "scheduledService", [line["id"] for line in with_service]),
+                    now=now,
+                    aggregate="median",
+                    unit="pct",
+                    raw_unit_label="scheduled trips/day",
+                    href=row["href"],
+                    notes=route_note,
+                ),
+                bus_delivered_share(bus_routes_rows(src, lines), now),
+                "trips",
             ),
             "frequency": frequency_cell(
                 [(line, None) for line in lines],
@@ -349,7 +364,11 @@ def build_cells(row: RowConfig, src: sources.Sources) -> dict[str, dict]:
     if row_id == "all-bus":
         lines = lines_of_kind(srd, ["bus", "silver"])
         return {
-            "service": mode_service_cell(row, src, "bus", "mode-bus"),
+            "service": with_delivered(
+                mode_service_cell(row, src, "bus", "mode-bus"),
+                bus_delivered_share(bus_routes_rows(src, lines), now),
+                "trips",
+            ),
             "frequency": frequency_cell(
                 [(line, recent_riders(line)) for line in lines],
                 FREQUENCY_GOALS["bus"],
