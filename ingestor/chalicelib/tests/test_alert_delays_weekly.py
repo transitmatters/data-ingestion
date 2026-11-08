@@ -68,3 +68,11 @@ def test_weekly_commuter_rail_sums_daily_commuter_rail_rows(monkeypatch):
     one_line = sum(r["total_delay_time"] for r in rows[:7])
     assert weekly[("CR-Lowell", monday.isoformat())]["total_delay_time"] == one_line
     assert weekly[("CommuterRail", monday.isoformat())]["total_delay_time"] == one_line
+
+
+def test_weekly_includes_green_aggregate(monkeypatch):
+    monday = date(2026, 9, 7)
+    rows = _daily_rows("Green-B", monday, 7) + _daily_rows("Green", monday, 7)
+    weekly = _run_weekly(monkeypatch, rows, monday, monday + timedelta(days=6), ["Green-B", "Red"])
+    assert weekly[("Green", monday.isoformat())]["total_delay_time"] == sum(r["total_delay_time"] for r in rows[:7])
+    assert ("CommuterRail", monday.isoformat()) not in weekly

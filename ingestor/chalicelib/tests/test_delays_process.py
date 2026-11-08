@@ -204,3 +204,56 @@ def test_process_requests_no_commuter_rail_without_cr_lines(monkeypatch):
     day = date(2024, 1, 1)
     dfs = process.process_requests(generate_requests(day, day, ["Red"]), ["Red"])
     assert process.COMMUTER_RAIL_AGGREGATE not in dfs
+
+
+# --- process_requests: Green ---
+
+
+def _lamp_alert(alert_id, header, start, closed, routes):
+    return {
+        alert_id: {
+            "attributes": {
+                "effect": "DELAY",
+                "header": header,
+                "created_at": start,
+                "closed_timestamp": closed,
+                "active_period": [{"start": start, "end": None}],
+                "informed_entity": [{"route": route} for route in routes],
+            }
+        }
+    }
+
+
+def test_process_requests_green_counts_trunk_alert_once(monkeypatch):
+    trunk = make_alert("Green Line: Delays of about 15 minutes due to a disabled train at Park Street.")
+    branch = make_alert("Green Line D Branch: Delays of about 10 minutes due to a signal problem.")
+    by_line = {"Green-B": [trunk], "Green-C": [trunk], "Green-D": [trunk, branch], "Green-E": [trunk]}
+    trunk_routes = ["Green-B", "Green-C", "Green-D", "Green-E"]
+    lamp = {
+        **_lamp_alert("1", trunk["text"], "2024-01-01T08:00:00-05:00", "2024-01-01T08:30:00-05:00", trunk_routes),
+        # Overlaps the trunk alert by 10 minutes, then runs 20 more on its own
+        **_lamp_alert("2", branch["text"], "2024-01-01T08:20:00-05:00", "2024-01-01T08:50:00-05:00", ["Green-D"]),
+    }
+    monkeypatch.setattr(process, "process_single_day", lambda request: by_line[request.route])
+    monkeypatch.setattr(process.duration, "load_lamp_alerts", lambda day: lamp)
+    day = date(2024, 1, 1)
+    lines = list(by_line)
+    dfs = process.process_requests(generate_requests(day, day, lines), lines)
+
+    assert dfs["Green-B"].iloc[0]["delay_alert_minutes"] == 30
+    assert dfs["Green-D"].iloc[0]["delay_alert_minutes"] == 50
+    green = dfs[process.GREEN_AGGREGATE].iloc[0]
+    assert green["line"] == process.GREEN_AGGREGATE
+    assert green["total_delay_time"] == 25
+    assert green["delay_alert_minutes"] == 50
+    assert green["delay_alert_minutes_disabled_vehicle"] == 30
+
+
+def test_process_requests_green_without_lamp_file_has_no_live_minutes(monkeypatch):
+    monkeypatch.setattr(process, "process_single_day", lambda request: [])
+    monkeypatch.setattr(process.duration, "load_lamp_alerts", lambda day: None)
+    day = date(2024, 1, 1)
+    dfs = process.process_requests(generate_requests(day, day, ["Green-B", "Green-C"]), ["Green-B", "Green-C"])
+    green = dfs[process.GREEN_AGGREGATE]
+    assert green.iloc[0]["total_delay_time"] == 0
+    assert "delay_alert_minutes" not in green.columns

@@ -21,6 +21,14 @@ DAILY_TABLE_NAME = "AlertDelaysDaily"
 
 # All Commuter Rail lines together, each alert counted once
 COMMUTER_RAIL_AGGREGATE = "CommuterRail"
+# All Green Line branches together, so a trunk alert posted on every branch counts once
+GREEN_AGGREGATE = "Green"
+# Rows that roll several lines up into one, by the prefix of the lines they cover
+AGGREGATES = {COMMUTER_RAIL_AGGREGATE: "CR-", GREEN_AGGREGATE: "Green-"}
+
+
+def _aggregate_for(line: str) -> Optional[str]:
+    return next((agg for agg, prefix in AGGREGATES.items() if line.startswith(prefix)), None)
 
 
 def generate_requests(start_date: date, end_date: date, lines=constants.ALL_LINES) -> List[AlertsRequest]:
@@ -171,14 +179,19 @@ def process_requests(requests: List[AlertsRequest], lines=constants.ALL_LINES, l
         all_data[line] = []
     if lamp_alerts_by_day is None:
         lamp_alerts_by_day = {}
-    # Each day's Commuter Rail alerts across all lines. /api/alerts rows have no id, so
-    # an alert posted on several lines is recognized by its text and start time.
-    cr_alerts_by_day: dict[date, dict[tuple, Alert]] = {}
+    # Each day's alerts across the lines of each aggregate, and which lines those were.
+    # /api/alerts rows have no id, so an alert posted on several lines is recognized by
+    # its text and start time.
+    aggregate_alerts: dict[tuple[str, date], dict[tuple, Alert]] = {}
+    aggregate_lines: dict[tuple[str, date], set[str]] = {}
 
     for request in requests:
         data = process_single_day(request)
-        if request.route.startswith("CR-"):
-            day_alerts = cr_alerts_by_day.setdefault(request.date, {})
+        aggregate = _aggregate_for(request.route)
+        if aggregate:
+            key = (aggregate, request.date)
+            day_alerts = aggregate_alerts.setdefault(key, {})
+            aggregate_lines.setdefault(key, set()).add(request.route)
             for alert in data or []:
                 day_alerts.setdefault((alert["text"], alert["valid_from"]), alert)
         # Initializing at 0 regardless of condition
@@ -204,16 +217,19 @@ def process_requests(requests: List[AlertsRequest], lines=constants.ALL_LINES, l
             _add_live_minutes(record, lamp_alerts, {request.route}, request.date)
         all_data[request.route].append(record)
 
-    for day, alerts in cr_alerts_by_day.items():
+    for (aggregate, day), alerts in aggregate_alerts.items():
         total_delay, delay_by_type = process_delay_time(list(alerts.values()))
-        all_data.setdefault(COMMUTER_RAIL_AGGREGATE, []).append(
-            {
-                "date": day.isoformat(),
-                "line": COMMUTER_RAIL_AGGREGATE,
-                "total_delay_time": total_delay,
-                "delay_by_type": delay_by_type,
-            }
-        )
+        record = {
+            "date": day.isoformat(),
+            "line": aggregate,
+            "total_delay_time": total_delay,
+            "delay_by_type": delay_by_type,
+        }
+        if aggregate != COMMUTER_RAIL_AGGREGATE:
+            lamp_alerts = _lamp_alerts(day, lamp_alerts_by_day)
+            if lamp_alerts is not None:
+                _add_live_minutes(record, lamp_alerts, aggregate_lines[(aggregate, day)], day)
+        all_data.setdefault(aggregate, []).append(record)
 
     return _to_dataframes(all_data)
 
@@ -345,10 +361,10 @@ def update_weekly_from_daily(start_date: date, end_date: date, lines=constants.A
     # that whole week with just Sunday's delays.
     start_date = start_date - timedelta(days=start_date.weekday())
 
-    # Get daily data from DynamoDB instead of API. The daily CommuterRail rows already
+    # Get daily data from DynamoDB instead of API. The daily aggregate rows already
     # count an alert posted on several lines once, so the weekly total adds those up.
-    if any(line.startswith("CR-") for line in lines):
-        lines = [*lines, COMMUTER_RAIL_AGGREGATE]
+    aggregates = {_aggregate_for(line) for line in lines} - {None}
+    lines = [*lines, *sorted(aggregates)]
     daily_records = get_daily_data_for_week(start_date, end_date, lines)
 
     # Aggregate weekly for each line
