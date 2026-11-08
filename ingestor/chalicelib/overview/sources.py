@@ -29,6 +29,11 @@ BUS_FLEET_WEEKS = 13
 
 SUBWAY_HEADWAYS_TABLE = "HeadwayReliability"
 HEADWAY_WEEKS = 13
+CR_RELIABILITY_TABLE = "Reliability"
+CR_RELIABILITY_FIELDS = ["otpNumerator", "otpDenominator", "cancelled", "peak"]
+# Long enough to reach back past the gap between the MBTA's batches.
+CR_RELIABILITY_WEEKS = 30
+
 SUBWAY_LINES = [row["line"] for row in ROWS if row["id"] in ("red", "orange", "blue", "green", "mattapan")]
 
 # File names for --inputs.
@@ -40,6 +45,7 @@ LOCAL_FILES = {
     "bus_fleet": "bus_fleet.json",
     "subway_headways": "subway_headways.json",
     "bus_headways": "bus_headways.json",
+    "cr_reliability": "cr_reliability.json",
 }
 
 
@@ -56,6 +62,8 @@ class Sources:
     # Daily headway bucket counts per subway line and per GTFS bus route; None when they couldn't be loaded.
     subway_headways: dict[str, list[dict]] | None = None
     bus_headways: dict[str, list[dict]] | None = None
+    # Daily on-time counts from every Commuter Rail line, pooled; None when they couldn't be loaded.
+    cr_reliability: list[dict] | None = None
 
 
 def _plain(value):
@@ -86,7 +94,17 @@ def bus_routes(service_ridership: dict) -> list[str]:
     ]
 
 
-def _query_daily(table_name: str, routes: list[str], fields: list[str], weeks: int, now: datetime):
+def cr_routes(service_ridership: dict) -> list[str]:
+    """Every GTFS route behind the Commuter Rail lines."""
+    return [
+        route
+        for line in service_ridership["lineData"].values()
+        if line.get("lineKind") == "regional-rail"
+        for route in line.get("routeIds", [])
+    ]
+
+
+def _query_daily(table_name: str, routes: list[str], fields: list[str], weeks: int, now: datetime, key: str = "route"):
     table = boto3.resource("dynamodb").Table(table_name)
     start = (now - timedelta(weeks=weeks)).date().isoformat()
     end = (now - timedelta(days=1)).date().isoformat()
@@ -95,7 +113,7 @@ def _query_daily(table_name: str, routes: list[str], fields: list[str], weeks: i
         return _plain(
             _paginate(
                 table.query,
-                KeyConditionExpression=Key("route").eq(route) & Key("date").between(start, end),
+                KeyConditionExpression=Key(key).eq(route) & Key("date").between(start, end),
                 ProjectionExpression=", ".join(["#date", *fields]),
                 ExpressionAttributeNames={"#date": "date"},
             )
@@ -115,6 +133,17 @@ def get_headways(table_name: str, routes: list[str], now: datetime) -> dict[str,
     except Exception as e:  # the scoreboard still stands without reliability cells
         print(f"Couldn't load headway rows from {table_name}: {e}")
         return None
+
+
+def get_cr_reliability(routes: list[str], now: datetime) -> list[dict] | None:
+    try:
+        by_route = _query_daily(
+            CR_RELIABILITY_TABLE, routes, CR_RELIABILITY_FIELDS, CR_RELIABILITY_WEEKS, now, key="routeId"
+        )
+    except Exception as e:  # the scoreboard still stands without the Commuter Rail reliability cell
+        print(f"Couldn't load Commuter Rail on-time rows: {e}")
+        return None
+    return [row for rows in by_route.values() for row in rows]
 
 
 def _download_json(bucket: str, key: str):
@@ -137,6 +166,7 @@ def load(now: datetime) -> Sources:
         now=now,
         subway_headways=get_headways(SUBWAY_HEADWAYS_TABLE, SUBWAY_LINES, now),
         bus_headways=get_headways(BUS_FLEET_TABLE, bus_routes(service_ridership), now),
+        cr_reliability=get_cr_reliability(cr_routes(service_ridership), now),
     )
 
 
@@ -154,4 +184,5 @@ def load_local(directory: str, now: datetime) -> Sources:
         now=now,
         subway_headways=read("subway_headways"),
         bus_headways=read("bus_headways"),
+        cr_reliability=read("cr_reliability"),
     )

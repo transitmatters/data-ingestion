@@ -7,7 +7,7 @@ from ..overview import build, sources
 from ..overview.bus_fleet import bus_fleet_cell
 from ..overview.cells import baseline_for, format_number, part_of, worst_of
 from ..overview.frequency import combine_coverage, goal_coverage
-from ..overview.reliability import reliability_cell
+from ..overview.reliability import cr_reliability_cell, reliability_cell
 from ..overview.series import take_window, trend_of
 from ..overview.status import headline_for, status_for
 
@@ -288,6 +288,35 @@ def test_reliability_needs_four_weeks_and_says_why_it_has_no_status():
     assert "No recent headway data." in empty["notes"]
 
 
+def cr_rows(start: str, days: int, on_time: int, trips: int, cancelled: int = 0) -> list[dict]:
+    peak = {"otpNumerator": on_time // 2, "otpDenominator": trips // 2}
+    return daily(start, days, otpNumerator=on_time, otpDenominator=trips, cancelled=cancelled, peak=peak)
+
+
+def test_cr_reliability_uses_the_last_four_complete_weeks_of_the_mbtas_batch():
+    result = cr_reliability_cell(
+        [
+            *cr_rows("2026-05-04", 28, on_time=50, trips=100),  # older weeks, outside the score
+            *cr_rows("2026-06-01", 28, on_time=90, trips=100, cancelled=1),
+            *cr_rows("2026-06-29", 2, on_time=0, trips=100),  # the batch ends partway through this week
+        ],
+        now=NOW,
+    )
+    assert result["score"] == pytest.approx(0.9)
+    assert result["status"] == "room"
+    assert result["asOf"] == "2026-06-22"
+    assert result["secondary"] == "90% on time at peak"
+    assert result["baselineLabel"] == "28 trains cancelled"
+    assert result["thresholds"] == [0.95, 0.92, 0.85]
+    assert result["notes"][-1] == "The MBTA publishes these in batches; the latest is from Jun 30."
+
+
+def test_cr_reliability_goes_stale_and_says_why_it_has_no_status():
+    assert cr_reliability_cell(cr_rows("2026-03-02", 28, on_time=99, trips=100), now=NOW)["status"] == "insufficient"
+    assert cr_reliability_cell(None, now=NOW)["notes"] == ["Couldn't load on-time data."]
+    assert cr_reliability_cell([], now=NOW)["notes"] == ["No recent on-time data."]
+
+
 def service_ridership() -> dict:
     regime = {"weekday": {"cancelled": False, "tripsPerHour": hours(**{f"h{h}": 8 for h in range(5, 24)})}}
     bus_regime = {"weekday": {"cancelled": False, "tripsPerHour": hours(**{f"h{h}": 4 for h in range(6, 22)})}}
@@ -335,6 +364,7 @@ def test_build_overview_end_to_end():
         now=NOW,
         subway_headways={"line-red": headway_rows("2026-08-31", 41, within=70, outside=30)},
         bus_headways={"1": headway_rows("2026-08-31", 41, within=50, outside=50), "9": daily("2026-08-31", 41)},
+        cr_reliability=cr_rows("2026-06-01", 30, on_time=93, trips=100),
     )
     overview = build.build_overview(src)
     rows = {row["id"]: row for row in overview["rows"]}
@@ -361,7 +391,9 @@ def test_build_overview_end_to_end():
     bus_reliability = rows["all-bus"]["cells"]["reliability"]
     assert bus_reliability["score"] == pytest.approx(0.5)
     assert bus_reliability["notes"] == ["Mid-route timepoints only.", "1 of 2 routes have headway data."]
-    assert rows["commuter-rail"]["cells"]["reliability"]["status"] == "na"
+    cr_reliability = rows["commuter-rail"]["cells"]["reliability"]
+    assert (cr_reliability["status"], cr_reliability["href"]) == ("good", "/commuter-rail/reliability")
+    assert rows["ferry"]["cells"]["reliability"]["status"] == "na"
 
     frequent = rows["frequent-bus"]["cells"]["fleet"]
     assert frequent["score"] == pytest.approx(0.8)
