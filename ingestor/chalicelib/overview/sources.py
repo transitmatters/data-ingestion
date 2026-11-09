@@ -17,6 +17,7 @@ from ..delays.process import DAILY_TABLE_NAME as ALERT_DELAYS_TABLE
 from ..headway_reliability.buckets import HEADWAY_FIELDS
 from .config import FREQUENT_BUS_LINE_IDS, ROWS
 from .delays import SUBWAY_DELAY_LINES, bus_delay_lines
+from .delivered import BUS_TRIP_FIELDS, EXTENDED_FIELDS, SCHEDULED_FIELDS, SUBWAY_ROUTES
 
 DASHBOARD_BUCKET = landing.BUCKETS[0]
 TRIP_METRICS_KEY = landing.TRIP_METRICS_KEY_JSON
@@ -37,6 +38,10 @@ CR_RELIABILITY_FIELDS = ["otpNumerator", "otpDenominator", "cancelled", "peak"]
 CR_RELIABILITY_WEEKS = 30
 ALERT_DELAYS_FIELDS = ["delay_alert_minutes"]
 ALERT_DELAYS_WEEKS = 13
+EXTENDED_TRIP_METRICS_TABLE = "DeliveredTripMetricsExtended"
+SCHEDULED_SERVICE_TABLE = "ScheduledServiceDaily"
+# Enough to cover the delivered share's 4 complete weeks.
+DELIVERED_WEEKS = 5
 
 SUBWAY_LINES = [row["line"] for row in ROWS if row["id"] in ("red", "orange", "blue", "green", "mattapan")]
 
@@ -51,6 +56,8 @@ LOCAL_FILES = {
     "bus_headways": "bus_headways.json",
     "cr_reliability": "cr_reliability.json",
     "delays": "delays.json",
+    "subway_delivered": "subway_delivered.json",
+    "subway_scheduled": "subway_scheduled.json",
 }
 
 
@@ -71,6 +78,10 @@ class Sources:
     cr_reliability: list[dict] | None = None
     # Daily alert delay rows per AlertDelaysDaily line; None when they couldn't be loaded.
     delays: dict[str, list[dict]] | None = None
+    # Daily DeliveredTripMetricsExtended rows (all of a line's routes) and ScheduledServiceDaily rows
+    # per subway line; None when they couldn't be loaded.
+    subway_delivered: dict[str, list[dict]] | None = None
+    subway_scheduled: dict[str, list[dict]] | None = None
 
 
 def _plain(value):
@@ -134,9 +145,11 @@ def get_bus_fleet(routes: list[str], now: datetime) -> dict[str, list[dict]]:
     return _query_daily(BUS_FLEET_TABLE, routes, BUS_FLEET_FIELDS, BUS_FLEET_WEEKS, now)
 
 
-def get_headways(table_name: str, routes: list[str], now: datetime) -> dict[str, list[dict]] | None:
+def get_headways(
+    table_name: str, routes: list[str], now: datetime, extra_fields: list[str] | None = None
+) -> dict[str, list[dict]] | None:
     try:
-        return _query_daily(table_name, routes, HEADWAY_FIELDS, HEADWAY_WEEKS, now)
+        return _query_daily(table_name, routes, [*HEADWAY_FIELDS, *(extra_fields or [])], HEADWAY_WEEKS, now)
     except Exception as e:  # the scoreboard still stands without reliability cells
         print(f"Couldn't load headway rows from {table_name}: {e}")
         return None
@@ -163,6 +176,24 @@ def get_delays(service_ridership: dict, now: datetime) -> dict[str, list[dict]] 
         return None
 
 
+def get_subway_delivered(now: datetime) -> tuple[dict[str, list[dict]] | None, dict[str, list[dict]] | None]:
+    try:
+        routes = [route for routes, _ in SUBWAY_ROUTES.values() for route in routes]
+        by_route = _query_daily(EXTENDED_TRIP_METRICS_TABLE, routes, EXTENDED_FIELDS, DELIVERED_WEEKS, now)
+        scheduled_ids = [scheduled_id for _, scheduled_id in SUBWAY_ROUTES.values()]
+        by_id = _query_daily(
+            SCHEDULED_SERVICE_TABLE, scheduled_ids, SCHEDULED_FIELDS, DELIVERED_WEEKS, now, key="routeId"
+        )
+    except Exception as e:  # the Service cells still stand without the delivered share
+        print(f"Couldn't load delivered and scheduled service hours: {e}")
+        return None, None
+    delivered = {
+        line: [row for route in routes for row in by_route[route]] for line, (routes, _) in SUBWAY_ROUTES.items()
+    }
+    scheduled = {line: by_id[scheduled_id] for line, (_, scheduled_id) in SUBWAY_ROUTES.items()}
+    return delivered, scheduled
+
+
 def _download_json(bucket: str, key: str):
     return json.loads(s3.download(bucket, key, compressed=False))
 
@@ -174,6 +205,7 @@ def load(now: datetime) -> Sources:
     except Exception as e:  # the scoreboard still stands without bus fleet cells
         print(f"Couldn't load bus fleet rows: {e}")
         bus_fleet = None
+    subway_delivered, subway_scheduled = get_subway_delivered(now)
     return Sources(
         trip_metrics=_download_json(DASHBOARD_BUCKET, TRIP_METRICS_KEY),
         baselines=_download_json(DASHBOARD_BUCKET, BASELINES_KEY),
@@ -182,9 +214,11 @@ def load(now: datetime) -> Sources:
         bus_fleet=bus_fleet,
         now=now,
         subway_headways=get_headways(SUBWAY_HEADWAYS_TABLE, SUBWAY_LINES, now),
-        bus_headways=get_headways(BUS_FLEET_TABLE, bus_routes(service_ridership), now),
+        bus_headways=get_headways(BUS_FLEET_TABLE, bus_routes(service_ridership), now, BUS_TRIP_FIELDS),
         cr_reliability=get_cr_reliability(cr_routes(service_ridership), now),
         delays=get_delays(service_ridership, now),
+        subway_delivered=subway_delivered,
+        subway_scheduled=subway_scheduled,
     )
 
 
@@ -204,4 +238,6 @@ def load_local(directory: str, now: datetime) -> Sources:
         bus_headways=read("bus_headways"),
         cr_reliability=read("cr_reliability"),
         delays=read("delays"),
+        subway_delivered=read("subway_delivered"),
+        subway_scheduled=read("subway_scheduled"),
     )
