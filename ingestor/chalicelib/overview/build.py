@@ -31,7 +31,6 @@ from .config import (
     CR_ELECTRIFIED_THRESHOLDS,
     FLEET_TYPES,
     FREQUENCY_GOALS,
-    FREQUENT_BUS_LINE_IDS,
     HERO,
     IN_SERVICE_SHARE,
     METRIC_ORDER,
@@ -243,8 +242,9 @@ def mode_service_cell(row: RowConfig, src: sources.Sources, mode: str, baseline_
     )
 
 
-def frequent_bus_lines(srd: dict) -> list[dict]:
-    return [srd["lineData"][line_id] for line_id in FREQUENT_BUS_LINE_IDS if line_id in srd["lineData"]]
+def frequent_bus_lines(src: sources.Sources) -> list[dict]:
+    srd = src.service_ridership
+    return [srd["lineData"][line_id] for line_id in src.frequent_bus_line_ids if line_id in srd["lineData"]]
 
 
 def frequent_bus_fleet_cell(row: RowConfig, src: sources.Sources, lines: list[dict]) -> dict:
@@ -324,7 +324,7 @@ def build_cells(row: RowConfig, src: sources.Sources) -> dict[str, dict]:
         }
 
     if row_id == "frequent-bus":
-        lines = frequent_bus_lines(srd)
+        lines = frequent_bus_lines(src)
         with_service = [
             line for line in lines if baseline_for(baselines, "scheduledService", [line["id"]]).value is not None
         ]
@@ -426,7 +426,7 @@ def build_hero(src: sources.Sources) -> list[dict]:
     slow_zones = slow_zone_window(src.delay_totals, list(SLOW_ZONE_KEYS.values()))
 
     frequent = combine_coverage(
-        [(goal_coverage(line, FREQUENCY_GOALS["frequentBus"]), None) for line in frequent_bus_lines(srd)]
+        [(goal_coverage(line, FREQUENCY_GOALS["frequentBus"]), None) for line in frequent_bus_lines(src)]
     )
 
     cr_lines = lines_of_kind(srd, ["regional-rail"])

@@ -508,3 +508,42 @@ def test_with_delivered_caps_overdelivery_and_keeps_trips_per_day():
     cell = {"secondary": "217 trips/day"}
     assert with_delivered(cell, 1.02, "service")["secondary"] == "217 trips/day · 100% of scheduled service delivered"
     assert with_delivered(cell, None, "service") is cell
+
+
+# --- Frequent Bus lines ---
+
+
+def test_frequent_bus_line_ids_take_any_line_with_a_frequent_route():
+    srd = {
+        "lineData": {
+            "line-15171": {"lineKind": "bus", "routeIds": ["15", "171"]},
+            "line-SLWaterfront": {"lineKind": "silver", "routeIds": ["741", "742", "743", "746"]},
+            "line-34": {"lineKind": "bus", "routeIds": ["34"]},
+            "line-Red": {"lineKind": "red", "routeIds": ["Red"]},
+        }
+    }
+    assert sources.frequent_bus_line_ids(srd, ["15", "742", "Red"]) == ["line-15171", "line-SLWaterfront"]
+    assert sources.frequent_bus_line_ids(srd, None) == sources.FALLBACK_FREQUENT_BUS_LINE_IDS
+
+
+def test_get_frequent_bus_routes_reads_route_descriptions(monkeypatch):
+    class Response:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {
+                "data": [
+                    {"id": "1", "attributes": {"description": "Frequent Bus"}},
+                    {"id": "34", "attributes": {"description": "Local Bus"}},
+                ]
+            }
+
+    monkeypatch.setattr(sources.requests, "get", lambda *args, **kwargs: Response())
+    assert sources.get_frequent_bus_routes() == ["1"]
+
+    def fail(*args, **kwargs):
+        raise sources.requests.ConnectionError("down")
+
+    monkeypatch.setattr(sources.requests, "get", fail)
+    assert sources.get_frequent_bus_routes() is None
