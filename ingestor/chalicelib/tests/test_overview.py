@@ -6,6 +6,7 @@ import pytest
 from ..overview import build, sources
 from ..overview.bus_fleet import bus_fleet_cell
 from ..overview.cells import baseline_for, format_number, part_of, worst_of
+from ..overview.delays import bus_delay_line, bus_delays_cell, subway_delays_cell
 from ..overview.frequency import combine_coverage, goal_coverage
 from ..overview.reliability import cr_reliability_cell, reliability_cell
 from ..overview.series import take_window, trend_of
@@ -365,6 +366,11 @@ def test_build_overview_end_to_end():
         subway_headways={"line-red": headway_rows("2026-08-31", 41, within=70, outside=30)},
         bus_headways={"1": headway_rows("2026-08-31", 41, within=50, outside=50), "9": daily("2026-08-31", 41)},
         cr_reliability=cr_rows("2026-06-01", 30, on_time=93, trips=100),
+        delays={
+            "Red": daily("2026-08-31", 41, delay_alert_minutes=57),
+            "Bus": daily("2026-08-31", 41, delay_alert_minutes=96),
+            "1": daily("2026-08-31", 41, delay_alert_minutes=96),
+        },
     )
     overview = build.build_overview(src)
     rows = {row["id"]: row for row in overview["rows"]}
@@ -386,7 +392,13 @@ def test_build_overview_end_to_end():
     assert red["reliability"]["score"] == pytest.approx(0.7)
     assert red["reliability"]["status"] == "good"
     assert red["reliability"]["href"] == "/red/reliability"
-    assert list(red) == ["service", "frequency", "reliability", "speed", "fleet"]
+    assert list(red) == ["service", "frequency", "reliability", "delays", "speed", "fleet"]
+    # 57 of 1,140 weekday service minutes (5 AM to midnight); weekends have no schedule here.
+    assert red["delays"]["score"] == pytest.approx(0.05)
+    assert (red["delays"]["status"], red["delays"]["href"]) == ("room", "/red/delays")
+    # Route 1 has 96 of 960 minutes under an alert and route 9 none.
+    assert rows["all-bus"]["cells"]["delays"]["score"] == pytest.approx(0.05)
+    assert rows["commuter-rail"]["cells"]["delays"]["status"] == "na"
     assert rows["blue"]["cells"]["reliability"]["status"] == "insufficient"
     bus_reliability = rows["all-bus"]["cells"]["reliability"]
     assert bus_reliability["score"] == pytest.approx(0.5)
@@ -410,3 +422,42 @@ def test_build_overview_end_to_end():
     assert "trend" not in overview["hero"][0]
     # Valid JSON: no NaN or infinity anywhere.
     build.to_json(overview)
+
+
+# --- Delays ---
+
+
+def test_bus_delay_line_matches_the_delays_jobs_rows():
+    assert bus_delay_line(["39"]) == "39"
+    assert bus_delay_line(["749", "751"]) == "751,749"
+    assert bus_delay_line(["15", "171"]) is None
+
+
+def test_bus_delays_add_up_routes_the_delays_job_does_not_combine():
+    regime = {"weekday": {"cancelled": False, "tripsPerHour": hours(**{f"h{h}": 4 for h in range(6, 22)})}}
+    line = {"id": "line-15171", "routeIds": ["15", "171"], "serviceRegimes": {"current": regime}}
+    rows = {
+        "Bus": daily("2026-09-07", 28, delay_alert_minutes=0),
+        "15": daily("2026-09-07", 28, delay_alert_minutes=600),
+        "171": daily("2026-09-07", 28, delay_alert_minutes=600),
+    }
+    # Each route's alerts add up, but never past the 16-hour service day.
+    assert bus_delays_cell([line], rows, now=NOW)["score"] == pytest.approx(1)
+
+
+def test_subway_delays_without_a_schedule_assume_a_20_hour_day():
+    rows = {"Mattapan": daily("2026-09-07", 28, delay_alert_minutes=60)}
+    cell = subway_delays_cell("line-mattapan", None, rows, now=NOW, href="/mattapan/delays")
+    assert cell["score"] == pytest.approx(0.05)
+    assert cell["secondary"] == "About 60 min a day under a delay alert"
+    assert cell["notes"] == ["Service day taken as 20 hours."]
+
+
+def test_delays_skip_days_without_alert_data():
+    regime = {"weekday": {"cancelled": False, "tripsPerHour": hours(**{f"h{h}": 8 for h in range(5, 24)})}}
+    line = {"serviceRegimes": {"current": regime}}
+    rows = {"Green": [{"date": r["date"]} for r in daily("2026-09-07", 28)]}
+    cell = subway_delays_cell("line-green", line, rows, now=NOW, href="/green/delays")
+    assert cell["status"] == "insufficient"
+    assert cell["notes"] == ["Alerts on any branch, counted once.", "No recent delay alert data."]
+    assert subway_delays_cell("line-red", line, None, now=NOW, href="/red/delays")["status"] == "insufficient"

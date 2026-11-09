@@ -16,6 +16,7 @@
       ],
       "Effect": "Allow",
       "Resource": [
+        "arn:aws:dynamodb:us-east-1:473352343756:table/AlertDelaysDaily",
         "arn:aws:dynamodb:us-east-1:473352343756:table/DeliveredTripMetricsBus",
         "arn:aws:dynamodb:us-east-1:473352343756:table/HeadwayReliability",
         "arn:aws:dynamodb:us-east-1:473352343756:table/Reliability"
