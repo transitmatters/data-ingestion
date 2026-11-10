@@ -6,7 +6,9 @@ order of rows and hero tiles stay in the dashboard, which joins them to this dat
 
 from typing import TypedDict
 
-# Thresholds are provisional until TM signs off on them.
+# Thresholds are (win, good, room to grow), read in the metric's direction: a score that reaches
+# "win" is a Win, one that reaches "good" is Good, one that reaches "room" is Room to grow, and
+# anything short of that Needs work. Agreed with TM leadership in t-performance-dash#1211.
 METRICS = {
     "service": {"direction": "higher", "thresholds": (1, 0.92, 0.8), "score_unit": "pct", "stale_days": 21},
     "frequency": {"direction": "higher", "thresholds": (1, 0.9, 0.75), "score_unit": "pct", "stale_days": 21},
