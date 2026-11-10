@@ -14,6 +14,7 @@ So far we have:
 - Store number of trips with new trains on Orange and Red line daily.
 - Store Bluebikes station status data every 5 min.
 - Store ridership data
+- Store each bus route's average weekday boardings by stop, for every fall season the MBTA has published (monthly; run by hand with `uv run python -m chalicelib.ridership.bus_stops` from `ingestor/`)
 - Process and store speed restrictions
 - Store daily reliability for The RIDE and commuter rail from the MBTA open data portal (weekly; backfill with `uv run python -m chalicelib.reliability.the_ride` / `commuter_rail` from `ingestor/`)
 - Store daily scheduled Commuter Rail service measured against Regional Rail standards (frequency, span, clock-face, reverse-peak), alongside the GTFS ingest

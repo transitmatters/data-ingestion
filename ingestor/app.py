@@ -178,6 +178,16 @@ def update_ridership(event):
     ridership.ingest_ridership_data()
 
 
+# 7:30am UTC -> 2:30/3:30am ET on the 2nd of every month. The MBTA adds a season to this data about once a year,
+# so a monthly run picks it up within a month. Each run takes about a minute at 1 GB, about $0.02 a year.
+@app.schedule(Cron(30, 7, 2, "*", "?", "*"))
+def update_bus_stop_ridership(event):
+    """Uploads each bus route's average weekday boardings by stop and season to S3."""
+    from chalicelib.ridership import bus_stops
+
+    bus_stops.ingest_bus_stop_ridership()
+
+
 # Retired 2026-09-21: the upstream ArcGIS source (CSV_ZIP_URL in
 # chalicelib/speed_restrictions.py) now 400s -- "Item does not exist or is
 # inaccessible." mbta.com/performance-metrics/speed-restrictions no longer
