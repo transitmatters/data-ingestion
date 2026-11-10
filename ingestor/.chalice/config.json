@@ -92,6 +92,11 @@
           "lambda_timeout": 300,
           "lambda_memory_size": 640
         },
+        "update_bus_stop_ridership": {
+          "iam_policy_file": "policy-bus-stop-ridership.json",
+          "lambda_timeout": 300,
+          "lambda_memory_size": 1024
+        },
         "update_speed_restrictions": {
           "iam_policy_file": "policy-speed-restrictions.json",
           "lambda_memory_size": 256,
