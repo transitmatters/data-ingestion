@@ -99,7 +99,7 @@ def ls(bucket, prefix):
 
     all_keys = []
     for page in pages:
-        keys = [x["Key"] for x in page["Contents"]]
+        keys = [x["Key"] for x in page.get("Contents", [])]
         all_keys.extend(keys)
 
     return all_keys
