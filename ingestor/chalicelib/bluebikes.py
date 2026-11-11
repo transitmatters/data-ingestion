@@ -235,6 +235,8 @@ def gather_single_day_data(single_day):
     import pandas as pd
 
     keys = s3.ls(BUCKET, f"station_status/{single_day}")
+    if not keys:
+        raise ValueError(f"No Bluebikes station_status snapshots in s3://{BUCKET} for {single_day}")
     # ~288 small files a day; fetching them one at a time spent most of the job waiting on S3.
     with ThreadPoolExecutor(max_workers=16) as executor:
         dfs = list(executor.map(lambda key: s3.download_csv_as_df(BUCKET, key), keys))
