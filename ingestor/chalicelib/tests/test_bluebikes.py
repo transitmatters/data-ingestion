@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 
 import pandas as pd
+import pytest
 
 from .. import bluebikes
 
@@ -92,6 +93,13 @@ def test_gather_single_day_data_keeps_key_order(monkeypatch):
     df = bluebikes.gather_single_day_data("2026-11-04")
 
     assert df["datetimepulled"].tolist() == list(range(40))
+
+
+def test_gather_single_day_data_fails_clearly_without_snapshots(monkeypatch):
+    monkeypatch.setattr(bluebikes.s3, "ls", lambda bucket, prefix: [])
+
+    with pytest.raises(ValueError, match="No Bluebikes station_status snapshots .* for 2026-11-04"):
+        bluebikes.gather_single_day_data("2026-11-04")
 
 
 def test_status_poller_does_not_import_pandas():
