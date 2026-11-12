@@ -16,7 +16,7 @@ So far we have:
 - Store ridership data
 - Store each bus route's average weekday boardings by stop, for every fall season the MBTA has published (monthly; run by hand with `uv run python -m chalicelib.ridership.bus_stops` from `ingestor/`)
 - Process and store speed restrictions
-- Store daily reliability for The RIDE and commuter rail from the MBTA open data portal (weekly; backfill with `uv run python -m chalicelib.reliability.the_ride` / `commuter_rail` from `ingestor/`)
+- Store daily reliability for The RIDE, commuter rail and the subway (excess trip time on the Red, Orange and Blue Lines) from the MBTA open data portal (weekly; backfill with `uv run python -m chalicelib.reliability.the_ride` / `commuter_rail` / `excess_trip_time` from `ingestor/`)
 - Store daily scheduled Commuter Rail service measured against Regional Rail standards (frequency, span, clock-face, reverse-peak), alongside the GTFS ingest
 - Store hourly Boston weather data (temperature + condition) for chart overlays
 
