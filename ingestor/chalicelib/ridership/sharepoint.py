@@ -288,7 +288,8 @@ class SharepointConnection:
                     if result:
                         file, file_date = result
                         logger.info(f"Downloading {file['name']} (date: {file_date}) to {output_path}...")
-                        self.download_sharepoint_file_anonymous(file["url"], output_path)
+                        if not self.download_sharepoint_file_anonymous(file["url"], output_path):
+                            return None
                         return output_path
                     else:
                         if target_date:
@@ -303,7 +304,8 @@ class SharepointConnection:
                     if matching_files:
                         file = matching_files[0]  # Take the first match
                         logger.info(f"Downloading {file['name']} to {output_path}...")
-                        self.download_sharepoint_file_anonymous(file["url"], output_path)
+                        if not self.download_sharepoint_file_anonymous(file["url"], output_path):
+                            return None
                         return output_path
                     else:
                         logger.warning(f"No files found matching pattern: {file_regex}")

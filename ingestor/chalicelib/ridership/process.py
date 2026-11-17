@@ -164,6 +164,12 @@ def format_ridership_csv(
 
     # Several raw routes can map to the same route ID (e.g. F1 and F2H -> Boat-F1), so sum them
     if route_ids_map:
+        # A new label (e.g. a new CR station or ferry route) is skipped rather than
+        # failing the whole ridership update for every mode.
+        unknown = set(final[route_key]) - set(route_ids_map)
+        if unknown:
+            logger.warning(f"Skipping {route_key} values missing from the label map: {sorted(unknown)}")
+            final = final[final[route_key].isin(route_ids_map.keys())].copy()
         final[route_key] = final[route_key].map(route_ids_map.__getitem__)
         final = final.groupby(["year", "week", route_key])[count_key].sum().reset_index()
 
@@ -240,7 +246,9 @@ def format_subway_data(path_to_csv_file: str):
         Dict mapping route IDs to lists of dicts with 'date' and 'count' keys.
     """
     df = pd.read_csv(path_to_csv_file)
-    final = get_weekly_peak_averages(df, "servicedate", "route_or_line", "validations")
+    # Weeks with no Monday row (e.g. a file starting mid-week) have no date; drop them
+    # before fillna(0) below would turn the date into 0 and break sorting later.
+    final = get_weekly_peak_averages(df, "servicedate", "route_or_line", "validations").dropna(subset=["servicedate"])
 
     # get list of bus routes
     routelist = list(set(final["route_or_line"].tolist()))
