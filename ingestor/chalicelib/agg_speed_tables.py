@@ -66,8 +66,8 @@ def update_tables(range: Range):
     """Update weekly and monthly speed tables"""
     table = constants.TABLE_MAP[range]
     yesterday = datetime.now() - timedelta(days=1)
+    start = table["get_update_start"]()
     for line in constants.LINES:
-        start = table["update_start"]
         start_string = datetime.strftime(start, constants.DATE_FORMAT_BACKEND)
         end_string = datetime.strftime(yesterday, constants.DATE_FORMAT_BACKEND)
         print(f"Updating {line} for {range} for week of {start_string} to {end_string}")

@@ -1,6 +1,10 @@
+from datetime import date, datetime
+
 import numpy as np
 import pandas as pd
+import pytest
 
+from .. import constants
 from ..agg_speed_tables import fleet_cols, group_data_by_date_and_branch, group_monthly_data, group_weekly_data
 
 
@@ -66,3 +70,33 @@ def test_monthly_sums_each_month_and_drops_partial_first_month():
     assert [m["date"] for m in months] == ["2026-10-01", "2026-11-01"]
     assert [m["miles_covered"] for m in months] == [18.0, 15.0]
     assert [m["line"] for m in months] == ["line-green", "line-green"]
+
+
+@pytest.mark.parametrize(
+    "today, expected",
+    [
+        (date(2026, 11, 17), datetime(2026, 11, 9)),  # Tuesday: today - 2 is Sunday of last week
+        (date(2026, 11, 18), datetime(2026, 11, 16)),  # Wednesday: today - 2 is this Monday
+        (date(2026, 11, 16), datetime(2026, 11, 9)),  # Monday
+    ],
+)
+def test_weekly_update_start_covers_today_minus_two(today, expected):
+    assert constants.get_weekly_table_update_start(today) == expected
+
+
+@pytest.mark.parametrize(
+    "today, expected",
+    [
+        (date(2026, 11, 2), datetime(2026, 10, 1)),  # the 2nd: today - 2 is Oct 31
+        (date(2026, 11, 3), datetime(2026, 11, 1)),
+        (date(2027, 1, 2), datetime(2026, 12, 1)),  # crosses the year
+    ],
+)
+def test_monthly_update_start_covers_today_minus_two(today, expected):
+    assert constants.get_monthly_table_update_start(today) == expected
+
+
+def test_update_start_is_computed_per_call():
+    """TABLE_MAP must not freeze the start date at import, or warm containers reuse a stale one."""
+    for range in ("weekly", "monthly"):
+        assert callable(constants.TABLE_MAP[range]["get_update_start"])
