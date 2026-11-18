@@ -566,3 +566,48 @@ def test_mattapan_frequency_builds_from_a_line_without_ridership():
     frequency = build.build_cells(row, src)["frequency"]
     assert "Not in the schedule data yet." not in (frequency.get("notes") or [])
     assert frequency["score"] is not None
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        ValueError("not JSON"),  # e.g. an HTML error page with a 200
+        {"errors": [{"status": "429"}]},  # no "data"
+        {"data": [{"id": "1"}]},  # no "attributes"
+        {"data": None},
+    ],
+)
+def test_get_frequent_bus_routes_falls_back_on_malformed_200(monkeypatch, body):
+    """A 200 with an unexpected body must fall back, not crash the overview (#260)."""
+
+    class Response:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            if isinstance(body, Exception):
+                raise body
+            return body
+
+    monkeypatch.setattr(sources.requests, "get", lambda *args, **kwargs: Response())
+    assert sources.get_frequent_bus_routes() is None
+
+
+def test_every_lambda_has_a_resources_block():
+    """Without a resources.json block a function gets no Datadog key (#260)."""
+    import ast
+    import json
+    from pathlib import Path
+
+    ingestor = Path(__file__).resolve().parents[2]
+    resources = json.loads((ingestor / ".chalice" / "resources.json").read_text())["Resources"]
+    tree = ast.parse((ingestor / "app.py").read_text())
+    lambdas = [
+        node.name
+        for node in tree.body
+        if isinstance(node, ast.FunctionDef)
+        and any(isinstance(d, ast.Call) and getattr(d.func, "value", None) is not None for d in node.decorator_list)
+    ]
+    assert lambdas
+    missing = [name for name in lambdas if "".join(p.capitalize() for p in name.split("_")) not in resources]
+    assert missing == []

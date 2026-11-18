@@ -24,7 +24,10 @@ So far we have:
 To add a new lambda function, put the methods you need in a new file in chalicelib/.
 Then add your trigger in app.py.
 Then, add a policy.json file for any permissions you might need in .chalice/, updating .chalice/config.json accordingly.
-Lastly, if you need secret environment variables, update resources.json and make sure they are passed
+Then add a block for the function to .chalice/resources.json (named after the function in CamelCase, e.g.
+`store_overview_data` -> `StoreOverviewData`) with the `DD_API_KEY`, `DD_VERSION`, `DD_TAGS` and
+`DD_GIT_REPOSITORY_URL` variables the other functions set; without it the function sends nothing to Datadog.
+If you need secret environment variables, add them to that block too and make sure they are passed
 with --parameter-override in the cloudformation deploy step of deploy.sh.
 (Non-secret envvars can be added to config.json directly.)
 

@@ -123,3 +123,11 @@ def test_pct_new_trips_counts_trips_with_any_new_car():
         mock_get.return_value = _make_response(trips)
         result = get_fleet_age_metrics_for_line(date(2025, 1, 1), "line-red")
     assert result["pct_new_trips"] == Decimal("50.0")
+
+
+def test_request_has_a_timeout():
+    """Without one, a hung request can use up the Lambda's timeout before any rows are written (#258)."""
+    with patch("chalicelib.car_ages.requests.get") as mock_get:
+        mock_get.return_value = _make_response([])
+        get_fleet_age_metrics_for_line(date(2025, 1, 1), "line-blue")
+    assert mock_get.call_args.kwargs.get("timeout")
