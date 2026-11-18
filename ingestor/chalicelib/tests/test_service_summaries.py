@@ -208,3 +208,33 @@ def test_summarize_not_cancelled_when_entry_exists():
     result = summarize_weekly_service_around_date(monday, service_levels)
     assert result["weekday"]["cancelled"] is False
     assert result["weekday"]["totalTrips"] == 72  # 3 * 24
+
+
+# --- No scheduled trips counts as no service (#263) ---
+
+
+def test_days_with_zero_trips_are_cancelled():
+    """Every date gets an entry, even with no ScheduledServiceDaily rows; zero trips is no service."""
+    monday = date(2024, 1, 8)
+    service_levels = make_service_levels(make_entry(monday, service_levels=[0] * 24))
+    assert _is_service_cancelled_on_date(service_levels, monday, [0]) is True
+    result = _get_service_levels_summary_dict(monday, service_levels, [0])
+    assert result == {"cancelled": True, "tripsPerHour": None, "totalTrips": 0}
+
+
+def test_summary_skips_zero_trip_days_for_typical_service():
+    last_week = make_entry(date(2024, 1, 1), service_levels=[3] * 24)
+    this_week = make_entry(date(2024, 1, 8), service_levels=[0] * 24)
+    friday = make_entry(date(2024, 1, 5), service_levels=[2] * 24)
+    result = _get_service_levels_summary_dict(
+        date(2024, 1, 8), make_service_levels(last_week, friday, this_week), [0, 4]
+    )
+    assert result["cancelled"] is False
+    assert result["totalTrips"] == 48
+
+
+def test_falls_back_to_a_day_with_exceptions_when_no_typical_day_has_trips():
+    monday = make_entry(date(2024, 1, 8), has_service_exceptions=True, service_levels=[1] * 24)
+    result = _get_service_levels_summary_dict(date(2024, 1, 8), make_service_levels(monday), [0])
+    assert result["cancelled"] is False
+    assert result["totalTrips"] == 24

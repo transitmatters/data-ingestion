@@ -1,11 +1,30 @@
-from datetime import date
+from datetime import date, timedelta
+from typing import Optional
 
 from .time_series import (
     get_latest_weekly_median_time_series_entry,
     merge_weekly_median_time_series,
 )
-from .types import LineData, ModeKind, SummaryData
+from .types import LineData, ModeKind, SummaryData, WeeklyMedianTimeSeries
 from .util import bucket_by, date_to_string, line_kind_to_mode_kind
+
+# Lines whose ridership ends more than this before the newest line's are treated as stopped
+# (discontinued, or a source that has stopped updating) rather than one week behind.
+RIDERSHIP_LAG_WEEKS = 4
+
+
+def _latest_week_all_lines_report(histories: list[WeeklyMedianTimeSeries]) -> Optional[str]:
+    """The latest week every recently reporting line has ridership for.
+
+    Sources publish on different schedules, so the newest week often has subway but not yet
+    bus, CR or ferry. Summing that week alone undercounts the headline total.
+    """
+    latest_by_line = [max(history) for history in histories if history]
+    if not latest_by_line:
+        return None
+    newest = date.fromisoformat(max(latest_by_line))
+    cutoff = date_to_string(newest - timedelta(weeks=RIDERSHIP_LAG_WEEKS))
+    return min(week for week in latest_by_line if week >= cutoff)
 
 
 def _line_is_cancelled(line: LineData) -> bool:
@@ -71,9 +90,11 @@ def get_summary_data(line_data: list[LineData], start_date: date, end_date: date
     Returns:
         A SummaryData dict with totals for ridership, service, and route status counts.
     """
-    total_ridership_history = merge_weekly_median_time_series([line["ridershipHistory"] for line in line_data])
+    ridership_histories = [line["ridershipHistory"] or {} for line in line_data]
+    total_ridership_history = merge_weekly_median_time_series(ridership_histories)
     total_service_history = merge_weekly_median_time_series([line["serviceHistory"] for line in line_data])
-    total_passengers = get_latest_weekly_median_time_series_entry(total_ridership_history)
+    passengers_week = _latest_week_all_lines_report(ridership_histories)
+    total_passengers = total_ridership_history.get(passengers_week) if passengers_week else None
     total_trips = get_latest_weekly_median_time_series_entry(total_service_history)
     total_routes_cancelled = sum(_line_is_cancelled(line) for line in line_data)
     total_reduced_service = sum(_line_has_reduced_service(line) for line in line_data)
