@@ -70,10 +70,11 @@ def pre_process_csv(
     count_key: str,
     route_name: str | None = None,
 ):
-    """Pre-process a CSV file by aggregating daily ridership into weekly totals.
+    """Pre-process a per-trip or per-day CSV file into daily totals per route.
 
-    Reads the CSV, groups records by ISO year, week, and route, sums the count
-    values, and writes the result to a temporary CSV file.
+    Reads the CSV, sums the count values by service date and route, and writes the
+    result to a temporary CSV file. format_ridership_csv then averages the peak days
+    of each week, as for the other modes.
 
     Args:
         path_to_csv_file: Path to the input CSV file.
@@ -84,7 +85,7 @@ def pre_process_csv(
         route_name: Constant route name to assign when route_key is None.
 
     Returns:
-        Path to a temporary CSV file containing the weekly aggregated data.
+        Path to a temporary CSV file containing the daily totals.
     """
     if route_key is None and route_name is not None:
         route_key = "Route"
@@ -95,17 +96,12 @@ def pre_process_csv(
 
     df[date_key] = pd.to_datetime(df[date_key], format="mixed", errors="coerce")
     df = df.dropna(subset=[date_key])
-    # Use ISO year + week together so late-December days in ISO week 1 land in the next year's week 1,
-    # and label each week with its ISO Monday
-    iso = df[date_key].dt.isocalendar()
-    df["Year"] = iso.year
-    df["Week"] = iso.week
+    # Sum per day, not per week: a weekly total dated on its Monday was dropped when that Monday was a
+    # holiday, and otherwise stored a 7-day total where the other modes store an average weekday (#255).
+    # Ferry times are local and RIDE dates are Eastern midnight in UTC, so the date part is the service date.
     df[date_key] = df[date_key].dt.strftime("%Y-%m-%d")
 
-    grouped_df = df.groupby(["Year", "Week", route_key])[count_key].agg("sum").reset_index()
-    grouped_df[date_key] = pd.to_datetime(
-        grouped_df["Year"].astype(str) + "-" + grouped_df["Week"].astype(str) + "-1", format="%G-%V-%u"
-    )
+    grouped_df = df.groupby([date_key, route_key])[count_key].agg("sum").reset_index()
     tmp_path = NamedTemporaryFile().name
     grouped_df.to_csv(tmp_path, index=False)
     return tmp_path

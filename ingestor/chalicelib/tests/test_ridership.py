@@ -1,3 +1,4 @@
+from datetime import date, timedelta
 from tempfile import NamedTemporaryFile
 
 import pandas as pd
@@ -10,6 +11,7 @@ from ..ridership.process import (
     pre_process_csv,
     unofficial_ferry_labels_map,
 )
+from ..ridership.rebuild_ferry_ride import merge_ride_history, plan_changes
 
 
 def _write_daily_csv(rows):
@@ -18,25 +20,65 @@ def _write_daily_csv(rows):
     return path
 
 
-def test_pre_process_csv_labels_weeks_with_iso_monday():
+def _ride_weeks(rows):
+    path = _write_daily_csv(rows)
+    weeks = format_ridership_csv(
+        pre_process_csv(path, "TripDate", None, "CompletedTrips", route_name="RIDE"),
+        "TripDate",
+        "Route",
+        "CompletedTrips",
+    )["RIDE"]
+    return {week["date"]: week["count"] for week in weeks}
+
+
+def test_pre_process_csv_sums_each_day():
     path = _write_daily_csv(
-        [
-            # Week of Mon 2026-08-24
-            ("2026/08/24 04:00:00+00", 1),
-            ("2026/08/30 04:00:00+00", 2),
-            # Week of Mon 2026-08-31
-            ("2026/08/31 04:00:00+00", 10),
-        ]
+        [("2026/08/24 04:00:00+00", 1), ("2026/08/24 04:00:00+00", 2), ("2026/08/25 04:00:00+00", 4)]
     )
     df = pd.read_csv(pre_process_csv(path, "TripDate", None, "CompletedTrips", route_name="RIDE"))
-    assert dict(zip(df["TripDate"], df["CompletedTrips"])) == {"2026-08-24": 3, "2026-08-31": 10}
+    assert dict(zip(df["TripDate"], df["CompletedTrips"])) == {"2026-08-24": 3, "2026-08-25": 4}
 
 
-def test_pre_process_csv_handles_iso_year_boundary():
-    # Mon 2025-12-29 through Sun 2026-01-04 is ISO week 1 of 2026
-    path = _write_daily_csv([("2025-12-29", 1), ("2025-12-31", 2), ("2026-01-02", 4)])
-    df = pd.read_csv(pre_process_csv(path, "TripDate", None, "CompletedTrips", route_name="RIDE"))
-    assert dict(zip(df["TripDate"], df["CompletedTrips"])) == {"2025-12-29": 7}
+def test_ride_weeks_are_weekday_averages_including_holiday_weeks():
+    """The issue's repro: 100 trips a day used to give {'2026-08-31': 700, '2026-09-14': 700} (#255)."""
+    rows = [((date(2026, 8, 31) + timedelta(days=i)).isoformat(), 100) for i in range(21)]
+    # The Labor Day week (Mon 2026-09-07) is kept, from its four non-holiday weekdays
+    assert _ride_weeks(rows) == {"2026-08-31": 100, "2026-09-07": 100, "2026-09-14": 100}
+
+
+def test_ride_weeks_ignore_weekends_and_partial_weeks():
+    # Weekdays 10, weekends 1000; the second week stops on Wednesday
+    rows = [
+        (d.isoformat(), 1000 if d.weekday() >= 5 else 10)
+        for d in (date(2026, 9, 14) + timedelta(days=i) for i in range(10))
+    ]
+    assert _ride_weeks(rows) == {"2026-09-14": 10, "2026-09-21": 10}
+
+
+def test_ride_weeks_handle_iso_year_boundary():
+    # Mon 2025-12-29 through Sun 2026-01-04 is ISO week 1 of 2026; Jan 1 is a holiday
+    rows = [("2025-12-29", 10), ("2025-12-30", 20), ("2025-12-31", 30), ("2026-01-01", 500), ("2026-01-02", 40)]
+    assert _ride_weeks(rows) == {"2025-12-29": 25}
+
+
+def test_merge_ride_history_takes_old_weeks_before_the_current_dataset():
+    old = [{"date": "2025-08-18", "count": 1}, {"date": "2025-08-25", "count": 2}, {"date": "2025-09-01", "count": 3}]
+    current = [{"date": "2025-09-01", "count": 30}, {"date": "2025-09-08", "count": 40}]
+    assert merge_ride_history(old, current) == [
+        {"date": "2025-08-18", "count": 1},
+        {"date": "2025-08-25", "count": 2},
+        {"date": "2025-09-01", "count": 30},
+        {"date": "2025-09-08", "count": 40},
+    ]
+
+
+def test_plan_changes_deletes_rows_the_new_series_lacks():
+    new = {"line-RIDE": [{"date": "2026-09-07", "count": 1}], "line-Boat-F8": []}
+    existing = {
+        "line-RIDE": [{"date": "2026-09-07"}, {"date": "2026-09-08"}],
+        "line-Boat-F8": [{"date": "2025-06-02"}],
+    }
+    assert plan_changes(new, existing) == {"line-Boat-F8": ["2025-06-02"], "line-RIDE": ["2026-09-08"]}
 
 
 def test_silver_line_gated_data_not_counted_as_bus():
