@@ -16,8 +16,9 @@ from .series import js_round
 RECENT_WEEKS = 4
 
 # DeliveredTripMetricsExtended routes and the ScheduledServiceDaily route for each subway line.
+# A day counts only when every route listed has a row (no "line-red": trip metrics writes per branch).
 SUBWAY_ROUTES = {
-    "line-red": (["line-red", "line-red-a", "line-red-b"], "Red"),
+    "line-red": (["line-red-a", "line-red-b"], "Red"),
     "line-orange": (["line-orange"], "Orange"),
     "line-blue": (["line-blue"], "Blue"),
     "line-green": (["line-green-b", "line-green-c", "line-green-d", "line-green-e"], "Green"),
@@ -43,16 +44,32 @@ def _delivered_hours(row: dict) -> float:
     )
 
 
-def subway_delivered_share(extended: list[dict] | None, scheduled: list[dict] | None, now: datetime) -> float | None:
+def subway_delivered_share(
+    extended: list[dict] | None,
+    scheduled: list[dict] | None,
+    now: datetime,
+    required_routes: set[str] | None = None,
+) -> float | None:
     """Delivered over scheduled service hours on recent days that have both. Days the trains
-    outran the schedule can push this a little past 100%."""
+    outran the schedule can push this a little past 100%.
+
+    With `required_routes`, a day only counts when every one of them has a row (rows carry a
+    "route"). Scheduled hours cover the whole line, so a day missing a branch's row (trip metrics
+    drops implausible or incomplete ones, sometimes for weeks) would read as service not delivered.
+    """
     if not extended or not scheduled:
         return None
     delivered: dict[str, float] = {}
+    routes_by_day: dict[str, set[str]] = {}
     for row in extended:
         delivered[row["date"]] = delivered.get(row["date"], 0) + _delivered_hours(row)
+        routes_by_day.setdefault(row["date"], set()).add(row.get("route"))
     planned = {row["date"]: row["serviceMinutes"] / 60 for row in scheduled if row.get("serviceMinutes")}
-    days = _recent_days({day for day in delivered if delivered[day] and day in planned}, now)
+
+    def complete(day: str) -> bool:
+        return not required_routes or required_routes <= routes_by_day[day]
+
+    days = _recent_days({day for day in delivered if delivered[day] and day in planned and complete(day)}, now)
     total = sum(planned[day] for day in days)
     return sum(delivered[day] for day in days) / total if total else None
 

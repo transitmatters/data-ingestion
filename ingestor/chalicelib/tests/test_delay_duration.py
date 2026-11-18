@@ -136,3 +136,11 @@ def test_commuter_rail_uses_stated_minutes_only(monkeypatch):
 
     assert record["total_delay_time"] == 20
     assert not any(k.startswith("delay_alert_minutes") for k in record)
+
+
+def test_period_without_start_is_skipped_not_fatal():
+    """A missing start used to raise and abort the whole day's run, subway and bus (#261)."""
+    alerts = _alert("1", DISABLED, "2026-10-08T08:00:00-04:00", closed="2026-10-08T08:30:00-04:00")
+    no_start = _alert("2", DISABLED, "2026-10-08T09:00:00-04:00", closed="2026-10-08T09:30:00-04:00")
+    no_start["2"]["attributes"]["active_period"] = [{"end": "2026-10-08T09:30:00-04:00"}]
+    assert _minutes({**alerts, **no_start}) == 30

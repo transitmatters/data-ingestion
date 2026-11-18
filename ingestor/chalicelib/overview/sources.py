@@ -228,7 +228,8 @@ def get_subway_delivered(now: datetime) -> tuple[dict[str, list[dict]] | None, d
         print(f"Couldn't load delivered and scheduled service hours: {e}")
         return None, None
     delivered = {
-        line: [row for route in routes for row in by_route[route]] for line, (routes, _) in SUBWAY_ROUTES.items()
+        line: [{**row, "route": route} for route in routes for row in by_route[route]]
+        for line, (routes, _) in SUBWAY_ROUTES.items()
     }
     scheduled = {line: by_id[scheduled_id] for line, (_, scheduled_id) in SUBWAY_ROUTES.items()}
     return delivered, scheduled
