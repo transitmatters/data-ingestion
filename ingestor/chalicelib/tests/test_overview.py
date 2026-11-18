@@ -575,3 +575,35 @@ def test_get_frequent_bus_routes_reads_route_descriptions(monkeypatch):
 
     monkeypatch.setattr(sources.requests, "get", fail)
     assert sources.get_frequent_bus_routes() is None
+
+
+# --- Missing or stale data (#269) ---
+
+
+def _delay_days(start: str, days: int, **values) -> dict:
+    first = date.fromisoformat(start)
+    return {"data": [{"date": f"{(first + timedelta(days=i)).isoformat()}T00:00:00", **values} for i in range(days)]}
+
+
+def test_slow_zones_missing_line_is_insufficient_not_a_win():
+    """A line missing from delay_totals.json used to read as 0 s of delay every day."""
+    totals = _delay_days("2026-07-20", 84, Red=0.0)
+    window = build.slow_zone_window(totals, ["Orange"])
+    assert window.values == []
+    assert window.as_of is None
+
+
+def test_slow_zones_skip_days_with_null_values():
+    totals = _delay_days("2026-10-04", 7, Red=60.0)
+    totals["data"][-1]["Red"] = None
+    window = build.slow_zone_window(totals, ["Red"])
+    assert window.values == [60.0]
+    assert window.as_of == "2026-10-09"
+
+
+def test_hero_value_carries_as_of_and_goes_null_when_stale():
+    fresh = build.slow_zone_window(_delay_days("2026-10-04", 7, Red=60.0), ["Red"])
+    assert build.hero_current(1.0, fresh, build.SLOW_ZONES, NOW, 0) == {"value": 1.0, "asOf": "2026-10-10"}
+
+    old = build.slow_zone_window(_delay_days("2026-06-01", 7, Red=60.0), ["Red"])
+    assert build.hero_current(1.0, old, build.SLOW_ZONES, NOW, 0) == {"value": None, "asOf": "2026-06-07"}

@@ -46,7 +46,7 @@ from .delays import bus_delays_cell, subway_delays_cell
 from .delivered import SUBWAY_ROUTES, bus_delivered_share, subway_delivered_share, with_delivered
 from .frequency import combine_coverage, goal_coverage, midday_headway
 from .reliability import cr_reliability_cell, reliability_cell
-from .series import Window, from_record, is_finite, js_round, mean, median, take_window, trend_of
+from .series import Window, days_between, from_record, is_finite, js_round, mean, median, take_window, trend_of
 from .status import headline_for
 
 SCHEMA_VERSION = 1
@@ -73,9 +73,12 @@ def line_href(row: RowConfig, page: str) -> str:
 def slow_zone_window(delay_totals: dict, keys: list[str]) -> Window:
     """Weekly means of daily slow-zone delay (seconds), summed over `keys`, for the last 12 weeks.
     Weeks are 7-day blocks counted from the start of the 84 days, not calendar weeks."""
+    # A day missing a key is left out, not read as 0 seconds of delay (a green win), so a line
+    # absent from the file comes out as "insufficient".
     days = [
-        (day["date"][:10], sum(day.get(key) or 0 for key in keys))
+        (day["date"][:10], sum(day[key] for key in keys))
         for day in delay_totals.get("data", [])[-WINDOW_WEEKS * 7 :]
+        if all(day.get(key) is not None for key in keys)
     ]
     weeks = [(days[i][0], mean([value for _, value in days[i : i + 7]])) for i in range(0, len(days), 7)]
     return Window(points=weeks, values=[value for _, value in weeks], as_of=days[-1][0] if days else None)
@@ -420,6 +423,13 @@ def build_row(row: RowConfig, src: sources.Sources) -> dict:
     }
 
 
+def hero_current(value: float | None, window: Window, method: dict, now: datetime, as_of_offset_days: float) -> dict:
+    """A hero value with its asOf, or null once the data is older than the method's stale_days,
+    as judged_cell does, so a source that stops updating isn't shown as last week's value."""
+    stale = not window.as_of or days_between(window.as_of, now) - as_of_offset_days > method["stale_days"]
+    return {"value": None if stale else value, "asOf": window.as_of}
+
+
 def build_hero(src: sources.Sources) -> list[dict]:
     srd, baselines = src.service_ridership, src.baselines
     subway_lines = [srd["lineData"][i] for i in SUBWAY_FREQUENCY_LINE_IDS if i in srd["lineData"]]
@@ -440,11 +450,23 @@ def build_hero(src: sources.Sources) -> list[dict]:
     values = {
         "subwayFrequency": {"value": subway},
         "service": {
-            "value": median(service_window.values) / service_best if service_best else None,
+            **hero_current(
+                median(service_window.values) / service_best if service_best else None,
+                service_window,
+                METRICS["service"],
+                src.now,
+                as_of_offset_days=6,  # weekly points are dated by week start
+            ),
             "trend": trend_of(service_window),
         },
         "slowZones": {
-            "value": mean(slow_zones.values[-1:]) / 60 if slow_zones.values else None,
+            **hero_current(
+                mean(slow_zones.values[-1:]) / 60 if slow_zones.values else None,
+                slow_zones,
+                SLOW_ZONES,
+                src.now,
+                as_of_offset_days=0,
+            ),
             "trend": trend_of(slow_zones),
         },
         "frequentBus": {"value": frequent},
