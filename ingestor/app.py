@@ -306,40 +306,6 @@ def populate_shutdowns(params, context):
     shutdowns.update_table(date.fromisoformat(params["start_date"]), date.fromisoformat(params["end_date"]))
 
 
-# Manually triggered lambda for populating daily trip metric tables. Only needs to be ran once.
-@app.lambda_function()
-def populate_delivered_trip_metrics(params, context):
-    """Backfills the DeliveredTripMetrics table for all routes from 2016 to now.
-
-    Args:
-        params: Lambda function parameters (unused).
-        context: Lambda context object (unused).
-    """
-    from chalicelib import constants, daily_speeds
-
-    start_date = datetime.strptime("2016-01-15", constants.DATE_FORMAT_BACKEND)
-    end_date = datetime.now()
-    for route in constants.ALL_ROUTES:
-        daily_speeds.populate_daily_table(start_date, end_date, route[0], route[1])
-
-
-# Manually triggered lambda for populating monthly or weekly tables. Only needs to be ran once.
-@app.lambda_function()
-def populate_agg_delivered_trip_metrics(params, context):
-    """Backfills monthly and weekly aggregate trip metric tables for all lines.
-
-    Args:
-        params: Lambda function parameters (unused).
-        context: Lambda context object (unused).
-    """
-    from chalicelib import agg_speed_tables, constants
-
-    for line in constants.LINES:
-        print(f"Populating monthly and weekly aggregate trip metrics for {line}")
-        agg_speed_tables.populate_table(line, "monthly")
-        agg_speed_tables.populate_table(line, "weekly")
-
-
 # 9:00 UTC -> 4:00/5:00am ET every weekday.
 # This is the last job that runs for the day.
 # No need to run on weekends

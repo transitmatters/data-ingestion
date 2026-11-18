@@ -19,6 +19,7 @@ So far we have:
 - Store daily reliability for The RIDE, commuter rail and the subway (excess trip time on the Red, Orange and Blue Lines) from the MBTA open data portal (weekly; backfill with `uv run python -m chalicelib.reliability.the_ride` / `commuter_rail` / `excess_trip_time` from `ingestor/`)
 - Store daily scheduled Commuter Rail service measured against Regional Rail standards (frequency, span, clock-face, reverse-peak), alongside the GTFS ingest
 - Store hourly Boston weather data (temperature + condition) for chart overlays
+- Store daily, weekly and monthly subway trip metrics (speed, service, fleet age). To rebuild past dates, run the scripts in `ingestor/chalicelib/trip_metrics/` from `ingestor/`: `backfill` (trip metrics, with `BACKFILL_START_DATE`/`BACKFILL_END_DATE`), `backfill_fleet` (fleet fields only) or `backfill_track_mileage` (mileage only). Each rebuilds the weekly and monthly tables after.
 
 To add a new lambda function, put the methods you need in a new file in chalicelib/.
 Then add your trigger in app.py.

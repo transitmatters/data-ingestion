@@ -158,64 +158,6 @@ def format_tt_objects(
     return formatted_speed_objects
 
 
-def get_date_range_strings(start_date: date, end_date: date):
-    """Generates a list of date strings between two dates (inclusive).
-
-    Args:
-        start_date: The start date.
-        end_date: The end date.
-
-    Returns:
-        A list of "YYYY-MM-DD" formatted date strings.
-    """
-    date_range: list[str] = []
-    current_date = start_date
-    while current_date <= end_date:
-        date_range.append(current_date.strftime("%Y-%m-%d"))
-        current_date += timedelta(days=1)
-    return date_range
-
-
-def populate_daily_table(start_date: datetime, end_date: datetime, line: str, route: str | None):
-    """Populates the DeliveredTripMetrics table for a date range.
-
-    Processes the range in 180-day chunks, fetching aggregate travel times
-    from the Data Dashboard API and writing formatted results to DynamoDB.
-
-    Args:
-        start_date: The start datetime for the backfill.
-        end_date: The end datetime for the backfill.
-        line: The line identifier (e.g. "line-red").
-        route: Optional branch identifier (e.g. "a", "b").
-    """
-    print(f"populating DeliveredTripMetrics for Line/Route: {line}/{route if route else '(no-route)'}")
-    current_date = start_date.date()
-    delta = timedelta(days=180)
-    speed_objects = []
-    while current_date < end_date.date():
-        route_metadata = constants.get_route_metadata(line, current_date, False, route)
-        print(f"Calculating daily values for 180 day chunk starting at: {current_date}")
-        API_requests = get_agg_tt_api_requests(route_metadata["stops"], current_date, delta)
-        curr_speed_object = send_requests(API_requests)
-        date_range = get_date_range_strings(current_date, current_date + delta - timedelta(days=1))
-        formatted_speed_object = format_tt_objects(
-            curr_speed_object, route_metadata, line, route, len(API_requests), date_range
-        )
-        speed_objects.extend(formatted_speed_object)
-        if (
-            line == "line-green"
-            and current_date < constants.GLX_EXTENSION_DATE
-            and current_date + delta >= constants.GLX_EXTENSION_DATE
-        ):
-            current_date = constants.GLX_EXTENSION_DATE
-        else:
-            current_date += delta
-        dynamo.dynamo_batch_write(speed_objects, "DeliveredTripMetrics")
-        speed_objects = []
-        print("Writing objects to DeliveredTripMetrics table")
-        print("Done")
-
-
 def update_daily_table(date: date, routes: list[tuple[str, str | None]] | None = None):
     """Updates the DeliveredTripMetrics table for a single date across all routes.
 
