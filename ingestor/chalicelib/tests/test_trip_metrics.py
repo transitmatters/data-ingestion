@@ -117,3 +117,15 @@ def test_get_date_ranges_chunk_starting_on_glx_is_not_backwards():
 
 def test_get_date_ranges_empty_when_backwards():
     assert get_date_ranges(date(2026, 1, 2), date(2026, 1, 1), 10) == []
+
+
+def test_direction_0_is_northbound_on_every_route():
+    """DeliveredTripMetricsExtended's dir_0 is northbound/inbound, GTFS direction 1 (#275)."""
+    northbound = {station["NB"] for station in constants.STATIONS.values() if "NB" in station}
+    southbound = {station["SB"] for station in constants.STATIONS.values() if "SB" in station}
+    for day in (date(2022, 1, 3), date(2026, 1, 5)):  # before and after the Green Line Extension
+        for request in generate_requests(day, day):
+            if request.includes_terminals:
+                continue  # some terminals use one stop ID for both directions
+            expected = northbound if request.direction == "0" else southbound
+            assert set(request.stop_pair) <= expected, request

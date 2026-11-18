@@ -1,3 +1,12 @@
+"""Daily trip metrics per subway route, written to DeliveredTripMetricsExtended.
+
+Each row has `dir_{0,1}_{inclusive,exclusive}_{stat}` fields. The direction keys are NOT GTFS
+`direction_id`s: `dir_0` is the first stop pair in constants.TERMINI_NEW, which is northbound/inbound
+on every line (towards Alewife, Oak Grove, Wonderland, Government Center/Medford/Union Square and
+Ashmont), i.e. GTFS direction 1. `dir_1` is southbound/outbound, GTFS direction 0. `inclusive` runs
+terminal to terminal; `exclusive` runs between the stops one in from each terminal.
+"""
+
 import json
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, timedelta
@@ -90,6 +99,7 @@ def generate_requests(
             for includes_terminals in (True, False):
                 route_metadata = constants.get_route_metadata(line, start_date, includes_terminals, route)
                 stop_pairs = route_metadata["stops"]
+                # stops[0] is the northbound/inbound pair, so "0" here is GTFS direction 1 (see the module docstring)
                 for direction in ("0", "1"):
                     request = AggTravelTimesRequest(
                         route_id=f"{line}-{route}" if route else line,
@@ -167,26 +177,27 @@ def ingest_trip_metrics(start_date: date, end_date: date, routes: List[Tuple[str
     for route_id in route_ids:
         for date_str in sorted(dates):
             date_data = df[(df["service_date"] == date_str) & (df["route_id"] == route_id)]
-            sb_exclusive = get_df_entry_for_direction_and_exclusivity(date_data, "0", False)
-            nb_exclusive = get_df_entry_for_direction_and_exclusivity(date_data, "1", False)
-            sb_inclusive = get_df_entry_for_direction_and_exclusivity(date_data, "0", True)
-            nb_inclusive = get_df_entry_for_direction_and_exclusivity(date_data, "1", True)
+            # "0" is northbound/inbound and "1" southbound/outbound, the reverse of GTFS (see the module docstring)
+            nb_exclusive = get_df_entry_for_direction_and_exclusivity(date_data, "0", False)
+            sb_exclusive = get_df_entry_for_direction_and_exclusivity(date_data, "1", False)
+            nb_inclusive = get_df_entry_for_direction_and_exclusivity(date_data, "0", True)
+            sb_inclusive = get_df_entry_for_direction_and_exclusivity(date_data, "1", True)
             if (
-                sb_exclusive
-                and nb_exclusive
-                and sb_inclusive
+                nb_exclusive
+                and sb_exclusive
                 and nb_inclusive
-                and is_plausible(sb_exclusive, sb_inclusive, "0")
-                and is_plausible(nb_exclusive, nb_inclusive, "1")
+                and sb_inclusive
+                and is_plausible(nb_exclusive, nb_inclusive, "0")
+                and is_plausible(sb_exclusive, sb_inclusive, "1")
             ):
                 row_dict = prepare_dict_for_dynamo(
                     {
                         "date": date_str,
                         "route": route_id,
-                        **sb_exclusive,
                         **nb_exclusive,
-                        **sb_inclusive,
+                        **sb_exclusive,
                         **nb_inclusive,
+                        **sb_inclusive,
                     }
                 )
                 row_dicts.append(row_dict)
