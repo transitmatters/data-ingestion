@@ -12,7 +12,8 @@
     },
     {
       "Action": [
-        "dynamodb:BatchWriteItem"
+        "dynamodb:BatchWriteItem",
+        "dynamodb:UpdateItem"
       ],
       "Effect": "Allow",
       "Resource": [

@@ -10,6 +10,9 @@ from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 
+# Per request; keeps a hung SharePoint call from using up update_ridership's 300s Lambda timeout.
+SHAREPOINT_TIMEOUT = 30  # seconds
+
 DEFAULT_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
 BASE_URL = "https://mbta.sharepoint.com/sites/PublicData/Shared%20Documents/Forms/AllItems.aspx"
 SUBWAY_SHARE_URL = "https://mbta.sharepoint.com/:f:/s/PublicData/ElfNM8viGx5Out070Rg7tTABH1wLLEdwh69nIOb4J3Nt8w"
@@ -53,7 +56,7 @@ class SharepointConnection:
             List of dictionaries containing file information, or None on error.
         """
         # Follow the sharing link
-        response = self.session.get(share_url, allow_redirects=True)
+        response = self.session.get(share_url, allow_redirects=True, timeout=SHAREPOINT_TIMEOUT)
 
         if response.status_code != 200:
             logger.error(f"Error accessing share URL: {response.status_code}")
@@ -155,7 +158,7 @@ class SharepointConnection:
 
         folder_url = f"{self.base_url}?id={quote(folder_path)}&p=true&ga=1"
 
-        response = self.session.get(folder_url)
+        response = self.session.get(folder_url, timeout=SHAREPOINT_TIMEOUT)
         if response.status_code != 200:
             logger.error(f"Error accessing folder: {response.status_code}")
             return None
@@ -212,7 +215,7 @@ class SharepointConnection:
         # Construct download URL
         download_url = f"https://{self.prefix}.sharepoint.com{file_ref}?download=1"
 
-        response = self.session.get(download_url)
+        response = self.session.get(download_url, timeout=SHAREPOINT_TIMEOUT)
 
         if response.status_code == 200:
             with open(output_path, "wb") as f:
@@ -288,7 +291,8 @@ class SharepointConnection:
                     if result:
                         file, file_date = result
                         logger.info(f"Downloading {file['name']} (date: {file_date}) to {output_path}...")
-                        self.download_sharepoint_file_anonymous(file["url"], output_path)
+                        if not self.download_sharepoint_file_anonymous(file["url"], output_path):
+                            return None
                         return output_path
                     else:
                         if target_date:
@@ -303,7 +307,8 @@ class SharepointConnection:
                     if matching_files:
                         file = matching_files[0]  # Take the first match
                         logger.info(f"Downloading {file['name']} to {output_path}...")
-                        self.download_sharepoint_file_anonymous(file["url"], output_path)
+                        if not self.download_sharepoint_file_anonymous(file["url"], output_path):
+                            return None
                         return output_path
                     else:
                         logger.warning(f"No files found matching pattern: {file_regex}")

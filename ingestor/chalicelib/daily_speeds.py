@@ -8,6 +8,10 @@ import requests
 from . import constants, dynamo
 from .car_ages import get_fleet_age_metrics_for_line
 
+# Fields format_tt_objects owns on a DeliveredTripMetrics row; everything else
+# (avg_car_age, pct_new_trips, fleet_mix_*) comes from car_ages.
+SPEED_FIELDS = ("count", "median", "mean", "miles_covered", "track_mileage", "total_time")
+
 
 def is_valid_entry(item, expected_entries, date):
     """Checks whether a traversal time entry has data for all trip legs.
@@ -223,6 +227,7 @@ def update_daily_table(date: date, routes: list[tuple[str, str | None]] | None =
         date: The date to update metrics for.
     """
     speed_objects = []
+    speed_only_objects = []
     routes = routes or constants.ALL_ROUTES
     delta = timedelta(days=1)
     date_string = date.strftime(constants.DATE_FORMAT_BACKEND)
@@ -260,8 +265,18 @@ def update_daily_table(date: date, routes: list[tuple[str, str | None]] | None =
         if metrics:
             for obj in formatted_speed_object:
                 obj.update(metrics)
-
-        speed_objects.extend(formatted_speed_object)
-    print(f"Writing values: {speed_objects}")
+            speed_objects.extend(formatted_speed_object)
+        else:
+            speed_only_objects.extend(formatted_speed_object)
+    print(f"Writing values: {speed_objects + speed_only_objects}")
     dynamo.dynamo_batch_write(speed_objects, "DeliveredTripMetrics")
+    # No fleet metrics (e.g. the car-age fetch failed): put_item would replace the
+    # whole row and drop fleet fields an earlier run wrote, so update the speed
+    # fields only and leave the rest of the row alone.
+    dynamo.dynamo_update_items(
+        speed_only_objects,
+        "DeliveredTripMetrics",
+        key_names=("route", "date"),
+        remove_if_missing=SPEED_FIELDS,
+    )
     print("Complete.")

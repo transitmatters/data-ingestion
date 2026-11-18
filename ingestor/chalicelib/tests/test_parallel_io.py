@@ -167,3 +167,25 @@ def test_update_daily_table_raises_on_http_error_without_writing(monkeypatch):
     with pytest.raises(requests.exceptions.HTTPError):
         daily_speeds.update_daily_table(DAY, routes=ROUTES)
     assert written == []
+
+
+def test_update_daily_table_keeps_fleet_fields_when_car_age_fetch_fails(monkeypatch):
+    """A failed car-age fetch must not put_item over rows and erase their fleet fields (#258)."""
+    fleet_metrics = {"line-red": {"avg_car_age": Decimal(5)}, "line-orange": None, "line-blue": None}
+    monkeypatch.setattr(requests, "get", lambda url, **kwargs: _Response(url))
+    monkeypatch.setattr(daily_speeds, "get_fleet_age_metrics_for_line", lambda d, line: fleet_metrics[line])
+    put, updated = [], []
+    monkeypatch.setattr(daily_speeds.dynamo, "dynamo_batch_write", lambda objs, table: put.extend(objs))
+    monkeypatch.setattr(
+        daily_speeds.dynamo, "dynamo_update_items", lambda objs, table, **kwargs: updated.append((objs, kwargs))
+    )
+
+    daily_speeds.update_daily_table(DAY, routes=ROUTES)
+
+    assert [o["route"] for o in put] == ["line-red-a"]
+    assert put[0]["avg_car_age"] == Decimal(5)
+    ((objs, kwargs),) = updated
+    assert sorted(o["route"] for o in objs) == ["line-blue", "line-orange"]
+    assert all("avg_car_age" not in o for o in objs)
+    assert kwargs["key_names"] == ("route", "date")
+    assert "avg_car_age" not in kwargs["remove_if_missing"]

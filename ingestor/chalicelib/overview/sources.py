@@ -111,14 +111,15 @@ def get_frequent_bus_routes() -> list[str] | None:
             timeout=10,
         )
         response.raise_for_status()
-    except requests.RequestException as e:
+        routes = [
+            route["id"]
+            for route in response.json()["data"]
+            if route["attributes"].get("description") == FREQUENT_BUS_DESCRIPTION
+        ]
+    # ValueError covers a non-JSON body; KeyError/TypeError a JSON body of an unexpected shape.
+    except (requests.RequestException, ValueError, KeyError, TypeError) as e:
         print(f"Couldn't load Frequent Bus routes from the MBTA: {e}")
         return None
-    routes = [
-        route["id"]
-        for route in response.json()["data"]
-        if route["attributes"].get("description") == FREQUENT_BUS_DESCRIPTION
-    ]
     return routes or None
 
 
