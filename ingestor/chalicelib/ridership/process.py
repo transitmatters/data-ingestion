@@ -164,6 +164,12 @@ def format_ridership_csv(
 
     # Several raw routes can map to the same route ID (e.g. F1 and F2H -> Boat-F1), so sum them
     if route_ids_map:
+        # A new label (e.g. a new CR station or ferry route) is skipped rather than
+        # failing the whole ridership update for every mode.
+        unknown = set(final[route_key]) - set(route_ids_map)
+        if unknown:
+            logger.warning(f"Skipping {route_key} values missing from the label map: {sorted(unknown)}")
+            final = final[final[route_key].isin(route_ids_map.keys())].copy()
         final[route_key] = final[route_key].map(route_ids_map.__getitem__)
         final = final.groupby(["year", "week", route_key])[count_key].sum().reset_index()
 
@@ -240,7 +246,9 @@ def format_subway_data(path_to_csv_file: str):
         Dict mapping route IDs to lists of dicts with 'date' and 'count' keys.
     """
     df = pd.read_csv(path_to_csv_file)
-    final = get_weekly_peak_averages(df, "servicedate", "route_or_line", "validations")
+    # Weeks with no Monday row (e.g. a file starting mid-week) have no date; drop them
+    # before fillna(0) below would turn the date into 0 and break sorting later.
+    final = get_weekly_peak_averages(df, "servicedate", "route_or_line", "validations").dropna(subset=["servicedate"])
 
     # get list of bus routes
     routelist = list(set(final["route_or_line"].tolist()))
@@ -429,6 +437,7 @@ def get_ridership_by_route_id(
     path_to_cr_file: str | None,
     path_to_ferry_file: str | None,
     path_to_ride_file: str | None,
+    failures: list[tuple[str, Exception]] | None = None,
 ):
     """Process all ridership files and merge into a single dict keyed by route ID.
 
@@ -441,15 +450,29 @@ def get_ridership_by_route_id(
         path_to_cr_file: Path to the commuter rail ridership CSV, or None to skip.
         path_to_ferry_file: Path to the ferry ridership CSV, or None to skip.
         path_to_ride_file: Path to The RIDE ridership CSV, or None to skip.
+        failures: If given, a mode whose file can't be formatted is logged, skipped and appended
+            here as (mode, exception), so the other modes still update. If None, it raises.
 
     Returns:
         Dict mapping route IDs to lists of dicts with 'date' and 'count' keys,
         spanning all provided transit modes.
     """
-    subway = format_subway_data(path_to_subway_file) if path_to_subway_file else {}
-    bus = format_bus_data(path_to_bus_file) if path_to_bus_file else {}
-    cr = format_cr_data(path_to_cr_file) if path_to_cr_file else {}
-    ferry = format_ferry_data(path_to_ferry_file) if path_to_ferry_file else {}
-    ride = format_the_ride_data(path_to_ride_file) if path_to_ride_file else {}
-
-    return {**subway, **bus, **cr, **ferry, **ride}
+    modes = [
+        ("subway", format_subway_data, path_to_subway_file),
+        ("bus", format_bus_data, path_to_bus_file),
+        ("commuter rail", format_cr_data, path_to_cr_file),
+        ("ferry", format_ferry_data, path_to_ferry_file),
+        ("The RIDE", format_the_ride_data, path_to_ride_file),
+    ]
+    ridership_by_route_id = {}
+    for mode, format_mode, path in modes:
+        if not path:
+            continue
+        try:
+            ridership_by_route_id.update(format_mode(path))
+        except Exception as e:
+            if failures is None:
+                raise
+            logger.exception(f"Couldn't format {mode} ridership; skipping it")
+            failures.append((mode, e))
+    return ridership_by_route_id

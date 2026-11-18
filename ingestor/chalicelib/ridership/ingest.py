@@ -101,13 +101,25 @@ def ingest_ridership_data():
     ferry_update_cache()
     ride_update_cache()
     subway_file, subway_station_file, bus_file, cr_file, ferry_file, ride_file = download_latest_ridership_files()
-    ridership_by_route_id = get_ridership_by_route_id(subway_file, bus_file, cr_file, ferry_file, ride_file)
+    # One bad source shouldn't stop the others updating, but the run still has to fail at the
+    # end so the Lambda's Errors metric (and Datadog) see it.
+    failures: list[tuple[str, Exception]] = []
+    ridership_by_route_id = get_ridership_by_route_id(
+        subway_file, bus_file, cr_file, ferry_file, ride_file, failures=failures
+    )
     ridership_by_line_id = get_ridership_by_line_id(ridership_by_route_id, routes)
     ingest_ridership_to_dynamo(ridership_by_line_id)
     if subway_station_file:
-        ingest_station_ridership_to_dynamo(format_subway_station_data(subway_station_file))
+        try:
+            ingest_station_ridership_to_dynamo(format_subway_station_data(subway_station_file))
+        except Exception as e:
+            print(f"Couldn't update station ridership: {e}")
+            failures.append(("subway stations", e))
     else:
         print("No subway station ridership file found; skipping station ridership")
+    if failures:
+        modes = ", ".join(mode for mode, _ in failures)
+        raise RuntimeError(f"Ridership not updated for: {modes}") from failures[0][1]
 
 
 if __name__ == "__main__":
