@@ -4,7 +4,6 @@ from datetime import date, datetime, timedelta, timezone
 import pytest
 
 from ..overview import build, sources
-from ..overview.bus_fleet import bus_fleet_cell
 from ..overview.cells import baseline_for, format_number, part_of, worst_of
 from ..overview.delays import bus_delay_line, bus_delays_cell, subway_delays_cell
 from ..overview.delivered import bus_delivered_share, subway_delivered_share, with_delivered
@@ -128,7 +127,7 @@ def test_headline_is_worst_of_and_lists_the_worst_first():
         cell("service", "room", 0.85),
         cell("speed", "problem", 0.5),
         cell("frequency", "problem", 0.7),
-        cell("fleet", "na"),
+        cell("delays", "na"),
     ]
     assert headline_for(cells, 2) == {"kind": "needsWork", "heldBackBy": ["speed", "frequency", "service"]}
     assert headline_for(cells, 4)["kind"] == "limited"
@@ -226,33 +225,6 @@ def test_combine_coverage_pools_hours_or_weights_by_riders():
     assert combine_coverage([]) is None
 
 
-def test_bus_fleet_weights_the_share_by_trips_over_four_weeks():
-    result = bus_fleet_cell(
-        [
-            *daily("2026-08-03", 14, fleet_trips=100, fleet_mix_hybrid=0, avg_bus_age=20),
-            *daily("2026-09-14", 26, fleet_trips=1, fleet_mix_hybrid=50, avg_bus_age=9),
-            *daily("2026-10-10", 1, fleet_trips=900, fleet_mix_battery=10, fleet_mix_hybrid=80),
-        ],
-        now=NOW,
-    )
-    assert result["score"] == pytest.approx((26 * 0.5 + 900 * 0.9) / 926)
-    assert (result["direction"], result["thresholds"], result["scoreUnit"]) == ("higher", [0.9, 0.75, 0.5], "pct")
-    assert result["secondary"] == "Battery 10% · Hybrid 79% of trips"
-    assert result["baselineLabel"] == "Average bus age: 9 yr"
-    assert result["trend"] is None
-    assert result["status"] == "good"
-
-
-def test_bus_fleet_needs_four_weeks_and_says_why_it_has_no_status():
-    assert bus_fleet_cell(daily("2026-09-21", 20, fleet_trips=100, fleet_mix_hybrid=95), now=NOW)["status"] == (
-        "insufficient"
-    )
-    assert bus_fleet_cell(None, now=NOW)["notes"] == ["Couldn't load bus fleet data."]
-    empty = bus_fleet_cell(daily("2026-09-01", 30), now=NOW)
-    assert empty["score"] is None
-    assert "No recent fleet data." in empty["notes"]
-
-
 def headway_rows(start: str, days: int, within: int, outside: int) -> list[dict]:
     return daily(
         start,
@@ -279,6 +251,7 @@ def test_reliability_pools_counts_over_the_last_four_complete_weeks():
     assert result["asOf"] == "2026-09-28"
     assert result["secondary"] == "60% within 50–150% of schedule"
     assert result["baselineLabel"] == "40% bunched (half the scheduled gap or less)"
+    assert result["bunched"] == pytest.approx(1 - result["score"])
     assert (result["direction"], result["scoreUnit"]) == ("higher", "pct")
 
 
@@ -287,6 +260,7 @@ def test_reliability_needs_four_weeks_and_says_why_it_has_no_status():
     assert reliability_cell(None, now=NOW)["notes"] == ["Couldn't load headway data."]
     empty = reliability_cell(daily("2026-09-01", 30), now=NOW)
     assert empty["score"] is None
+    assert "bunched" not in empty
     assert "No recent headway data." in empty["notes"]
 
 
@@ -356,20 +330,14 @@ def test_build_overview_end_to_end():
             "count": 200,
             "miles_covered": 1000,
             "total_time": 180000,
-            "avg_car_age": 20,
-            "fleet_mix_red1": 0.5,
-            "fleet_mix_red2": 30,
-            "fleet_mix_red3": 69.5,
         }
         for day, _ in weeks
     ]
-    fleet_rows = daily("2026-09-07", 34, fleet_trips=100, fleet_mix_hybrid=80)
     src = sources.Sources(
         trip_metrics={"line-red": trips},
         baselines={"metrics": {"service": {"series": {"line-red": {"value": 200, "bestWindow": None}}}}},
         delay_totals={"data": [{"date": f"{d['date']}T00:00:00", "Red": 45} for d in daily("2026-07-19", 84)]},
         service_ridership=service_ridership(),
-        bus_fleet={"all": fleet_rows, "1": fleet_rows},
         now=NOW,
         subway_headways={"line-red": headway_rows("2026-08-31", 41, within=70, outside=30)},
         bus_headways={
@@ -407,20 +375,25 @@ def test_build_overview_end_to_end():
         ("Slow zones", "good"),
     ]
     assert "slowZones" not in red
-    # Pullman-Standard is under 1% of cars, so UTDC is the oldest still in service.
-    assert red["fleet"]["secondary"] == "Oldest in service: UTDC (1987–89), 30% of cars"
-    assert red["fleet"]["score"] == 2026 - 1987
 
     assert red["reliability"]["score"] == pytest.approx(0.7)
     assert red["reliability"]["status"] == "good"
     assert red["reliability"]["href"] == "/red/reliability"
-    assert list(red) == ["service", "frequency", "reliability", "delays", "speed", "fleet"]
+    assert red["reliability"]["bunched"] == pytest.approx(0.3)
+    # No Vehicles column, and nothing is held back by it.
+    for row in overview["rows"]:
+        assert list(row["cells"]) == ["service", "frequency", "reliability", "delays", "speed"]
+        assert "fleet" not in row["headline"]["heldBackBy"]
     # 57 of 1,140 weekday service minutes (5 AM to midnight); weekends have no schedule here.
     assert red["delays"]["score"] == pytest.approx(0.05)
+    # Averaged over every day of the week, and this schedule has no weekend service to count alerts in.
+    assert red["delays"]["minutesPerDay"] == pytest.approx(57 * 5 / 7)
     assert (red["delays"]["status"], red["delays"]["href"]) == ("room", "/red/delays")
     # Route 1 has 96 of 960 minutes under an alert and route 9 none.
     assert rows["all-bus"]["cells"]["delays"]["score"] == pytest.approx(0.05)
     assert rows["commuter-rail"]["cells"]["delays"]["status"] == "na"
+    # The MBTA hasn't committed to a Commuter Rail frequency goal, so it isn't judged on one.
+    assert rows["commuter-rail"]["cells"]["frequency"]["status"] == "na"
     assert red["service"]["secondary"] == "200 trips/day · 100% of scheduled service delivered"
     assert rows["all-bus"]["cells"]["service"]["secondary"] == "96% of scheduled trips delivered"
     assert "secondary" not in rows["ferry"]["cells"]["service"]
@@ -432,10 +405,6 @@ def test_build_overview_end_to_end():
     assert (cr_reliability["status"], cr_reliability["href"]) == ("good", "/commuter-rail/reliability")
     assert rows["ferry"]["cells"]["reliability"]["status"] == "na"
 
-    frequent = rows["frequent-bus"]["cells"]["fleet"]
-    assert frequent["score"] == pytest.approx(0.8)
-    assert frequent["notes"][0] == "1 of 2 routes have fleet data."
-    assert rows["all-bus"]["cells"]["fleet"]["status"] == "good"
     assert rows["ferry"]["headline"]["kind"] == "limited"
     assert [stat["id"] for stat in overview["hero"]] == [
         "subwayFrequency",
@@ -445,6 +414,8 @@ def test_build_overview_end_to_end():
         "crHeadway",
     ]
     assert "trend" not in overview["hero"][0]
+    # Monthly means of 45 s a day, in minutes.
+    assert overview["hero"][2]["history"] == [["2026-07", 0.8], ["2026-08", 0.8], ["2026-09", 0.8], ["2026-10", 0.8]]
     # Valid JSON: no NaN or infinity anywhere.
     build.to_json(overview)
 

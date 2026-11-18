@@ -1,5 +1,5 @@
 """Inputs to the home page scoreboard: the same files the dashboard used to read in the browser,
-plus daily bus fleet rows."""
+plus daily rows from DynamoDB."""
 
 import json
 from concurrent.futures import ThreadPoolExecutor
@@ -25,11 +25,7 @@ TRIP_METRICS_KEY = landing.TRIP_METRICS_KEY_JSON
 BASELINES_KEY = "static/landing/baselines.json"
 DELAY_TOTALS_KEY = "static/slowzones/delay_totals.json"
 
-BUS_FLEET_TABLE = "DeliveredTripMetricsBus"
-# The system-wide row in DeliveredTripMetricsBus.
-SYSTEM_WIDE_ROUTE = "all"
-BUS_FLEET_FIELDS = ["fleet_trips", "fleet_mix_battery", "fleet_mix_hybrid", "avg_bus_age"]
-BUS_FLEET_WEEKS = 13
+BUS_TRIPS_TABLE = "DeliveredTripMetricsBus"
 
 SUBWAY_HEADWAYS_TABLE = "HeadwayReliability"
 HEADWAY_WEEKS = 13
@@ -55,7 +51,6 @@ LOCAL_FILES = {
     "baselines": "baselines.json",
     "delay_totals": "delay_totals.json",
     "service_ridership": "service_ridership_dashboard.json",
-    "bus_fleet": "bus_fleet.json",
     "subway_headways": "subway_headways.json",
     "bus_headways": "bus_headways.json",
     "cr_reliability": "cr_reliability.json",
@@ -73,8 +68,6 @@ class Sources:
     baselines: dict | None
     delay_totals: dict
     service_ridership: dict
-    # Daily fleet rows per GTFS route id (and "all"); None when they couldn't be loaded.
-    bus_fleet: dict[str, list[dict]] | None
     now: datetime
     # Daily headway bucket counts per subway line and per GTFS bus route; None when they couldn't be loaded.
     subway_headways: dict[str, list[dict]] | None = None
@@ -134,14 +127,6 @@ def frequent_bus_line_ids(service_ridership: dict, routes: list[str] | None) -> 
     ]
 
 
-def bus_fleet_routes(service_ridership: dict, line_ids: list[str]) -> list[str]:
-    """The system-wide row plus every GTFS route behind the Frequent Bus lines."""
-    routes = [SYSTEM_WIDE_ROUTE]
-    for line_id in line_ids:
-        routes += service_ridership["lineData"].get(line_id, {}).get("routeIds", [])
-    return routes
-
-
 def bus_routes(service_ridership: dict) -> list[str]:
     """Every GTFS route behind the bus and Silver Line lines."""
     return [
@@ -179,10 +164,6 @@ def _query_daily(table_name: str, routes: list[str], fields: list[str], weeks: i
 
     with ThreadPoolExecutor(max_workers=8) as pool:
         return dict(zip(routes, pool.map(query, routes)))
-
-
-def get_bus_fleet(routes: list[str], now: datetime) -> dict[str, list[dict]]:
-    return _query_daily(BUS_FLEET_TABLE, routes, BUS_FLEET_FIELDS, BUS_FLEET_WEEKS, now)
 
 
 def get_headways(
@@ -242,21 +223,15 @@ def _download_json(bucket: str, key: str):
 def load(now: datetime) -> Sources:
     service_ridership = _download_json(SERVICE_RIDERSHIP_BUCKET, SERVICE_RIDERSHIP_KEY)
     frequent_line_ids = frequent_bus_line_ids(service_ridership, get_frequent_bus_routes())
-    try:
-        bus_fleet = get_bus_fleet(bus_fleet_routes(service_ridership, frequent_line_ids), now)
-    except Exception as e:  # the scoreboard still stands without bus fleet cells
-        print(f"Couldn't load bus fleet rows: {e}")
-        bus_fleet = None
     subway_delivered, subway_scheduled = get_subway_delivered(now)
     return Sources(
         trip_metrics=_download_json(DASHBOARD_BUCKET, TRIP_METRICS_KEY),
         baselines=_download_json(DASHBOARD_BUCKET, BASELINES_KEY),
         delay_totals=_download_json(DASHBOARD_BUCKET, DELAY_TOTALS_KEY),
         service_ridership=service_ridership,
-        bus_fleet=bus_fleet,
         now=now,
         subway_headways=get_headways(SUBWAY_HEADWAYS_TABLE, SUBWAY_LINES, now),
-        bus_headways=get_headways(BUS_FLEET_TABLE, bus_routes(service_ridership), now, BUS_TRIP_FIELDS),
+        bus_headways=get_headways(BUS_TRIPS_TABLE, bus_routes(service_ridership), now, BUS_TRIP_FIELDS),
         cr_reliability=get_cr_reliability(cr_routes(service_ridership), now),
         delays=get_delays(service_ridership, now),
         subway_delivered=subway_delivered,
@@ -276,7 +251,6 @@ def load_local(directory: str, now: datetime) -> Sources:
         baselines=read("baselines"),
         delay_totals=read("delay_totals") or {"data": []},
         service_ridership=service_ridership,
-        bus_fleet=read("bus_fleet"),
         now=now,
         subway_headways=read("subway_headways"),
         bus_headways=read("bus_headways"),

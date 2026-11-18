@@ -2,7 +2,7 @@
 
 import math
 from dataclasses import dataclass, field
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from .config import WINDOW_WEEKS
 
@@ -71,6 +71,11 @@ def trend_of(window: Window) -> float | None:
         return None
     base = mean(window.values)
     return mean(recent) / base - 1 if base else None
+
+
+def week_start(day: str) -> str:
+    d = date.fromisoformat(day[:10])
+    return (d - timedelta(days=d.weekday())).isoformat()
 
 
 def days_between(start: str, now: datetime) -> float:
