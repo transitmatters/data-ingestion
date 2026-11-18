@@ -335,10 +335,6 @@ DATE_FORMAT = "%Y-%m-%dT%H:%M:%S"
 DATE_FORMAT_BACKEND = "%Y-%m-%d"
 GLX_EXTENSION_DATE = datetime.strptime("2023-03-19", DATE_FORMAT_BACKEND).date()
 CR_MIDDLEBOROUGH_DISCONTINUED = datetime.strptime("2025-03-24", DATE_FORMAT_BACKEND).date()
-TODAY = datetime.now().date()
-
-ONE_WEEK_AGO_STRING = (TODAY - timedelta(weeks=1)).strftime(DATE_FORMAT_BACKEND)
-NINETY_DAYS_AGO_STRING = (TODAY - timedelta(days=90)).strftime(DATE_FORMAT_BACKEND)
 
 
 DD_URL_AGG_TT = "https://dashboard-api.labs.transitmatters.org/api/aggregate/traveltimes?{parameters}"

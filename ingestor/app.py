@@ -346,10 +346,10 @@ def populate_agg_delivered_trip_metrics(params, context):
 @app.schedule(Cron(0, 9, "?", "*", "MON-FRI", "*"))
 def store_landing_data(event):
     """Uploads trip metrics and ridership data for the landing page to S3."""
-    from chalicelib import constants, landing
+    from chalicelib import landing
 
     print(
-        f"Uploading ridership and trip metric data for landing page from {constants.NINETY_DAYS_AGO_STRING} to {constants.ONE_WEEK_AGO_STRING}"
+        "Uploading ridership and trip metric data for landing page from {} to {}".format(*landing.landing_date_range())
     )
     trip_metrics_data = landing.get_trip_metrics_data()
     ridership_data = landing.get_ridership_data()
