@@ -1,6 +1,6 @@
 import boto3
 from tempfile import TemporaryDirectory
-from datetime import date
+from datetime import date, timedelta
 from typing import List, Tuple, Union
 from sqlalchemy.orm import Session
 from mbta_gtfs_sqlite import MbtaGtfsArchive, GtfsFeed
@@ -300,7 +300,12 @@ def ingest_gtfs_feeds_to_dynamo_and_s3(
             # the daily date-range run also builds the feed once it is listed.
             raise LookupError(f"GTFS feed {feed_key} is not listed in the MBTA archive yet")
         start_date = feed.start_date
-        end_date = feed.end_date
+        # MBTA feeds overlap: a feed's end date usually runs months past the next feed's
+        # start. Stop the day before the next feed starts, so rebuilding an older feed (or
+        # a batch of them, which SQS runs in any order) can't overwrite the newer feed's
+        # scheduled service. The date-range path gets the same result by going in order.
+        next_start = next_feed_start(archive, feed)
+        end_date = min(feed.end_date, next_start - timedelta(days=1)) if next_start else feed.end_date
         feeds = [feed]
     else:
         raise Exception("Must provide either date_range or feed_key")
@@ -312,6 +317,12 @@ def ingest_gtfs_feeds_to_dynamo_and_s3(
         force_rebuild_feeds=force_rebuild_feeds,
         keep_local_feeds=keep_local_feeds,
     )
+
+
+def next_feed_start(archive: MbtaGtfsArchive, feed: GtfsFeed) -> date | None:
+    """The start date of the first archived feed after `feed`, or None if it's the latest."""
+    later = [other.start_date for other in archive.get_all_feeds() if other.start_date > feed.start_date]
+    return min(later) if later else None
 
 
 def get_feed_keys_for_date_range(start_date: date, end_date: date) -> List[str]:

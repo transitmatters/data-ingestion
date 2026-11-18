@@ -167,3 +167,39 @@ def test_unlisted_feed_key_raises_a_clear_error(mock_archive, mock_ingest_feeds)
         ingest_gtfs_feeds_to_dynamo_and_s3(feed_key="20261020", boto3_session=mock.MagicMock())
 
     mock_ingest_feeds.assert_not_called()
+
+
+def _archive_feed(key: str, end: date):
+    feed = mock.MagicMock()
+    feed.key = key
+    feed.start_date = date.fromisoformat(key)
+    feed.end_date = end
+    return feed
+
+
+@pytest.mark.parametrize(
+    "key, expected_end",
+    [
+        ("2026-03-01", date(2026, 3, 14)),  # stops the day before the next feed starts
+        ("2026-03-15", date(2026, 4, 30)),  # its own end comes first
+        ("2026-05-01", date(2026, 9, 30)),  # the latest feed keeps its own end
+    ],
+)
+@mock.patch("chalicelib.gtfs.ingest.ingest_feeds")
+@mock.patch("chalicelib.gtfs.ingest.MbtaGtfsArchive")
+def test_feed_key_path_does_not_overwrite_newer_feeds(mock_archive, mock_ingest_feeds, key, expected_end):
+    """Rebuilding an older feed must not rewrite dates a newer feed covers (#256)."""
+    feeds = [
+        _archive_feed("2026-03-01", date(2026, 6, 30)),
+        _archive_feed("2026-03-15", date(2026, 4, 30)),
+        _archive_feed("2026-05-01", date(2026, 9, 30)),
+    ]
+    archive = mock_archive.return_value
+    archive.get_all_feeds.return_value = feeds
+    archive.get_feed_by_key.side_effect = lambda k: next(f for f in feeds if f.key == k)
+
+    ingest_gtfs_feeds_to_dynamo_and_s3(feed_key=key, boto3_session=mock.MagicMock())
+
+    kwargs = mock_ingest_feeds.call_args.kwargs
+    assert kwargs["start_date"] == date.fromisoformat(key)
+    assert kwargs["end_date"] == expected_end
