@@ -43,7 +43,7 @@ from .config import (
     RowConfig,
 )
 from .delays import bus_delays_cell, subway_delays_cell
-from .delivered import bus_delivered_share, subway_delivered_share, with_delivered
+from .delivered import SUBWAY_ROUTES, bus_delivered_share, subway_delivered_share, with_delivered
 from .frequency import combine_coverage, goal_coverage, midday_headway
 from .reliability import cr_reliability_cell, reliability_cell
 from .series import Window, from_record, is_finite, js_round, mean, median, take_window, trend_of
@@ -124,7 +124,12 @@ def subway_cells(row: RowConfig, src: sources.Sources, frequency_lines: list[dic
             raw_unit_label="trips/day",
             href=line_href(row, "service"),
         ),
-        subway_delivered_share((src.subway_delivered or {}).get(line), (src.subway_scheduled or {}).get(line), now),
+        subway_delivered_share(
+            (src.subway_delivered or {}).get(line),
+            (src.subway_scheduled or {}).get(line),
+            now,
+            set(SUBWAY_ROUTES[line][0]) if line in SUBWAY_ROUTES else None,
+        ),
         "service",
     )
 

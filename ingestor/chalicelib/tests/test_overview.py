@@ -379,7 +379,13 @@ def test_build_overview_end_to_end():
             ],
             "9": daily("2026-08-31", 41),
         },
-        subway_delivered={"line-red": extended_rows("2026-09-07", 34, trips=50, mean_seconds=2160)},
+        subway_delivered={
+            "line-red": [
+                {**row, "route": route}
+                for route in ("line-red-a", "line-red-b")
+                for row in extended_rows("2026-09-07", 34, trips=25, mean_seconds=2160)
+            ]
+        },
         subway_scheduled={"line-red": daily("2026-09-07", 34, serviceMinutes=3600)},
         cr_reliability=cr_rows("2026-06-01", 30, on_time=93, trips=100),
         delays={
@@ -494,6 +500,28 @@ def test_subway_delivered_share_pools_recent_days_with_both():
     assert subway_delivered_share(delivered, scheduled, NOW) == pytest.approx(0.8)
     assert subway_delivered_share(None, scheduled, NOW) is None
     assert subway_delivered_share(delivered, [], NOW) is None
+
+
+def test_subway_delivered_share_skips_days_missing_a_branch():
+    """Green on schedule but with no E branch rows must not read as 75% delivered (#262)."""
+    branches = ["line-green-b", "line-green-c", "line-green-d", "line-green-e"]
+    # Each branch delivers a quarter of the line's 75 scheduled hours
+    delivered = [
+        {**row, "route": route}
+        for route in branches
+        for row in extended_rows("2026-09-07", 34, trips=25, mean_seconds=1350)
+        if not (route == "line-green-e" and row["date"] >= "2026-09-21")
+    ]
+    scheduled = daily("2026-09-07", 34, serviceMinutes=4500)
+    assert subway_delivered_share(delivered, scheduled, NOW, set(branches)) == pytest.approx(1)
+    # Without the check, the E-less weeks drag it down
+    assert subway_delivered_share(delivered, scheduled, NOW) < 0.9
+
+
+def test_subway_delivered_share_none_when_a_branch_is_always_missing():
+    delivered = [{**row, "route": "line-red-b"} for row in extended_rows("2026-09-07", 34, trips=50, mean_seconds=2160)]
+    scheduled = daily("2026-09-07", 34, serviceMinutes=3600)
+    assert subway_delivered_share(delivered, scheduled, NOW, {"line-red-a", "line-red-b"}) is None
 
 
 def test_bus_delivered_share_counts_unobserved_trips_as_missed():
