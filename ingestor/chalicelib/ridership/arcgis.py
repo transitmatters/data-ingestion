@@ -44,6 +44,15 @@ def _download_arcgis_csv(url: str, name: str) -> str | None:
     return path
 
 
+def _fetch_sharepoint(sharepoint: SharepointConnection, name: str, **kwargs) -> str | None:
+    """fetch_sharepoint_file, or None (skipping that mode) if SharePoint can't be reached."""
+    try:
+        return sharepoint.fetch_sharepoint_file(**kwargs)
+    except requests.RequestException as e:
+        logger.error(f"Couldn't download {name} ridership from SharePoint; skipping it: {e}")
+        return None
+
+
 def cr_update_cache():
     """
     This function is used to update the cache for the CR ridership data
@@ -83,11 +92,11 @@ def download_latest_ridership_files() -> Tuple[str | None, str | None, str | Non
     """
     sharepoint = SharepointConnection()
 
-    subway_tmp_path = sharepoint.fetch_sharepoint_file(bus_data=False)
-    subway_station_tmp_path = sharepoint.fetch_sharepoint_file(
-        file_regex=RIDERSHIP_SUBWAY_STATION_CSV_REGEX, bus_data=False
+    subway_tmp_path = _fetch_sharepoint(sharepoint, "subway", bus_data=False)
+    subway_station_tmp_path = _fetch_sharepoint(
+        sharepoint, "subway station", file_regex=RIDERSHIP_SUBWAY_STATION_CSV_REGEX, bus_data=False
     )
-    bus_tmp_path = sharepoint.fetch_sharepoint_file(bus_data=True)
+    bus_tmp_path = _fetch_sharepoint(sharepoint, "bus", bus_data=True)
 
     cr_tmp_path = _download_arcgis_csv(CR_RIDERSHIP_ARCGIS_URL, "CR")
     ferry_tmp_path = _download_arcgis_csv(FERRY_RIDERSHIP_ARCGIS_URL, "Ferry")

@@ -5,10 +5,16 @@ from tempfile import NamedTemporaryFile
 from unittest import mock
 
 import pandas as pd
+import pytest
 import requests
 
 from ..ridership import arcgis
-from ..ridership.process import format_ridership_csv, format_subway_data, unofficial_cr_labels_map
+from ..ridership.process import (
+    format_ridership_csv,
+    format_subway_data,
+    get_ridership_by_route_id,
+    unofficial_cr_labels_map,
+)
 from ..ridership.sharepoint import SharepointConnection
 
 
@@ -79,3 +85,49 @@ def test_cache_refresh_failure_is_not_fatal(monkeypatch):
 
     monkeypatch.setattr(arcgis.requests, "get", down)
     arcgis.cr_update_cache()
+
+
+def test_a_mode_that_cant_be_formatted_is_skipped_and_reported():
+    """A 2xx that isn't the expected CSV (e.g. a JSON error body) must not stop the other modes."""
+    broken_cr = _csv([("pending",)], ["status"])
+    ferry = _csv(
+        [("2021-02-01", "F1", 10)],
+        ["actual_departure", "route_id", "pax_on"],
+    )
+    failures = []
+    by_route = get_ridership_by_route_id(None, None, broken_cr, ferry, None, failures=failures)
+    assert "Boat-F1" in by_route
+    assert [mode for mode, _ in failures] == ["commuter rail"]
+
+
+def test_without_a_failures_list_formatting_errors_still_raise():
+    broken_cr = _csv([("pending",)], ["status"])
+    with pytest.raises(Exception):
+        get_ridership_by_route_id(None, None, broken_cr, None, None)
+
+
+def test_sharepoint_connection_error_skips_that_mode():
+    sharepoint = mock.MagicMock()
+    sharepoint.fetch_sharepoint_file.side_effect = requests.ConnectionError("down")
+    assert arcgis._fetch_sharepoint(sharepoint, "bus", bus_data=True) is None
+
+
+def test_ingest_writes_good_modes_then_fails_the_run(monkeypatch):
+    from ..ridership import ingest
+
+    monkeypatch.setattr(ingest, "get_routes_by_line_id", lambda: {})
+    for name in ("cr_update_cache", "ferry_update_cache", "ride_update_cache"):
+        monkeypatch.setattr(ingest, name, lambda: None)
+    monkeypatch.setattr(ingest, "download_latest_ridership_files", lambda: (None, None, None, "cr", None, None))
+
+    def broken(*args, failures):
+        failures.append(("commuter rail", ValueError("bad csv")))
+        return {}
+
+    monkeypatch.setattr(ingest, "get_ridership_by_route_id", broken)
+    written = []
+    monkeypatch.setattr(ingest, "ingest_ridership_to_dynamo", written.append)
+
+    with pytest.raises(RuntimeError, match="commuter rail"):
+        ingest.ingest_ridership_data()
+    assert written == [{}], "the other modes are written before the run fails"

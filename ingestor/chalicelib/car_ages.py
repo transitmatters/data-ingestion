@@ -248,7 +248,9 @@ def get_fleet_age_metrics_for_line(current_date: date, line: str) -> dict[str, D
     url = constants.DD_URL_SINGLE_TT.format(date=date_str, parameters=params)
 
     try:
-        # Bounded so a hung request can't use up update_delivered_trip_metrics' 30s Lambda timeout.
+        # Bounded so one slow line can't hold up the run. Lines are fetched one at a time, so this
+        # can't keep update_delivered_trip_metrics inside its 30s if the whole API hangs, but then
+        # the speed requests to the same API would fail anyway.
         response = requests.get(url, timeout=CAR_AGE_REQUEST_TIMEOUT)
         response.raise_for_status()
     except requests.exceptions.RequestException as e:

@@ -437,6 +437,7 @@ def get_ridership_by_route_id(
     path_to_cr_file: str | None,
     path_to_ferry_file: str | None,
     path_to_ride_file: str | None,
+    failures: list[tuple[str, Exception]] | None = None,
 ):
     """Process all ridership files and merge into a single dict keyed by route ID.
 
@@ -449,15 +450,29 @@ def get_ridership_by_route_id(
         path_to_cr_file: Path to the commuter rail ridership CSV, or None to skip.
         path_to_ferry_file: Path to the ferry ridership CSV, or None to skip.
         path_to_ride_file: Path to The RIDE ridership CSV, or None to skip.
+        failures: If given, a mode whose file can't be formatted is logged, skipped and appended
+            here as (mode, exception), so the other modes still update. If None, it raises.
 
     Returns:
         Dict mapping route IDs to lists of dicts with 'date' and 'count' keys,
         spanning all provided transit modes.
     """
-    subway = format_subway_data(path_to_subway_file) if path_to_subway_file else {}
-    bus = format_bus_data(path_to_bus_file) if path_to_bus_file else {}
-    cr = format_cr_data(path_to_cr_file) if path_to_cr_file else {}
-    ferry = format_ferry_data(path_to_ferry_file) if path_to_ferry_file else {}
-    ride = format_the_ride_data(path_to_ride_file) if path_to_ride_file else {}
-
-    return {**subway, **bus, **cr, **ferry, **ride}
+    modes = [
+        ("subway", format_subway_data, path_to_subway_file),
+        ("bus", format_bus_data, path_to_bus_file),
+        ("commuter rail", format_cr_data, path_to_cr_file),
+        ("ferry", format_ferry_data, path_to_ferry_file),
+        ("The RIDE", format_the_ride_data, path_to_ride_file),
+    ]
+    ridership_by_route_id = {}
+    for mode, format_mode, path in modes:
+        if not path:
+            continue
+        try:
+            ridership_by_route_id.update(format_mode(path))
+        except Exception as e:
+            if failures is None:
+                raise
+            logger.exception(f"Couldn't format {mode} ridership; skipping it")
+            failures.append((mode, e))
+    return ridership_by_route_id
