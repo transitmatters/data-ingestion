@@ -45,6 +45,16 @@ class TripsByLineParams:
     agg: Range
 
 
+def period_start(start_date: str, range: Range) -> str:
+    """The Monday (weekly) or 1st (monthly) on or before start_date, as YYYY-MM-DD."""
+    d = datetime.fromisoformat(start_date).date()
+    if range == "weekly":
+        d -= timedelta(days=d.weekday())
+    else:
+        d = d.replace(day=1)
+    return d.strftime(constants.DATE_FORMAT_BACKEND)
+
+
 def populate_table(line: Line, range: Range, start_date: str = "2016-01-01"):
     """Populate weekly or monthly aggregate speed table for a given line. Ran manually as a lambda in AWS console"""
     print(f"Populating {range} table")
@@ -52,7 +62,9 @@ def populate_table(line: Line, range: Range, start_date: str = "2016-01-01"):
     today = datetime.now().strftime(constants.DATE_FORMAT_BACKEND)
     trips = actual_trips_by_line(
         {
-            "start_date": start_date,
+            # group_*_data drops a partial first period, so start at the period's beginning
+            # or the week/month holding start_date would never be rebuilt.
+            "start_date": period_start(start_date, range),
             "end_date": today,
             "line": line,
             "agg": range,
@@ -66,8 +78,8 @@ def update_tables(range: Range):
     """Update weekly and monthly speed tables"""
     table = constants.TABLE_MAP[range]
     yesterday = datetime.now() - timedelta(days=1)
+    start = table["get_update_start"]()
     for line in constants.LINES:
-        start = table["update_start"]
         start_string = datetime.strftime(start, constants.DATE_FORMAT_BACKEND)
         end_string = datetime.strftime(yesterday, constants.DATE_FORMAT_BACKEND)
         print(f"Updating {line} for {range} for week of {start_string} to {end_string}")
@@ -88,8 +100,16 @@ def update_tables(range: Range):
 
 def query_daily_trips_on_route(table_name: str, route: str, start_date: str, end_date: str):
     table = dynamodb.Table(table_name)
-    response = table.query(KeyConditionExpression=Key("route").eq(route) & Key("date").between(start_date, end_date))
-    return ddb_json.loads(response["Items"])
+    query = {"KeyConditionExpression": Key("route").eq(route) & Key("date").between(start_date, end_date)}
+    items = []
+    # A query returns at most 1 MB per page; a full rebuild of one route spans years of rows.
+    while True:
+        response = table.query(**query)
+        items.extend(response["Items"])
+        if "LastEvaluatedKey" not in response:
+            break
+        query["ExclusiveStartKey"] = response["LastEvaluatedKey"]
+    return ddb_json.loads(items)
 
 
 def query_daily_trips_on_line(table_name: str, line: Line, start_date: str, end_date: str):
@@ -163,6 +183,8 @@ def group_monthly_data(df: pd.DataFrame, start_date: str):
     for col in fleet_cols(df.columns):
         agg_dict[col] = "mean"
     df_monthly = df.resample("ME").agg(agg_dict)
+    # Periods with no daily rows have no line; zero-filling would write line: 0 to a string hash key.
+    df_monthly = df_monthly[df_monthly["line"].notna()]
     df_monthly = fill_na_except_fleet_age(df_monthly)
     df_monthly.index = [datetime(x.year, x.month, 1) for x in df_monthly.index.tolist()]
     # Drop the first month if it is incomplete
@@ -178,6 +200,8 @@ def group_weekly_data(df: pd.DataFrame, start_date: str):
     for col in fleet_cols(df.columns):
         agg_dict[col] = "mean"
     df_weekly = df.resample("W-SUN").agg(agg_dict)
+    # Periods with no daily rows have no line; zero-filling would write line: 0 to a string hash key.
+    df_weekly = df_weekly[df_weekly["line"].notna()]
     df_weekly = fill_na_except_fleet_age(df_weekly)
     # Pandas resample uses the end date of the range as the index. So we subtract 6 days to convert to first date of the range.
     df_weekly.index = df_weekly.index - pd.Timedelta(days=6)

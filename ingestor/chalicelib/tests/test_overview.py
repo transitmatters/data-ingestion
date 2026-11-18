@@ -347,7 +347,13 @@ def test_build_overview_end_to_end():
             ],
             "9": daily("2026-08-31", 41),
         },
-        subway_delivered={"line-red": extended_rows("2026-09-07", 34, trips=50, mean_seconds=2160)},
+        subway_delivered={
+            "line-red": [
+                {**row, "route": route}
+                for route in ("line-red-a", "line-red-b")
+                for row in extended_rows("2026-09-07", 34, trips=25, mean_seconds=2160)
+            ]
+        },
         subway_scheduled={"line-red": daily("2026-09-07", 34, serviceMinutes=3600)},
         cr_reliability=cr_rows("2026-06-01", 30, on_time=93, trips=100),
         delays={
@@ -467,6 +473,28 @@ def test_subway_delivered_share_pools_recent_days_with_both():
     assert subway_delivered_share(delivered, [], NOW) is None
 
 
+def test_subway_delivered_share_skips_days_missing_a_branch():
+    """Green on schedule but with no E branch rows must not read as 75% delivered (#262)."""
+    branches = ["line-green-b", "line-green-c", "line-green-d", "line-green-e"]
+    # Each branch delivers a quarter of the line's 75 scheduled hours
+    delivered = [
+        {**row, "route": route}
+        for route in branches
+        for row in extended_rows("2026-09-07", 34, trips=25, mean_seconds=1350)
+        if not (route == "line-green-e" and row["date"] >= "2026-09-21")
+    ]
+    scheduled = daily("2026-09-07", 34, serviceMinutes=4500)
+    assert subway_delivered_share(delivered, scheduled, NOW, set(branches)) == pytest.approx(1)
+    # Without the check, the E-less weeks drag it down
+    assert subway_delivered_share(delivered, scheduled, NOW) < 0.9
+
+
+def test_subway_delivered_share_none_when_a_branch_is_always_missing():
+    delivered = [{**row, "route": "line-red-b"} for row in extended_rows("2026-09-07", 34, trips=50, mean_seconds=2160)]
+    scheduled = daily("2026-09-07", 34, serviceMinutes=3600)
+    assert subway_delivered_share(delivered, scheduled, NOW, {"line-red-a", "line-red-b"}) is None
+
+
 def test_bus_delivered_share_counts_unobserved_trips_as_missed():
     rows = daily("2026-09-07", 28, scheduled_trips=200, unobserved_trips=10)
     # The current week is incomplete, and old rows have no trip counts
@@ -518,3 +546,80 @@ def test_get_frequent_bus_routes_reads_route_descriptions(monkeypatch):
 
     monkeypatch.setattr(sources.requests, "get", fail)
     assert sources.get_frequent_bus_routes() is None
+
+
+# --- Missing or stale data (#269) ---
+
+
+def _delay_days(start: str, days: int, **values) -> dict:
+    first = date.fromisoformat(start)
+    return {"data": [{"date": f"{(first + timedelta(days=i)).isoformat()}T00:00:00", **values} for i in range(days)]}
+
+
+def test_slow_zones_missing_line_is_insufficient_not_a_win():
+    """A line missing from delay_totals.json used to read as 0 s of delay every day."""
+    totals = _delay_days("2026-07-20", 84, Red=0.0)
+    window = build.slow_zone_window(totals, ["Orange"])
+    assert window.values == []
+    assert window.as_of is None
+
+
+def test_slow_zones_skip_days_with_null_values():
+    totals = _delay_days("2026-10-04", 7, Red=60.0)
+    totals["data"][-1]["Red"] = None
+    window = build.slow_zone_window(totals, ["Red"])
+    assert window.values == [60.0]
+    assert window.as_of == "2026-10-09"
+
+
+def test_hero_value_carries_as_of_and_goes_null_when_stale():
+    fresh = build.slow_zone_window(_delay_days("2026-10-04", 7, Red=60.0), ["Red"])
+    assert build.hero_current(1.0, fresh, build.SLOW_ZONES, NOW, 0) == {"value": 1.0, "asOf": "2026-10-10"}
+
+    old = build.slow_zone_window(_delay_days("2026-06-01", 7, Red=60.0), ["Red"])
+    assert build.hero_current(1.0, old, build.SLOW_ZONES, NOW, 0) == {"value": None, "asOf": "2026-06-07"}
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        ValueError("not JSON"),  # e.g. an HTML error page with a 200
+        {"errors": [{"status": "429"}]},  # no "data"
+        {"data": [{"id": "1"}]},  # no "attributes"
+        {"data": None},
+    ],
+)
+def test_get_frequent_bus_routes_falls_back_on_malformed_200(monkeypatch, body):
+    """A 200 with an unexpected body must fall back, not crash the overview (#260)."""
+
+    class Response:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            if isinstance(body, Exception):
+                raise body
+            return body
+
+    monkeypatch.setattr(sources.requests, "get", lambda *args, **kwargs: Response())
+    assert sources.get_frequent_bus_routes() is None
+
+
+def test_every_lambda_has_a_resources_block():
+    """Without a resources.json block a function gets no Datadog key (#260)."""
+    import ast
+    import json
+    from pathlib import Path
+
+    ingestor = Path(__file__).resolve().parents[2]
+    resources = json.loads((ingestor / ".chalice" / "resources.json").read_text())["Resources"]
+    tree = ast.parse((ingestor / "app.py").read_text())
+    lambdas = [
+        node.name
+        for node in tree.body
+        if isinstance(node, ast.FunctionDef)
+        and any(isinstance(d, ast.Call) and getattr(d.func, "value", None) is not None for d in node.decorator_list)
+    ]
+    assert lambdas
+    missing = [name for name in lambdas if "".join(p.capitalize() for p in name.split("_")) not in resources]
+    assert missing == []

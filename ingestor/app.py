@@ -277,15 +277,16 @@ def update_weekly_alert_delays(event):
 
 
 # for daily delay uploads
-# 12:30pm UTC, after mbta-performance rebuilds yesterday's LAMP alerts file at 11:00 UTC
+# 12:30pm UTC, after mbta-performance rebuilds yesterday's LAMP alerts file at 11:00 UTC.
+# Redoes the day before too, in case yesterday's file wasn't ready, the run failed, or an
+# alert still open last run has since been closed. Today is left out: it's only partial.
 @app.schedule(Cron(30, 12, "*", "*", "?", "*"))
 def update_daily_alert_delays(event):
-    """Processes yesterday's subway, commuter rail, and bus alerts and updates the daily delay table."""
+    """Processes the last two days of subway, commuter rail, and bus alerts into the daily delay table."""
     from chalicelib import delays
 
-    today = datetime.now()
-    yesterday = (today - timedelta(days=1)).date()
-    delays.update_table(yesterday, today.date())
+    yesterday = (datetime.now() - timedelta(days=1)).date()
+    delays.update_table(yesterday - timedelta(days=1), yesterday)
 
 
 # 12:40pm UTC -> 7:40/8:40am ET, after mbta-performance rebuilds the last 30 days of LAMP alerts files at 11:00 UTC
@@ -346,10 +347,10 @@ def populate_agg_delivered_trip_metrics(params, context):
 @app.schedule(Cron(0, 9, "?", "*", "MON-FRI", "*"))
 def store_landing_data(event):
     """Uploads trip metrics and ridership data for the landing page to S3."""
-    from chalicelib import constants, landing
+    from chalicelib import landing
 
     print(
-        f"Uploading ridership and trip metric data for landing page from {constants.NINETY_DAYS_AGO_STRING} to {constants.ONE_WEEK_AGO_STRING}"
+        "Uploading ridership and trip metric data for landing page from {} to {}".format(*landing.landing_date_range())
     )
     trip_metrics_data = landing.get_trip_metrics_data()
     ridership_data = landing.get_ridership_data()

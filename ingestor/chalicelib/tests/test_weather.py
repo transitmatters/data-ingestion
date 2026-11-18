@@ -1,5 +1,8 @@
+from datetime import datetime
+
+from ..date_utils import EASTERN_TIME
 from ..weather.constants import WEATHER_CODE_TO_CONDITION, key
-from ..weather.ingest import _parse_hourly
+from ..weather.ingest import _drop_future_hours, _parse_hourly
 
 
 HOURLY_FIXTURE = {
@@ -80,3 +83,23 @@ def test_merge_preserves_other_hours_and_overwrites_same_hour():
 
 def test_key_format():
     assert key("2026-04-22") == "Weather/hourly/2026-04-22.json.gz"
+
+
+def test_drop_future_hours_keeps_current_and_past():
+    by_date = {
+        "2026-04-22": {"2026-04-22T13:00": {}, "2026-04-22T14:00": {}, "2026-04-22T15:00": {}},
+        "2026-04-21": {"2026-04-21T23:00": {}},
+    }
+    now = datetime(2026, 4, 22, 14, 37, tzinfo=EASTERN_TIME)
+    kept = _drop_future_hours(by_date, now)
+    assert set(kept["2026-04-22"]) == {"2026-04-22T13:00", "2026-04-22T14:00"}
+    assert set(kept["2026-04-21"]) == {"2026-04-21T23:00"}
+
+
+def test_drop_future_hours_drops_days_with_only_forecasts():
+    by_date = {
+        "2026-04-22": {"2026-04-22T23:00": {}},
+        "2026-04-23": {"2026-04-23T00:00": {}, "2026-04-23T01:00": {}},
+    }
+    now = datetime(2026, 4, 22, 23, 5, tzinfo=EASTERN_TIME)
+    assert set(_drop_future_hours(by_date, now)) == {"2026-04-22"}

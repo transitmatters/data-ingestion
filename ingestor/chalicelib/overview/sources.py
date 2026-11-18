@@ -104,14 +104,15 @@ def get_frequent_bus_routes() -> list[str] | None:
             timeout=10,
         )
         response.raise_for_status()
-    except requests.RequestException as e:
+        routes = [
+            route["id"]
+            for route in response.json()["data"]
+            if route["attributes"].get("description") == FREQUENT_BUS_DESCRIPTION
+        ]
+    # ValueError covers a non-JSON body; KeyError/TypeError a JSON body of an unexpected shape.
+    except (requests.RequestException, ValueError, KeyError, TypeError) as e:
         print(f"Couldn't load Frequent Bus routes from the MBTA: {e}")
         return None
-    routes = [
-        route["id"]
-        for route in response.json()["data"]
-        if route["attributes"].get("description") == FREQUENT_BUS_DESCRIPTION
-    ]
     return routes or None
 
 
@@ -208,7 +209,8 @@ def get_subway_delivered(now: datetime) -> tuple[dict[str, list[dict]] | None, d
         print(f"Couldn't load delivered and scheduled service hours: {e}")
         return None, None
     delivered = {
-        line: [row for route in routes for row in by_route[route]] for line, (routes, _) in SUBWAY_ROUTES.items()
+        line: [{**row, "route": route} for route in routes for row in by_route[route]]
+        for line, (routes, _) in SUBWAY_ROUTES.items()
     }
     scheduled = {line: by_id[scheduled_id] for line, (_, scheduled_id) in SUBWAY_ROUTES.items()}
     return delivered, scheduled

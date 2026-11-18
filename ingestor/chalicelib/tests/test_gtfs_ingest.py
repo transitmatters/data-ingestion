@@ -14,6 +14,8 @@ def _feed(key: str, start: date, end: date, exists_remotely: bool = True):
     feed.end_date = end
     feed.exists_locally.return_value = False
     feed.exists_remotely.return_value = exists_remotely
+    # Cleanup removes this directory; keep it pointing nowhere unless a test sets it.
+    feed.local_subdirectory = f"/nonexistent/gtfs-test/{key}"
     return feed
 
 
@@ -138,10 +140,18 @@ def test_cached_compact_feed_is_not_downloaded_again(mock_dynamo):
 
 @pytest.mark.parametrize("keep_local_feeds, deleted", [(False, True), (True, False)])
 @mock.patch("chalicelib.gtfs.ingest.ingest_feed_to_dynamo")
-def test_downloaded_feeds_are_deleted_unless_kept(mock_dynamo, keep_local_feeds, deleted):
+def test_feed_directory_is_removed_unless_kept(mock_dynamo, tmp_path, keep_local_feeds, deleted):
+    """Cleanup must remove the build's data.zip and unzipped feed/, not just the sqlite files.
+
+    The library's delete_locally() left those behind, filling a warm container's /tmp.
+    """
     today = date.today()
-    feed = _feed("downloaded", today - timedelta(days=10), today + timedelta(days=90))
-    feed.exists_locally.side_effect = lambda: feed.download_from_s3.called
+    feed = _feed("built", today - timedelta(days=10), today + timedelta(days=90), exists_remotely=False)
+    feed_dir = tmp_path / "built"
+    (feed_dir / "feed").mkdir(parents=True)
+    for name in ("data.zip", "gtfs.sqlite3", "gtfs_compact.sqlite3", "feed/stops.txt"):
+        (feed_dir / name).write_text("x")
+    feed.local_subdirectory = str(feed_dir)
 
     ingest_feeds(
         dynamodb=mock.MagicMock(),
@@ -151,7 +161,29 @@ def test_downloaded_feeds_are_deleted_unless_kept(mock_dynamo, keep_local_feeds,
         keep_local_feeds=keep_local_feeds,
     )
 
-    assert feed.delete_locally.called == deleted
+    assert feed_dir.exists() != deleted
+
+
+@mock.patch("chalicelib.gtfs.ingest.ingest_feed_to_dynamo")
+def test_partial_build_is_cleaned_up(mock_dynamo, tmp_path):
+    """A build that fails partway leaves files behind but no complete feed; clean those up too."""
+    today = date.today()
+    feed = _feed("partial", today - timedelta(days=10), today + timedelta(days=90), exists_remotely=False)
+    feed_dir = tmp_path / "partial"
+    feed_dir.mkdir()
+    (feed_dir / "data.zip").write_text("x")
+    feed.local_subdirectory = str(feed_dir)
+    feed.build_locally.side_effect = OSError("No space left on device")
+
+    with pytest.raises(RuntimeError, match="partial"):
+        ingest_feeds(
+            dynamodb=mock.MagicMock(),
+            feeds=[feed],
+            start_date=today - timedelta(days=3),
+            end_date=today,
+        )
+
+    assert not feed_dir.exists()
 
 
 @mock.patch("chalicelib.gtfs.ingest.ingest_feeds")
