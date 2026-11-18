@@ -1,7 +1,7 @@
-from datetime import date
+from datetime import date, timedelta
 
 from .. import constants
-from ..trip_metrics.ingest import generate_requests, is_plausible
+from ..trip_metrics.ingest import generate_requests, get_date_ranges, is_plausible
 
 POST_GLX = date(2026, 9, 1)
 PRE_GLX = date(2023, 1, 9)
@@ -72,3 +72,48 @@ def test_is_plausible():
     exclusive = {"dir_0_exclusive_mean": 2900.0}
     assert is_plausible(exclusive, {"dir_0_inclusive_mean": 3100.0}, "0")
     assert not is_plausible(exclusive, {"dir_0_inclusive_mean": 160.0}, "0")
+
+
+def _assert_contiguous_cover(ranges, start, end):
+    assert ranges[0][0] == start
+    assert ranges[-1][1] == end
+    for s, e in ranges:
+        assert s <= e, f"backwards range {s} -> {e}"
+    for (_, prev_end), (next_start, _) in zip(ranges, ranges[1:]):
+        assert next_start == prev_end + timedelta(days=1)
+
+
+def test_get_date_ranges_one_day():
+    d = date(2026, 9, 1)
+    assert get_date_ranges(d, d, 50) == [(d, d)]
+    assert len(generate_requests(d, d, routes=[("line-mattapan", None)])) == 4
+
+
+def test_get_date_ranges_chunk_size():
+    ranges = get_date_ranges(date(2026, 1, 1), date(2026, 1, 25), 10)
+    assert ranges == [
+        (date(2026, 1, 1), date(2026, 1, 10)),
+        (date(2026, 1, 11), date(2026, 1, 20)),
+        (date(2026, 1, 21), date(2026, 1, 25)),
+    ]
+
+
+def test_get_date_ranges_splits_at_glx():
+    glx = constants.GLX_EXTENSION_DATE
+    start, end = glx - timedelta(days=5), glx + timedelta(days=5)
+    ranges = get_date_ranges(start, end, 50, [glx])
+    assert ranges == [(start, glx - timedelta(days=1)), (glx, end)]
+
+
+def test_get_date_ranges_chunk_starting_on_glx_is_not_backwards():
+    """Repro from #270: 90-day chunks from 2022-12-19 start a chunk exactly on 2023-03-19."""
+    glx = constants.GLX_EXTENSION_DATE
+    start, end = date(2022, 12, 19), date(2023, 9, 1)
+    ranges = get_date_ranges(start, end, 90, [glx])
+    _assert_contiguous_cover(ranges, start, end)
+    assert any(s == glx for s, _ in ranges)
+    assert not any(s < glx <= e for s, e in ranges)
+
+
+def test_get_date_ranges_empty_when_backwards():
+    assert get_date_ranges(date(2026, 1, 2), date(2026, 1, 1), 10) == []

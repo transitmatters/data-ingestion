@@ -354,27 +354,32 @@ def commuter_rail_ridership_key(line: str):
     return f"line-{line[3:]}"
 
 
-def get_monthly_table_update_start():
-    """Returns the first day of yesterday's month as a datetime.
+# update_delivered_trip_metrics_yesterday re-pulls yesterday and two days ago, so
+# the weekly/monthly rebuild has to reach back to the period holding today - 2.
+# Otherwise Tuesday's correction to Sunday (and the 2nd's to the last of last
+# month) is written to the daily table but never rolled up.
+AGG_TABLE_UPDATE_LOOKBACK_DAYS = 2
 
-    Returns:
-        A datetime representing the 1st of the month containing yesterday.
+
+def get_monthly_table_update_start(today: date | None = None) -> datetime:
+    """Returns the first day of the month containing today - 2 days, at midnight.
+
+    Args:
+        today: Override for the current date (for testing).
     """
-    yesterday = datetime.today() - timedelta(days=1)
-    first_of_month = datetime(yesterday.year, yesterday.month, 1)
-    return first_of_month
+    oldest = (today or date.today()) - timedelta(days=AGG_TABLE_UPDATE_LOOKBACK_DAYS)
+    return datetime(oldest.year, oldest.month, 1)
 
 
-def get_weekly_table_update_start():
-    """Returns the most recent Monday relative to yesterday.
+def get_weekly_table_update_start(today: date | None = None) -> datetime:
+    """Returns the Monday of the week containing today - 2 days, at midnight.
 
-    Returns:
-        A datetime representing the most recent Monday.
+    Args:
+        today: Override for the current date (for testing).
     """
-    yesterday = datetime.now() - timedelta(days=1)
-    days_since_monday = yesterday.weekday() % 7
-    most_recent_monday = yesterday - timedelta(days=days_since_monday)
-    return most_recent_monday
+    oldest = (today or date.today()) - timedelta(days=AGG_TABLE_UPDATE_LOOKBACK_DAYS)
+    monday = oldest - timedelta(days=oldest.weekday())
+    return datetime(monday.year, monday.month, monday.day)
 
 
 # Configuration for aggregate speed table functions
@@ -382,12 +387,13 @@ TABLE_MAP = {
     "weekly": {
         "table_name": "DeliveredTripMetricsWeekly",
         "start_date": datetime.strptime("2016-01-11T08:00:00", DATE_FORMAT),  # Start on first Monday with data.
-        "update_start": get_weekly_table_update_start(),
+        # A function, not a value: evaluated per run so warm Lambda containers don't reuse a stale date.
+        "get_update_start": get_weekly_table_update_start,
     },
     "monthly": {
         "table_name": "DeliveredTripMetricsMonthly",
         "start_date": datetime.strptime("2016-01-01T08:00:00", DATE_FORMAT),  # Start on 1st of first month with data.
-        "update_start": get_monthly_table_update_start(),
+        "get_update_start": get_monthly_table_update_start,
     },
 }
 
