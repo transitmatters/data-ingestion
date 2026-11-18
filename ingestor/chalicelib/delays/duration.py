@@ -74,7 +74,11 @@ def live_intervals(alerts: dict, routes: set[str], day: date, is_delay) -> list[
         created = _parse(attrs.get("created_at"))
         closed = _parse(attrs.get("closed_timestamp"))
         for period in attrs.get("active_period", []):
-            start = max(filter(None, [_parse(period["start"]), created]))
+            # A period with no start can't be placed; skip it rather than abort the whole day.
+            period_start = _parse(period.get("start"))
+            if period_start is None:
+                continue
+            start = max(filter(None, [period_start, created]))
             ends = [t for t in (_parse(period.get("end")), closed) if t]
             if not ends:
                 continue

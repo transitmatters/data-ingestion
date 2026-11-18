@@ -277,15 +277,16 @@ def update_weekly_alert_delays(event):
 
 
 # for daily delay uploads
-# 12:30pm UTC, after mbta-performance rebuilds yesterday's LAMP alerts file at 11:00 UTC
+# 12:30pm UTC, after mbta-performance rebuilds yesterday's LAMP alerts file at 11:00 UTC.
+# Redoes the day before too, in case yesterday's file wasn't ready, the run failed, or an
+# alert still open last run has since been closed. Today is left out: it's only partial.
 @app.schedule(Cron(30, 12, "*", "*", "?", "*"))
 def update_daily_alert_delays(event):
-    """Processes yesterday's subway, commuter rail, and bus alerts and updates the daily delay table."""
+    """Processes the last two days of subway, commuter rail, and bus alerts into the daily delay table."""
     from chalicelib import delays
 
-    today = datetime.now()
-    yesterday = (today - timedelta(days=1)).date()
-    delays.update_table(yesterday, today.date())
+    yesterday = (datetime.now() - timedelta(days=1)).date()
+    delays.update_table(yesterday - timedelta(days=1), yesterday)
 
 
 # 12:40pm UTC -> 7:40/8:40am ET, after mbta-performance rebuilds the last 30 days of LAMP alerts files at 11:00 UTC
