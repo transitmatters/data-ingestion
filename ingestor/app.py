@@ -123,8 +123,16 @@ def update_agg_trip_metrics(event):
     """Updates weekly and monthly aggregate trip metric tables."""
     from chalicelib import agg_speed_tables
 
-    agg_speed_tables.update_tables("weekly")
-    agg_speed_tables.update_tables("monthly")
+    # A failed weekly update shouldn't skip the monthly one
+    errors = []
+    for period in ("weekly", "monthly"):
+        try:
+            agg_speed_tables.update_tables(period)
+        except Exception as e:
+            print(f"Updating the {period} table failed: {e!r}")
+            errors.append(e)
+    if errors:
+        raise errors[0]
 
 
 # 12 UTC -> 7/8am ET
