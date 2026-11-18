@@ -1,10 +1,11 @@
 from datetime import date, datetime
+from unittest import mock
 
 import numpy as np
 import pandas as pd
 import pytest
 
-from .. import constants
+from .. import agg_speed_tables, constants
 from ..agg_speed_tables import fleet_cols, group_data_by_date_and_branch, group_monthly_data, group_weekly_data
 
 
@@ -100,3 +101,67 @@ def test_update_start_is_computed_per_call():
     """TABLE_MAP must not freeze the start date at import, or warm containers reuse a stale one."""
     for range in ("weekly", "monthly"):
         assert callable(constants.TABLE_MAP[range]["get_update_start"])
+
+
+def test_empty_week_is_dropped_not_written_with_line_zero():
+    """A week with no daily rows must not be zero-filled into line: 0, the string hash key (#268)."""
+    rows = [
+        _row("line-green-b", "2026-09-07", 1.0),
+        _row("line-green-c", "2026-09-07", 1.0),
+        # No rows for the week of 2026-09-14
+        _row("line-green-b", "2026-09-21", 2.0),
+        _row("line-green-c", "2026-09-21", 2.0),
+    ]
+    df = group_data_by_date_and_branch(pd.DataFrame(rows))
+    weeks = group_weekly_data(df, "2026-09-07")
+    assert [w["date"] for w in weeks] == ["2026-09-07", "2026-09-21"]
+    assert all(w["line"] == "line-green" for w in weeks)
+
+
+def test_empty_month_is_dropped():
+    rows = [
+        _row("line-green-b", "2026-08-03", 1.0),
+        _row("line-green-c", "2026-08-03", 1.0),
+        _row("line-green-b", "2026-10-05", 2.0),
+        _row("line-green-c", "2026-10-05", 2.0),
+    ]
+    df = group_data_by_date_and_branch(pd.DataFrame(rows))
+    months = group_monthly_data(df, "2026-08-01")
+    assert [m["date"] for m in months] == ["2026-08-01", "2026-10-01"]
+
+
+@pytest.mark.parametrize(
+    "start, range, expected",
+    [
+        ("2018-12-01", "weekly", "2018-11-26"),  # backfill_fleet's documented start, a Saturday
+        ("2018-11-26", "weekly", "2018-11-26"),
+        ("2018-12-15", "monthly", "2018-12-01"),
+        ("2018-12-01", "monthly", "2018-12-01"),
+    ],
+)
+def test_period_start(start, range, expected):
+    assert agg_speed_tables.period_start(start, range) == expected
+
+
+def test_populate_table_starts_at_the_period_holding_start_date(monkeypatch):
+    seen = {}
+    monkeypatch.setattr(agg_speed_tables, "actual_trips_by_line", lambda params: seen.update(params) or [])
+    monkeypatch.setattr(agg_speed_tables.dynamo, "dynamo_batch_write", lambda items, table: None)
+    agg_speed_tables.populate_table("line-green", "weekly", "2018-12-01")
+    assert seen["start_date"] == "2018-11-26"
+
+
+def test_query_daily_trips_on_route_follows_pagination(monkeypatch):
+    table = mock.MagicMock()
+    table.query.side_effect = [
+        {"Items": [{"route": "line-red-a", "date": "2026-01-01"}], "LastEvaluatedKey": {"k": 1}},
+        {"Items": [{"route": "line-red-a", "date": "2026-01-02"}]},
+    ]
+    monkeypatch.setattr(agg_speed_tables.dynamodb, "Table", lambda name: table)
+
+    items = agg_speed_tables.query_daily_trips_on_route(
+        "DeliveredTripMetrics", "line-red-a", "2026-01-01", "2026-01-02"
+    )
+
+    assert [i["date"] for i in items] == ["2026-01-01", "2026-01-02"]
+    assert table.query.call_args_list[1].kwargs["ExclusiveStartKey"] == {"k": 1}
