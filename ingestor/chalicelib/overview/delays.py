@@ -9,10 +9,9 @@ uses. Rows with several lines pool them: total alert minutes over total service 
 from datetime import date, datetime
 
 from ..delays.bus import BUS_AGGREGATE, BUS_ROUTE_GROUPS
-from .bus_fleet import week_start
 from .cells import judged_cell, na_cell
 from .frequency import service_span_hours
-from .series import js_round, take_window
+from .series import js_round, take_window, week_start
 
 # Weeks pooled for the score.
 RECENT_WEEKS = 4
@@ -119,7 +118,7 @@ def delays_cell(
             notes=[*(notes or []), "No recent delay alert data."],
         )
     per_day = recent["alert"] / recent["days"] / len(lines)
-    return judged_cell(
+    cell = judged_cell(
         "delays",
         recent["alert"] / recent["service"],
         unit="pct",
@@ -130,6 +129,8 @@ def delays_cell(
         notes=notes,
         href=href,
     )
+    # Per route when several pool together, like the text above.
+    return {**cell, "minutesPerDay": per_day}
 
 
 def subway_delays_cell(

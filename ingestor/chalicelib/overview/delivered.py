@@ -9,8 +9,7 @@ DeliveredTripMetricsBus rows).
 
 from datetime import datetime
 
-from .bus_fleet import week_start
-from .series import js_round
+from .series import js_round, week_start
 
 # Weeks pooled, like the other cells' scores.
 RECENT_WEEKS = 4

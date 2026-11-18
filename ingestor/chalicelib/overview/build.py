@@ -9,11 +9,9 @@ import argparse
 import json
 import math
 from datetime import datetime, timezone
-from zoneinfo import ZoneInfo
 
 from .. import constants, landing, s3
 from . import sources
-from .bus_fleet import bus_fleet_cell
 from .cells import (
     baseline_for,
     frequency_cell,
@@ -27,16 +25,11 @@ from .cells import (
     worst_of,
 )
 from .config import (
-    CR_ELECTRIFIED_SHARE,
-    CR_ELECTRIFIED_THRESHOLDS,
-    FLEET_TYPES,
     FREQUENCY_GOALS,
     HERO,
-    IN_SERVICE_SHARE,
     METRIC_ORDER,
     METRICS,
     ROWS,
-    SINGLE_TYPE_FLEETS,
     SLOW_ZONES,
     SUBWAY_FREQUENCY_LINE_IDS,
     WINDOW_WEEKS,
@@ -46,12 +39,11 @@ from .delays import bus_delays_cell, subway_delays_cell
 from .delivered import bus_delivered_share, subway_delivered_share, with_delivered
 from .frequency import combine_coverage, goal_coverage, midday_headway
 from .reliability import cr_reliability_cell, reliability_cell
-from .series import Window, from_record, is_finite, js_round, mean, median, take_window, trend_of
+from .series import Window, from_record, js_round, mean, median, take_window, trend_of
 from .status import headline_for
 
 SCHEMA_VERSION = 1
 OVERVIEW_KEY = "static/landing/overview.json"
-EASTERN = ZoneInfo("America/New_York")
 
 SLOW_ZONE_KEYS = {
     "line-red": "Red",
@@ -81,30 +73,12 @@ def slow_zone_window(delay_totals: dict, keys: list[str]) -> Window:
     return Window(points=weeks, values=[value for _, value in weeks], as_of=days[-1][0] if days else None)
 
 
-def _built_from(fleet_type: dict) -> int | None:
-    digits = "".join(c for c in (fleet_type.get("years") or "")[:4] if c.isdigit())
-    return int(digits) if digits else None
-
-
-def oldest_in_service(line: str, trips: list[dict] | None) -> dict | None:
-    """The oldest car type still carrying riders: at least IN_SERVICE_SHARE percent of cars over
-    the last 4 weeks with fleet data. Lines with one car type have no mix, so that type is the
-    oldest."""
-    single = SINGLE_TYPE_FLEETS.get(line)
-    if single:
-        return {"type": single, "share": None, "built_from": _built_from(single)}
-    types = FLEET_TYPES.get(line)
-    if not types:
-        return None
-    with_mix = [row for row in trips or [] if any(row.get(f"fleet_mix_{t['key']}") is not None for t in types)]
-    recent = with_mix[-4:]
-    if not recent:
-        return None
-    for fleet_type in types:  # oldest to newest
-        share = mean([row.get(f"fleet_mix_{fleet_type['key']}") or 0 for row in recent])
-        if share >= IN_SERVICE_SHARE:
-            return {"type": fleet_type, "share": share, "built_from": _built_from(fleet_type)}
-    return None
+def slow_zone_history(delay_totals: dict, keys: list[str]) -> list[list]:
+    """Monthly means of daily slow-zone delay in minutes, summed over `keys`, oldest first."""
+    months: dict[str, list[float]] = {}
+    for day in delay_totals.get("data", []):
+        months.setdefault(day["date"][:7], []).append(sum(day.get(key) or 0 for key in keys) / 60)
+    return [[month, round(mean(values), 1)] for month, values in sorted(months.items())]
 
 
 def subway_cells(row: RowConfig, src: sources.Sources, frequency_lines: list[dict]) -> dict[str, dict]:
@@ -185,38 +159,6 @@ def subway_cells(row: RowConfig, src: sources.Sources, frequency_lines: list[dic
             (part_of("Slow zones", slow_zones, "a day"), slow_zones),
         ],
     )
-
-    age_window = take_window(trip_metrics_series(trips, lambda d: d.get("avg_car_age")), drop_low_weeks=False)
-    recent_age = mean(age_window.values[-4:])
-    new_trips = mean([row["pct_new_trips"] for row in (trips or [])[-4:] if is_finite(row.get("pct_new_trips"))])
-    oldest = oldest_in_service(line, trips)
-    oldest_age = (
-        now.astimezone(EASTERN).year - oldest["built_from"] if oldest and oldest["built_from"] is not None else None
-    )
-    context = [
-        f"Average car age: {js_round(recent_age)} yr" if is_finite(recent_age) else None,
-        f"{js_round(new_trips)}% of trips on new trains" if is_finite(new_trips) and new_trips > 0 else None,
-    ]
-    context = [part for part in context if part]
-    secondary = None
-    if oldest:
-        secondary = f"Oldest in service: {oldest['type']['label']} ({oldest['type']['years']})"
-        if oldest["share"] is not None:
-            secondary += f", {js_round(oldest['share'])}% of cars"
-    fleet = judged_cell(
-        "fleet",
-        oldest_age,
-        unit="years",
-        window=age_window,
-        now=now,
-        secondary=secondary,
-        baseline_label=" · ".join(context) if context else None,
-        # Blue and Mattapan have no Fleet tab (one car type each), so their fleet links go nowhere new.
-        href=row["href"] if line in ("line-blue", "line-mattapan") else line_href(row, "fleet"),
-    )
-    fleet.pop("spark", None)
-    # A car type's age only moves once a year, so a 2-week trend says nothing here.
-    cells["fleet"] = {**fleet, "trend": None}
     return cells
 
 
@@ -245,19 +187,6 @@ def mode_service_cell(row: RowConfig, src: sources.Sources, mode: str, baseline_
 def frequent_bus_lines(src: sources.Sources) -> list[dict]:
     srd = src.service_ridership
     return [srd["lineData"][line_id] for line_id in src.frequent_bus_line_ids if line_id in srd["lineData"]]
-
-
-def frequent_bus_fleet_cell(row: RowConfig, src: sources.Sources, lines: list[dict]) -> dict:
-    if src.bus_fleet is None:
-        return bus_fleet_cell(None, now=src.now, href=row["href"])
-    rows_by_line = [[r for route in line.get("routeIds", []) for r in src.bus_fleet.get(route, [])] for line in lines]
-    with_data = sum(1 for rows in rows_by_line if any(r.get("fleet_trips") for r in rows))
-    return bus_fleet_cell(
-        [r for rows in rows_by_line for r in rows],
-        now=src.now,
-        href=row["href"],
-        notes=[f"{with_data} of {len(lines)} routes have fleet data."] if with_data < len(lines) else None,
-    )
 
 
 def bus_routes_rows(src: sources.Sources, lines: list[dict]) -> list[dict] | None:
@@ -295,32 +224,12 @@ def build_cells(row: RowConfig, src: sources.Sources) -> dict[str, dict]:
         return subway_cells(row, src, [srd["lineData"][gtfs_id]] if gtfs_id in srd["lineData"] else [])
 
     if row_id == "commuter-rail":
-        lines = lines_of_kind(srd, ["regional-rail"])
         return {
             "service": mode_service_cell(row, src, "regional-rail", "mode-regional-rail"),
-            "frequency": frequency_cell(
-                [(line, None) for line in lines],
-                FREQUENCY_GOALS["commuterRail"],
-                now=now,
-                as_of=as_of,
-                href=row["href"],
-            ),
+            "frequency": na_cell("frequency", "pct", "The MBTA hasn't set a frequency goal for Commuter Rail."),
             "reliability": cr_reliability_cell(src.cr_reliability, now=now, href="/commuter-rail/reliability"),
             "delays": na_cell("delays", "pct", "Late trains count against on-time % in Reliability instead."),
             "speed": na_cell("speed", "mph", "Not measured for Commuter Rail yet."),
-            "fleet": judged_cell(
-                "fleet",
-                CR_ELECTRIFIED_SHARE,
-                unit="pct",
-                window=Window(values=[1], as_of=as_of),
-                now=now,
-                min_points=1,
-                as_of_offset_days=0,
-                direction="higher",
-                thresholds=CR_ELECTRIFIED_THRESHOLDS,
-                score_unit="pct",
-                secondary="Share of service run electric",
-            ),
         }
 
     if row_id == "frequent-bus":
@@ -358,7 +267,6 @@ def build_cells(row: RowConfig, src: sources.Sources) -> dict[str, dict]:
             "reliability": bus_reliability_cell(row, src, lines),
             "delays": bus_delays_cell(lines, src.delays, now=now),
             "speed": na_cell("speed", "mph", COMING_SOON),
-            "fleet": frequent_bus_fleet_cell(row, src, lines),
         }
 
     if row_id == "all-bus":
@@ -379,11 +287,6 @@ def build_cells(row: RowConfig, src: sources.Sources) -> dict[str, dict]:
             "reliability": bus_reliability_cell(row, src, lines),
             "delays": bus_delays_cell(lines, src.delays, now=now),
             "speed": na_cell("speed", "mph", COMING_SOON),
-            "fleet": bus_fleet_cell(
-                None if src.bus_fleet is None else src.bus_fleet.get(sources.SYSTEM_WIDE_ROUTE, []),
-                now=now,
-                href=row["href"],
-            ),
         }
 
     if row_id == "ferry":
@@ -391,7 +294,6 @@ def build_cells(row: RowConfig, src: sources.Sources) -> dict[str, dict]:
             "service": mode_service_cell(row, src, "boat", "mode-boat"),
             "frequency": na_cell("frequency", "pct", "No frequency goal for ferries yet."),
             "speed": na_cell("speed", "mph", "Not measured for ferries."),
-            "fleet": na_cell("fleet", "years", "Not measured for ferries."),
         }
 
     return {}
@@ -441,6 +343,7 @@ def build_hero(src: sources.Sources) -> list[dict]:
         "slowZones": {
             "value": mean(slow_zones.values[-1:]) / 60 if slow_zones.values else None,
             "trend": trend_of(slow_zones),
+            "history": slow_zone_history(src.delay_totals, list(SLOW_ZONE_KEYS.values())),
         },
         "frequentBus": {"value": frequent},
         "crHeadway": {"value": midday_headway(cr_lines, "weekday")},
