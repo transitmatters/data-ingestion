@@ -547,3 +547,22 @@ def test_get_frequent_bus_routes_reads_route_descriptions(monkeypatch):
 
     monkeypatch.setattr(sources.requests, "get", fail)
     assert sources.get_frequent_bus_routes() is None
+
+
+def test_mattapan_frequency_builds_from_a_line_without_ridership():
+    """Mattapan has no ridership, so it used to be missing from lineData and read "Not in the schedule data yet" (#281)."""
+    srd = service_ridership()
+    regime = {"weekday": {"cancelled": False, "tripsPerHour": hours(**{f"h{h}": 6 for h in range(5, 24)})}}
+    srd["lineData"]["line-Mattapan"] = {
+        "id": "line-Mattapan",
+        "lineKind": "red",
+        "ridershipHistory": None,
+        "serviceRegimes": {"current": regime},
+    }
+    src = sources.Sources(
+        trip_metrics={}, baselines=None, delay_totals={}, service_ridership=srd, bus_fleet=None, now=NOW
+    )
+    row = next(row for row in build.ROWS if row["id"] == "mattapan")
+    frequency = build.build_cells(row, src)["frequency"]
+    assert "Not in the schedule data yet." not in (frequency.get("notes") or [])
+    assert frequency["score"] is not None

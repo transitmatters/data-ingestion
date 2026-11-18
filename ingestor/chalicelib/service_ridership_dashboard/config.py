@@ -14,6 +14,10 @@ TIME_ZONE = timezone("US/Eastern")
 # Ignore these
 IGNORE_LINE_IDS = ["line-CapeFlyer", "line-Foxboro"]
 
+# Lines with no ridership source, kept for their service data with ridershipHistory null (which
+# the dashboard shows as "ridership not available"). They're left out of the summary totals.
+LINE_IDS_WITHOUT_RIDERSHIP = ["line-Mattapan"]
+
 # Date ranges with service gaps that we paper over because of major holidays or catastrophes
 # rather than doing more complicated special-casing with GTFS services
 FILL_DATE_RANGES = [
