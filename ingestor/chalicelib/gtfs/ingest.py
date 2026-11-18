@@ -1,3 +1,4 @@
+import shutil
 import boto3
 from tempfile import TemporaryDirectory
 from datetime import date, timedelta
@@ -237,14 +238,13 @@ def ingest_feeds(
         finally:
             # A full feed is ~450MB and /tmp is capped; without this a
             # multi-feed invocation accumulates until it runs out of space.
+            # Remove the whole feed directory: the library's delete_locally()
+            # only removes the sqlite files, leaving the build's data.zip and
+            # unzipped feed/ behind, and skips partial builds entirely.
             # Callers keeping feeds (the backfill script) cache them between
             # runs, since s3://tm-gtfs reads are billed once feeds reach Glacier.
             if not keep_local_feeds:
-                try:
-                    if feed.exists_locally():
-                        feed.delete_locally()
-                except Exception as cleanup_ex:  # pragma: no cover - best effort
-                    print(f"[{feed.key}] Failed to clean up local files: {cleanup_ex}")
+                shutil.rmtree(feed.local_subdirectory, ignore_errors=True)
 
     if failures:
         keys = ", ".join(key for key, _ in failures)

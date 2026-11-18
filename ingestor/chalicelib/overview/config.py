@@ -11,14 +11,13 @@ METRICS = {
     "service": {"direction": "higher", "thresholds": (1, 0.92, 0.8), "score_unit": "pct", "stale_days": 21},
     "frequency": {"direction": "higher", "thresholds": (1, 0.9, 0.75), "score_unit": "pct", "stale_days": 21},
     "speed": {"direction": "higher", "thresholds": (1, 0.95, 0.88), "score_unit": "pct", "stale_days": 21},
-    "fleet": {"direction": "lower", "thresholds": (15, 25, 35), "score_unit": "years", "stale_days": 21},
     # Share of headways within 75-125% of the scheduled headway. Judged on complete weeks only.
     "reliability": {"direction": "higher", "thresholds": (0.8, 0.65, 0.5), "score_unit": "pct", "stale_days": 10},
     # Share of the service day with a delay alert up.
     "delays": {"direction": "lower", "thresholds": (0.02, 0.04, 0.08), "score_unit": "pct", "stale_days": 10},
 }
 
-METRIC_ORDER = ["service", "frequency", "reliability", "delays", "speed", "fleet"]
+METRIC_ORDER = ["service", "frequency", "reliability", "delays", "speed"]
 
 # Commuter Rail's Reliability cell is the MBTA's on-time share, not headways. "Good" is the MBTA's
 # 92% target. The MBTA publishes in batches months apart, so data stays usable for longer.
@@ -27,56 +26,14 @@ CR_RELIABILITY = {"direction": "higher", "thresholds": (0.95, 0.92, 0.85), "scor
 # Slow zones have no column of their own: subway Speed takes the worse of speed and slow zones.
 SLOW_ZONES = {"direction": "lower", "thresholds": (30, 60, 180), "score_unit": "seconds", "stale_days": 7}
 
-# Headway goals in minutes.
-FREQUENCY_GOALS = {"subway": 10, "frequentBus": 15, "bus": 15, "commuterRail": 30}
+# Headway goals in minutes. Commuter Rail has none: the MBTA hasn't committed to one for the whole
+# system (Full T Ahead only names the inner core and busier corridors).
+FREQUENCY_GOALS = {"subway": 10, "frequentBus": 15, "bus": 15}
 
 # Complete weeks in the status window.
 WINDOW_WEEKS = 12
 # Weeks with data needed before a cell gets a status.
 MIN_WEEKS = 8
-
-# Share of cars (percent, 4-week mean) a type needs to count as still in regular service.
-IN_SERVICE_SHARE = 1
-
-
-class FleetType(TypedDict):
-    key: str
-    label: str
-    years: str
-
-
-# Oldest to newest. Keep in step with the dashboard's modules/fleet/constants/fleetTypes.ts.
-FLEET_TYPES: dict[str, list[FleetType]] = {
-    "line-red": [
-        {"key": "red1", "label": "Pullman-Standard", "years": "1969–70"},
-        {"key": "red2", "label": "UTDC", "years": "1987–89"},
-        {"key": "red3", "label": "Bombardier", "years": "1993–94"},
-        {"key": "red4", "label": "CRRC", "years": "2019–"},
-    ],
-    "line-orange": [
-        {"key": "orange12", "label": "Hawker Siddeley", "years": "1979–81"},
-        {"key": "orange14", "label": "CRRC", "years": "2018–25"},
-    ],
-    "line-green": [
-        {"key": "type7", "label": "Type 7", "years": "1986–97"},
-        {"key": "type8", "label": "Type 8", "years": "1999–2008"},
-        {"key": "type9", "label": "Type 9", "years": "2018–20"},
-        {"key": "type10", "label": "Type 10", "years": "2026–"},
-    ],
-}
-
-# Lines with a single car type publish no fleet mix, so their build years live here.
-SINGLE_TYPE_FLEETS: dict[str, FleetType] = {
-    "line-blue": {"key": "blue", "label": "Siemens", "years": "2007–09"},
-    "line-mattapan": {"key": "pcc", "label": "PCC", "years": "1945–46"},
-}
-
-# Commuter Rail fleet is judged on electrification, which runs the other way.
-CR_ELECTRIFIED_SHARE = 0
-CR_ELECTRIFIED_THRESHOLDS = (1, 0.5, 0.1)
-
-# Bus fleet is judged on the share of trips run by battery-electric or hybrid buses.
-BUS_FLEET_THRESHOLDS = (0.9, 0.75, 0.5)
 
 # The Frequent Bus row is every service & ridership line with a route the MBTA describes as
 # "Frequent Bus" (GTFS route_desc). This is that list as of Nov 2026, used when the MBTA's API can't
@@ -137,7 +94,7 @@ ROWS: list[RowConfig] = [
         "group": "core",
         "line": "line-commuter-rail",
         "href": "/commuter-rail/ridership",
-        "minMeasured": 3,
+        "minMeasured": 2,
     },
     # Frequency is the promise; service backs it up.
     {

@@ -5,7 +5,7 @@ import requests
 from botocore.exceptions import ClientError
 
 from chalicelib import s3
-from chalicelib.date_utils import get_current_service_date
+from chalicelib.date_utils import EASTERN_TIME, get_current_service_date
 from chalicelib.weather.constants import (
     ARCHIVE_URL,
     BUCKET,
@@ -81,15 +81,31 @@ def _write_day(day, entries):
     s3.upload(BUCKET, key(day), payload, compress=True)
 
 
+def _drop_future_hours(by_date, now):
+    """Drop hours after `now`'s hour; Open-Meteo returns them as forecasts, not observations.
+
+    Timestamps are naive Eastern ISO hours ("YYYY-MM-DDTHH:00"), so they compare as strings.
+    Days left with no hours are removed.
+    """
+    current_hour = now.strftime("%Y-%m-%dT%H:00")
+    kept = {}
+    for day, entries in by_date.items():
+        past = {ts: record for ts, record in entries.items() if ts <= current_hour}
+        if past:
+            kept[day] = past
+    return kept
+
+
 def ingest_hourly_weather():
     """Fetch the latest hourly weather and merge into today's S3 file.
 
     Requests past_days=1 + forecast_days=1 so gaps from a skipped run get backfilled on the next invocation.
+    Hours later than now are forecasts and are dropped, so a stalled job never leaves them as the day's record.
     """
     params = {**_base_params(), "past_days": 1, "forecast_days": 1}
     response = requests.get(FORECAST_URL, params=params, timeout=20)
     response.raise_for_status()
-    by_date = _parse_hourly(response.json().get("hourly", {}))
+    by_date = _drop_future_hours(_parse_hourly(response.json().get("hourly", {})), datetime.now(EASTERN_TIME))
 
     service_date = get_current_service_date()
     for day, entries in by_date.items():

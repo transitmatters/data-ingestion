@@ -2,7 +2,7 @@ import json
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, timedelta
 from decimal import Decimal
-from typing import List, Tuple
+from typing import List, Sequence, Tuple
 from urllib.parse import urlencode
 
 import pandas as pd
@@ -54,25 +54,27 @@ def request_agg_travel_time(request: AggTravelTimesRequest) -> AggTravelTimesRes
     return json.loads(response.content.decode("utf-8"))
 
 
-def get_date_ranges(start_date: date, end_date: date, max_range_size: int, breakpoint_dates: List[date] = []):
-    naive_ranges = []
-    current_date = start_date
-    while current_date < end_date:
-        next_date = current_date + timedelta(days=max_range_size)
-        if next_date > end_date:
-            next_date = end_date
-        naive_ranges.append((current_date, next_date))
-        current_date = next_date
+def get_date_ranges(
+    start_date: date,
+    end_date: date,
+    max_range_size: int,
+    breakpoint_dates: Sequence[date] = (),
+) -> List[Tuple[date, date]]:
+    """Split [start_date, end_date] into contiguous, inclusive (start, end) ranges.
+
+    Each range spans at most max_range_size days. A breakpoint date always starts
+    a new range, so no range straddles it (e.g. the GLX stop changes).
+    """
     ranges = []
-    for start, end in naive_ranges:
-        breakpoint_dates_in_range = [d for d in breakpoint_dates if start <= d < end]
-        boundaries = [start, *breakpoint_dates_in_range, end]
-        for i in range(len(boundaries) - 1):
-            ranges.append((boundaries[i], boundaries[i + 1]))
-    return [
-        (start, end - timedelta(days=1)) if idx != len(ranges) - 1 else (start, end)
-        for idx, (start, end) in enumerate(ranges)
-    ]
+    current = start_date
+    while current <= end_date:
+        chunk_end = min(current + timedelta(days=max_range_size - 1), end_date)
+        splits = [d for d in breakpoint_dates if current < d <= chunk_end]
+        if splits:
+            chunk_end = min(splits) - timedelta(days=1)
+        ranges.append((current, chunk_end))
+        current = chunk_end + timedelta(days=1)
+    return ranges
 
 
 def generate_requests(

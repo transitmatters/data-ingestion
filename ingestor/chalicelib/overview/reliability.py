@@ -11,10 +11,9 @@ Commuter Rail runs to a timetable, so its row uses the MBTA's published on-time 
 from datetime import datetime
 
 from ..headway_reliability.buckets import HEADWAY_FIELDS
-from .bus_fleet import week_start
 from .cells import judged_cell, month_day, na_cell
 from .config import CR_RELIABILITY
-from .series import js_round, take_window
+from .series import js_round, take_window, week_start
 
 # Weeks pooled for the score.
 RECENT_WEEKS = 4
@@ -62,7 +61,7 @@ def reliability_cell(
         return f"{js_round((_share(recent, fields) or 0) * 100)}%"
 
     has_recent = bool(sum(recent.values()))
-    return judged_cell(
+    cell = judged_cell(
         "reliability",
         _share(recent, WITHIN_75_125) if has_recent else None,
         unit="pct",
@@ -74,6 +73,8 @@ def reliability_cell(
         notes=(notes or []) if has_recent else [*(notes or []), "No recent headway data."],
         href=href,
     )
+    # The home page's system statements quote the bunched share as a number.
+    return {**cell, "bunched": _share(recent, BUNCHED)} if has_recent else cell
 
 
 CR_FIELDS = ["otpNumerator", "otpDenominator", "cancelled"]
