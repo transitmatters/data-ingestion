@@ -447,6 +447,38 @@ def test_subway_delays_without_a_schedule_assume_a_20_hour_day():
     assert cell["score"] == pytest.approx(0.05)
     assert cell["secondary"] == "About 60 min a day under a delay alert"
     assert cell["notes"] == ["Service day taken as 20 hours."]
+    assert "topCause" not in cell
+
+
+def test_delays_name_the_top_cause_over_the_recent_weeks():
+    causes = {"delay_alert_minutes_disabled_vehicle": 20, "delay_alert_minutes_signal_problem": 10}
+    rows = {
+        "Red": [
+            # Weeks before the 4 the score pools, and the week in progress, don't count.
+            *daily("2026-08-03", 35, delay_alert_minutes=500, delay_alert_minutes_signal_problem=500),
+            # Alerts with no reason are left out of the ranking but count toward the share.
+            *daily("2026-09-07", 28, delay_alert_minutes=60, delay_alert_minutes_other=30, **causes),
+            *daily("2026-10-05", 6, delay_alert_minutes=500, delay_alert_minutes_signal_problem=500),
+        ]
+    }
+    cell = subway_delays_cell("line-red", None, rows, now=NOW, href="/red/delays")
+    assert cell["topCause"] == {"cause": "disabled_vehicle", "share": pytest.approx(1 / 3, abs=0.001)}
+
+
+def test_bus_delays_pool_causes_across_lines():
+    regime = {"weekday": {"cancelled": False, "tripsPerHour": hours(**{f"h{h}": 4 for h in range(6, 22)})}}
+    lines = [
+        {"id": "line-15171", "routeIds": ["15", "171"], "serviceRegimes": {"current": regime}},
+        {"id": "line-39", "routeIds": ["39"], "serviceRegimes": {"current": regime}},
+    ]
+    rows = {
+        "Bus": daily("2026-09-07", 28, delay_alert_minutes=0),
+        "15": daily("2026-09-07", 28, delay_alert_minutes=10, delay_alert_minutes_car_traffic=10),
+        "171": daily("2026-09-07", 28, delay_alert_minutes=10, delay_alert_minutes_car_traffic=10),
+        "39": daily("2026-09-07", 28, delay_alert_minutes=30, delay_alert_minutes_disabled_vehicle=30),
+    }
+    cell = bus_delays_cell(lines, rows, now=NOW)
+    assert cell["topCause"] == {"cause": "disabled_vehicle", "share": 0.6}
 
 
 def test_delays_skip_days_without_alert_data():
