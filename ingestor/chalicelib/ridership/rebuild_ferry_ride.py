@@ -2,7 +2,8 @@
 
 Those rows used to be 7-day totals, with holiday weeks missing. The daily ingest now stores average
 weekdays, but it only overwrites the weeks its current files cover, and never deletes. This rebuilds
-every ferry and RIDE line from the source files and deletes the rows the new method doesn't produce:
+every ferry and RIDE line from the source files (ferry lines from the latest GTFS feed, plus any other
+line-Boat-* ID in the table) and deletes the rows the new method doesn't produce:
 - RIDE before 2025-09, from the deprecated RIDE dataset the daily ingest no longer reads.
 - Weeks with no weekday service, e.g. the weekend-only F8 ferry.
 
@@ -14,7 +15,7 @@ Usage, from ingestor/:
 import sys
 
 import boto3
-from boto3.dynamodb.conditions import Key
+from boto3.dynamodb.conditions import Attr, Key
 
 from .arcgis import _download_arcgis_csv, ferry_update_cache, ride_update_cache
 from .config import FERRY_RIDERSHIP_ARCGIS_URL, THE_RIDE_RIDERSHIP_ARCGIS_URL
@@ -44,6 +45,35 @@ def plan_changes(new_by_line: dict[str, list[dict]], existing_by_line: dict[str,
         )
         for line in sorted(set(new_by_line) | set(existing_by_line))
     }
+
+
+def add_lines_missing_from_gtfs(
+    new_by_line: dict[str, list[dict]], table_line_ids: set[str], by_route: dict[str, list[dict]]
+) -> list[str]:
+    """Rebuild ferry lines that are in the table but not the latest GTFS feed (e.g. seasonal or retired) from
+    their route's data. Returns the ones with no route data, which are left alone."""
+    skipped = []
+    for line in sorted(table_line_ids - set(new_by_line)):
+        route = line.removeprefix("line-")
+        if route in by_route:
+            new_by_line[line] = sorted(by_route[route], key=lambda entry: entry["date"])
+        else:
+            skipped.append(line)
+    return skipped
+
+
+def _ferry_line_ids_in_table(table) -> set[str]:
+    """One scan of the table's keys for every line-Boat-* ID."""
+    line_ids, kwargs = (
+        set(),
+        {"ProjectionExpression": "lineId", "FilterExpression": Attr("lineId").begins_with("line-Boat")},
+    )
+    while True:
+        response = table.scan(**kwargs)
+        line_ids.update(item["lineId"] for item in response["Items"])
+        if "LastEvaluatedKey" not in response:
+            return line_ids
+        kwargs["ExclusiveStartKey"] = response["LastEvaluatedKey"]
 
 
 def _query_line(table, line_id: str) -> list[dict]:
@@ -79,6 +109,7 @@ def rebuild(write: bool = False):
     new_by_line = get_ridership_by_line_id(by_route, ferry_routes)
 
     table = boto3.resource("dynamodb").Table(DYNAMO_TABLE_NAME)
+    skipped = add_lines_missing_from_gtfs(new_by_line, _ferry_line_ids_in_table(table), by_route)
     existing_by_line = {line: _query_line(table, line) for line in new_by_line}
     deletes = plan_changes(new_by_line, existing_by_line)
 
@@ -87,6 +118,8 @@ def rebuild(write: bool = False):
             f"{line}: {len(existing_by_line[line])} rows -> {len(new_by_line[line])}, "
             f"deleting {len(deletes[line])} {deletes[line][:5]}{'...' if len(deletes[line]) > 5 else ''}"
         )
+    for line in skipped:
+        print(f"{line}: not in GTFS and no route data in the ferry file; left as is")
     if not write:
         print("Dry run; pass --write to apply")
         return

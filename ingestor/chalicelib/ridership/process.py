@@ -1,5 +1,6 @@
 import logging
 from collections import defaultdict
+from datetime import date
 from tempfile import NamedTemporaryFile
 from typing import Dict, Union
 
@@ -149,11 +150,7 @@ def format_ridership_csv(
     df["year"] = df[date_key].dt.isocalendar().year
     df[date_key] = df[date_key].dt.date.astype(str)
 
-    # select date of the week
-    dates = df[df["weekday"] == 0]
-    dates = dates[[date_key, "week", "year"]].drop_duplicates()
-
-    # limit data to just peak, merge back dates
+    # limit data to just peak
     final = df[df["peak"] == "peak"]
 
     final = final.groupby(["year", "week", route_key])[count_key].mean().round().reset_index()
@@ -169,7 +166,10 @@ def format_ridership_csv(
         final[route_key] = final[route_key].map(route_ids_map.__getitem__)
         final = final.groupby(["year", "week", route_key])[count_key].sum().reset_index()
 
-    final = final.merge(dates, on=["week", "year"], how="left")
+    # Label each week with its ISO Monday, even when no row falls on it (e.g. a holiday Monday no route ran)
+    final[date_key] = [
+        date.fromisocalendar(int(y), int(w), 1).isoformat() for y, w in zip(final["year"], final["week"])
+    ]
 
     # get list of routes
     routelist = list(set(final[route_key].tolist()))

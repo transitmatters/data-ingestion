@@ -11,7 +11,7 @@ from ..ridership.process import (
     pre_process_csv,
     unofficial_ferry_labels_map,
 )
-from ..ridership.rebuild_ferry_ride import merge_ride_history, plan_changes
+from ..ridership.rebuild_ferry_ride import add_lines_missing_from_gtfs, merge_ride_history, plan_changes
 
 
 def _write_daily_csv(rows):
@@ -153,3 +153,18 @@ def test_station_ridership_merges_renamed_stations_and_skips_unknown_ones():
     assert format_subway_station_data(path) == {
         "line-Red": [{"date": "2026-09-14", "stations": {"place-chmnl": 100}}],
     }
+
+
+def test_week_without_a_monday_row_keeps_its_iso_monday_label():
+    """Labels used to come from a row dated Monday, so a week with none (e.g. no holiday service) was dropped."""
+    rows = [(d, 100) for d in ("2026-09-08", "2026-09-09", "2026-09-10", "2026-09-11")]  # Tue-Fri after Labor Day
+    assert _ride_weeks(rows) == {"2026-09-07": 100}
+
+
+def test_ferry_lines_missing_from_gtfs_are_rebuilt_from_route_data_or_skipped():
+    new_by_line = {"line-Boat-F1": [{"date": "2026-09-07", "count": 1}]}
+    by_route = {"Boat-F1": [], "Boat-F9": [{"date": "2025-09-08", "count": 5}, {"date": "2025-09-01", "count": 4}]}
+    skipped = add_lines_missing_from_gtfs(new_by_line, {"line-Boat-F1", "line-Boat-F9", "line-Boat-Old"}, by_route)
+    assert skipped == ["line-Boat-Old"]
+    assert new_by_line["line-Boat-F9"] == [{"date": "2025-09-01", "count": 4}, {"date": "2025-09-08", "count": 5}]
+    assert "line-Boat-Old" not in new_by_line
