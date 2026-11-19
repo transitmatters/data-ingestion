@@ -54,7 +54,7 @@ class LineData(TypedDict):
     routeIds: list[str]
     startDate: str
     lineKind: LineKind
-    ridershipHistory: WeeklyMedianTimeSeries
+    ridershipHistory: Optional[WeeklyMedianTimeSeries]  # None for lines with no ridership source
     serviceHistory: WeeklyMedianTimeSeries
     serviceRegimes: ServiceRegimes
 

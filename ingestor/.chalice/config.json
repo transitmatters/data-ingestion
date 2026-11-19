@@ -56,10 +56,6 @@
           "lambda_timeout": 60,
           "lambda_memory_size": 256
         },
-        "populate_delivered_trip_metrics": {
-          "iam_policy_file": "policy-delivered-trip-metrics-daily.json",
-          "lambda_timeout": 600
-        },
         "update_delivered_trip_metrics": {
           "iam_policy_file": "policy-delivered-trip-metrics-daily.json",
           "lambda_memory_size": 192,
@@ -73,9 +69,6 @@
         "update_agg_trip_metrics": {
           "iam_policy_file": "policy-agg-trip-metric-tables.json",
           "lambda_memory_size": 256
-        },
-        "populate_agg_delivered_trip_metrics": {
-          "iam_policy_file": "policy-agg-trip-metric-tables.json"
         },
         "update_trip_metrics": {
           "iam_policy_file": "policy-trip-metrics.json",

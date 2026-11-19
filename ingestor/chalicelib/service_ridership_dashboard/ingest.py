@@ -6,6 +6,7 @@ from typing import Optional, cast
 import click
 
 from .config import (
+    LINE_IDS_WITHOUT_RIDERSHIP,
     PRE_COVID_DATE,
     START_DATE,
     TIME_ZONE,
@@ -42,6 +43,10 @@ def get_line_kind(route_ids: list[str], line_id: str) -> LineKind:
         return "silver"
     if line_id in ("line-Red", "line-Orange", "line-Blue", "line-Green"):
         return cast(LineKind, line_id.split("-")[1].lower())
+    if line_id == "line-Mattapan":
+        # The Mattapan trolley is run as part of the Red Line; without this it would fall
+        # through to "bus" and be counted in bus queries and totals.
+        return "red"
     return "bus"
 
 
@@ -108,7 +113,9 @@ def create_line_data(
             entry_value_getter=lambda entry: entry.ridership,
             start_date=start_date,
             max_end_date=end_date,
-        ),
+        )
+        if ridership
+        else None,
         "serviceHistory": get_weekly_median_time_series(
             entries=service_levels,
             entry_value_getter=lambda entry: round(sum(entry.service_levels)),
@@ -161,18 +168,17 @@ def create_service_ridership_dash_json(
             ridership=ridership_entries[line_id],
         )
         for line_id in service_level_entries.keys()
-        if service_level_entries[line_id]
-        and ridership_entries[line_id]
-        and len(service_level_entries[line_id])
-        and len(ridership_entries[line_id])
+        if service_level_entries[line_id] and (ridership_entries[line_id] or line_id in LINE_IDS_WITHOUT_RIDERSHIP)
     }
+    # Totals cover the same lines as before lines without ridership were kept.
+    lines_with_ridership = [line for line in line_data_by_line_id.values() if line["ridershipHistory"] is not None]
     summary_data = get_summary_data(
-        line_data=list(line_data_by_line_id.values()),
+        line_data=lines_with_ridership,
         start_date=start_date,
         end_date=end_date,
     )
     mode_data = get_summary_data_by_mode(
-        line_data=list(line_data_by_line_id.values()),
+        line_data=lines_with_ridership,
         start_date=start_date,
         end_date=end_date,
     )

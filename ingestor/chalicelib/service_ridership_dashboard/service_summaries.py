@@ -10,6 +10,7 @@ def _is_matching_service_levels_entry(
     valid_date_range_inclusive: tuple[date, date],
     matching_days_of_week: list[int],
     require_typical_service: bool,
+    require_trips: bool = False,
 ) -> bool:
     """Check whether a service levels entry matches the given date range, day-of-week, and service criteria.
 
@@ -18,6 +19,9 @@ def _is_matching_service_levels_entry(
         valid_date_range_inclusive: A tuple of (start_date, end_date) defining the valid range.
         matching_days_of_week: A list of weekday integers (0=Monday, 6=Sunday) to match.
         require_typical_service: If True, exclude entries with service exceptions.
+        require_trips: If True, exclude entries with no scheduled trips. Every date gets an
+            entry, even with no ScheduledServiceDaily rows, so an entry existing doesn't mean
+            there was service.
 
     Returns:
         True if the entry matches all criteria.
@@ -27,6 +31,7 @@ def _is_matching_service_levels_entry(
         valid_start_date <= entry.date <= valid_end_date
         and entry.date.weekday() in matching_days_of_week
         and (not require_typical_service or not entry.has_service_exceptions)
+        and (not require_trips or sum(entry.service_levels) > 0)
     )
 
 
@@ -36,6 +41,7 @@ def _get_matching_service_levels_entry(
     max_lookback_days: int,
     matching_days_of_week: list[int],
     require_typical_service: bool,
+    require_trips: bool = False,
 ) -> Optional[ServiceLevelsEntry]:
     """Find the most recent service levels entry matching the given criteria within a lookback window.
 
@@ -45,6 +51,7 @@ def _get_matching_service_levels_entry(
         max_lookback_days: The maximum number of days to look back.
         matching_days_of_week: A list of weekday integers (0=Monday, 6=Sunday) to match.
         require_typical_service: If True, only match entries without service exceptions.
+        require_trips: If True, only match entries with scheduled trips.
 
     Returns:
         The most recent matching ServiceLevelsEntry, or None if no match is found.
@@ -56,6 +63,7 @@ def _get_matching_service_levels_entry(
             (end_lookback_date, start_lookback_date),
             matching_days_of_week,
             require_typical_service,
+            require_trips,
         ):
             return service_levels[lookback_date]
     return None
@@ -74,7 +82,7 @@ def _is_service_cancelled_on_date(
         matching_days_of_week: A list of weekday integers (0=Monday, 6=Sunday) to check.
 
     Returns:
-        True if no matching service entry is found within the past 7 days.
+        True if no matching day within the past 7 days has any scheduled trips.
     """
     return (
         _get_matching_service_levels_entry(
@@ -82,6 +90,7 @@ def _is_service_cancelled_on_date(
             start_lookback_date=start_lookback_date,
             matching_days_of_week=matching_days_of_week,
             require_typical_service=False,
+            require_trips=True,
             max_lookback_days=7,
         )
         is None
@@ -113,11 +122,21 @@ def _get_service_levels_summary_dict(
             "tripsPerHour": None,
             "totalTrips": 0,
         }
+    # The most recent typical day with trips; failing that, any day with trips (the cancelled
+    # check above found one within the week).
     service_levels_entry = _get_matching_service_levels_entry(
         start_lookback_date=start_lookback_date,
         service_levels=service_levels,
         matching_days_of_week=matching_days_of_week,
         require_typical_service=True,
+        require_trips=True,
+        max_lookback_days=(1000 * 365),
+    ) or _get_matching_service_levels_entry(
+        start_lookback_date=start_lookback_date,
+        service_levels=service_levels,
+        matching_days_of_week=matching_days_of_week,
+        require_typical_service=False,
+        require_trips=True,
         max_lookback_days=(1000 * 365),
     )
     assert service_levels_entry is not None
