@@ -165,3 +165,22 @@ def test_query_daily_trips_on_route_follows_pagination(monkeypatch):
 
     assert [i["date"] for i in items] == ["2026-01-01", "2026-01-02"]
     assert table.query.call_args_list[1].kwargs["ExclusiveStartKey"] == {"k": 1}
+
+
+def test_update_tables_finishes_other_lines_then_raises(monkeypatch):
+    """A failed line used to be printed and swallowed, so the Lambda reported success (#265)."""
+    written = []
+
+    def fake_trips(params):
+        if params["line"] == "line-orange":
+            raise RuntimeError("throttled")
+        return [{"line": params["line"], "date": params["start_date"]}]
+
+    monkeypatch.setattr(agg_speed_tables, "actual_trips_by_line", fake_trips)
+    monkeypatch.setattr(agg_speed_tables.dynamo, "dynamo_batch_write", lambda items, table: written.extend(items))
+
+    with pytest.raises(RuntimeError, match="line-orange") as excinfo:
+        agg_speed_tables.update_tables("weekly")
+
+    assert str(excinfo.value.__cause__) == "throttled"
+    assert {row["line"] for row in written} == set(constants.LINES) - {"line-orange"}

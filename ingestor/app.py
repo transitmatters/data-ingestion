@@ -60,16 +60,6 @@ def store_current_alerts(event):
 
 
 #################
-# STORE NEW TRAIN TRIPS
-# Every day at 10:05am UTC: store new train runs from the previous day
-# TODO: Convert to use data dashboard api, performance API died
-# @app.schedule(Cron(5, 10, "*", "*", "?", "*"))
-# def store_new_train_runs(event):
-#     yesterday = date.today() - timedelta(days=1)
-#     new_trains.update_all(yesterday)
-
-
-#################
 # STORE BLUEBIKES FEED
 @app.schedule(Cron("0/5", "*", "*", "*", "?", "*"))
 def bb_store_station_status(event):
@@ -79,7 +69,7 @@ def bb_store_station_status(event):
     bluebikes.store_station_status()
 
 
-# 10am UTC -> 6am EST
+# 10am UTC -> 5/6am ET
 @app.schedule(Cron(0, 10, "*", "*", "?", "*"))
 def bb_store_station_info(event):
     """Stores daily Bluebikes station info to S3."""
@@ -104,7 +94,7 @@ def bb_calc_daily_stats(event):
     bluebikes.calc_daily_stats(yesterday)
 
 
-# Runs every 30 minutes from either 4 AM -> 1:55AM or 5 AM -> 2:55 AM depending on DST
+# Every 30 minutes from 9:00 to 6:30 UTC the next day -> 4/5am to 1:30/2:30am ET
 @app.schedule(Cron("0/30", "0-6,9-23", "*", "*", "?", "*"))
 def update_delivered_trip_metrics(event):
     """Updates daily trip metrics for today (or yesterday before 9 AM UTC)."""
@@ -116,15 +106,23 @@ def update_delivered_trip_metrics(event):
     daily_speeds.update_daily_table(today.date())
 
 
-# 7am UTC -> 2/3am ET
-# Update weekly and monthly tables. At 2/3 AM EST and also after we have updated yesterday's data.
+# 7:10 and 12:10 UTC -> 2:10/3:10am and 7:10/8:10am ET
+# Update weekly and monthly tables, again after the 12:00 UTC update of yesterday's data.
 @app.schedule(Cron(10, "7,12", "*", "*", "?", "*"))
 def update_agg_trip_metrics(event):
     """Updates weekly and monthly aggregate trip metric tables."""
     from chalicelib import agg_speed_tables
 
-    agg_speed_tables.update_tables("weekly")
-    agg_speed_tables.update_tables("monthly")
+    # A failed weekly update shouldn't skip the monthly one
+    errors = []
+    for period in ("weekly", "monthly"):
+        try:
+            agg_speed_tables.update_tables(period)
+        except Exception as e:
+            print(f"Updating the {period} table failed: {e!r}")
+            errors.append(e)
+    if errors:
+        raise errors[0]
 
 
 # 12 UTC -> 7/8am ET
@@ -219,7 +217,7 @@ def update_time_predictions(event):
     predictions.update_predictions()
 
 
-# 8:00am UTC -> 3:00/4:00am ET and 11:00pm UTC -> 7:00/6:00pm ET every day
+# 8:00am UTC -> 3:00/4:00am ET and 11:00pm UTC -> 6:00/7:00pm ET every day
 @app.schedule(Cron(0, "8,23", "*", "*", "?", "*"))
 def update_gtfs(event):
     """Ingests GTFS feeds from the last 3 days into DynamoDB and S3."""
@@ -254,7 +252,7 @@ def ingest_gtfs_feed_on_demand(event):
         )
 
 
-# 4:40am UTC -> 2:40/3:40am ET every day
+# 7:40am UTC -> 2:40/3:40am ET every day
 @app.schedule(Cron(40, 7, "*", "*", "?", "*"))
 def update_trip_metrics(event):
     """Ingests trip metrics for the last 7 days."""
@@ -264,7 +262,7 @@ def update_trip_metrics(event):
 
 
 # 12:45pm UTC -> 7:45/8:45am ET every Monday and Tuesday
-# There's shouldn't be any benefit to running it more frequently.
+# There shouldn't be any benefit to running it more frequently.
 # Runs 15 minutes after the daily update
 @app.schedule(Cron(45, 12, "?", "*", "MON,TUE", "*"))
 def update_weekly_alert_delays(event):
@@ -342,7 +340,6 @@ def populate_agg_delivered_trip_metrics(params, context):
 
 
 # 9:00 UTC -> 4:00/5:00am ET every weekday.
-# This is the last job that runs for the day.
 # No need to run on weekends
 @app.schedule(Cron(0, 9, "?", "*", "MON-FRI", "*"))
 def store_landing_data(event):
@@ -368,7 +365,7 @@ def store_historical_baselines(event):
     build_and_publish_baselines()
 
 
-# 9:00 UTC -> 4:30/5:30am ET every day (after GTFS and ridership have been ingested)
+# 9:30 UTC -> 4:30/5:30am ET every day (after GTFS and ridership have been ingested)
 @app.schedule(Cron(30, 9, "*", "*", "?", "*"))
 def update_service_ridership_dashboard(event):
     """Generates and uploads the service ridership dashboard JSON."""

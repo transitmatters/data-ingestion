@@ -1,6 +1,8 @@
 from datetime import date, timedelta
 from decimal import Decimal
 
+import pytest
+
 from .. import constants
 from ..delays import process
 
@@ -76,3 +78,26 @@ def test_weekly_includes_green_aggregate(monkeypatch):
     weekly = _run_weekly(monkeypatch, rows, monday, monday + timedelta(days=6), ["Green-B", "Red"])
     assert weekly[("Green", monday.isoformat())]["total_delay_time"] == sum(r["total_delay_time"] for r in rows[:7])
     assert ("CommuterRail", monday.isoformat()) not in weekly
+
+
+def test_weekly_writes_other_lines_then_raises_when_a_query_fails(monkeypatch):
+    """A failed daily query used to be printed and the run reported success (#265)."""
+
+    monday = date(2026, 9, 7)
+    rows = _daily_rows("Red", monday, 7) + _daily_rows("Orange", monday, 7)
+    written = []
+
+    def fake_query(params, table):
+        values = params["KeyConditionExpression"].get_expression()["values"]
+        line = values[0].get_expression()["values"][1]
+        if line == "Orange":
+            raise RuntimeError("throttled")
+        return [r for r in rows if r["line"] == line]
+
+    monkeypatch.setattr(process.dynamo, "query_dynamo", fake_query)
+    monkeypatch.setattr(process.dynamo, "dynamo_batch_write", lambda items, table: written.extend(items))
+
+    with pytest.raises(RuntimeError, match="Orange"):
+        process.update_weekly_from_daily(monday, monday + timedelta(days=6), ["Red", "Orange"], include_bus=False)
+
+    assert {r["line"] for r in written} == {"Red"}

@@ -327,8 +327,11 @@ def get_daily_data_for_week(start_date: date, end_date: date, lines=constants.AL
     Query daily data from DynamoDB for weekly aggregation.
     Done as opposed to performing another API call for weekly aggregation.
     Also guarantees complete info for every day.
+
+    Returns the records and the lines whose query failed.
     """
     daily_records = []
+    failed_lines = []
 
     for line in lines:
         # Convert dates to ISO format strings to match DynamoDB storage format
@@ -344,9 +347,10 @@ def get_daily_data_for_week(start_date: date, end_date: date, lines=constants.AL
             line_data = dynamo.query_dynamo(params, DAILY_TABLE_NAME)
             daily_records.extend(line_data)
         except Exception as e:
-            print(f"Error querying {line}: {e}")
+            print(f"Error querying {line}: {e!r}")
+            failed_lines.append(line)
 
-    return daily_records
+    return daily_records, failed_lines
 
 
 def update_weekly_from_daily(start_date: date, end_date: date, lines=constants.ALL_LINES, include_bus=True):
@@ -365,7 +369,7 @@ def update_weekly_from_daily(start_date: date, end_date: date, lines=constants.A
     # count an alert posted on several lines once, so the weekly total adds those up.
     aggregates = {_aggregate_for(line) for line in lines} - {None}
     lines = [*lines, *sorted(aggregates)]
-    daily_records = get_daily_data_for_week(start_date, end_date, lines)
+    daily_records, failed_lines = get_daily_data_for_week(start_date, end_date, lines)
 
     # Aggregate weekly for each line
     weekly_data = []
@@ -381,6 +385,10 @@ def update_weekly_from_daily(start_date: date, end_date: date, lines=constants.A
             weekly_data.extend(group_weekly_data(line_df, start_date.isoformat()))
 
     dynamo.dynamo_batch_write(json.loads(json.dumps(weekly_data, default=int), parse_float=Decimal), WEEKLY_TABLE_NAME)
+
+    # The other lines are written; fail the run so the skipped ones don't go unnoticed
+    if failed_lines:
+        raise RuntimeError(f"Weekly delays not updated for {', '.join(failed_lines)}: their daily query failed")
 
 
 def update_table(start_date: date, end_date: date, lines=constants.ALL_LINES, include_bus=True):

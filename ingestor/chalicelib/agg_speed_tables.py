@@ -79,6 +79,7 @@ def update_tables(range: Range):
     table = constants.TABLE_MAP[range]
     yesterday = datetime.now() - timedelta(days=1)
     start = table["get_update_start"]()
+    failures = []
     for line in constants.LINES:
         start_string = datetime.strftime(start, constants.DATE_FORMAT_BACKEND)
         end_string = datetime.strftime(yesterday, constants.DATE_FORMAT_BACKEND)
@@ -95,7 +96,12 @@ def update_tables(range: Range):
             dynamo.dynamo_batch_write(json.loads(json.dumps(trips), parse_float=Decimal), table["table_name"])
             print("Done")
         except Exception as e:
-            print(e)
+            # Keep going so one bad line doesn't leave the others stale, but fail the run so the error is seen
+            print(f"Updating {line} for {range} failed: {e!r}")
+            failures.append((line, e))
+    if failures:
+        lines = ", ".join(line for line, _ in failures)
+        raise RuntimeError(f"Updating the {range} table failed for {lines}") from failures[0][1]
 
 
 def query_daily_trips_on_route(table_name: str, route: str, start_date: str, end_date: str):
