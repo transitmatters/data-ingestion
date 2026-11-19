@@ -300,8 +300,8 @@ def ingest_gtfs_feeds_to_dynamo_and_s3(
             # the daily date-range run also builds the feed once it is listed.
             raise LookupError(f"GTFS feed {feed_key} is not listed in the MBTA archive yet")
         start_date = feed.start_date
-        # MBTA feeds overlap: a feed's end date usually runs months past the next feed's
-        # start. Stop the day before the next feed starts, so rebuilding an older feed (or
+        # The archive usually ends a feed the day before the next one starts, but a few feeds
+        # overlap (3 of 1,031 since 2009). Stop the day before the next feed starts, so rebuilding an older feed (or
         # a batch of them, which SQS runs in any order) can't overwrite the newer feed's
         # scheduled service. The date-range path gets the same result by going in order.
         next_start = next_feed_start(archive, feed)
