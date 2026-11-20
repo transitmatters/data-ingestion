@@ -17,7 +17,7 @@ from ..baselines.sources import SERVICE_RIDERSHIP_BUCKET, SERVICE_RIDERSHIP_KEY,
 from ..delays.process import DAILY_TABLE_NAME as ALERT_DELAYS_TABLE
 from ..headway_reliability.buckets import HEADWAY_FIELDS
 from .config import FALLBACK_FREQUENT_BUS_LINE_IDS, ROWS
-from .delays import SUBWAY_DELAY_LINES, bus_delay_lines
+from .delays import CAUSE_FIELDS, SUBWAY_DELAY_LINES, bus_delay_lines
 from .delivered import BUS_TRIP_FIELDS, EXTENDED_FIELDS, SCHEDULED_FIELDS, SUBWAY_ROUTES
 
 DASHBOARD_BUCKET = landing.BUCKETS[0]
@@ -33,7 +33,7 @@ CR_RELIABILITY_TABLE = "Reliability"
 CR_RELIABILITY_FIELDS = ["otpNumerator", "otpDenominator", "cancelled", "peak"]
 # Long enough to reach back past the gap between the MBTA's batches.
 CR_RELIABILITY_WEEKS = 30
-ALERT_DELAYS_FIELDS = ["delay_alert_minutes"]
+ALERT_DELAYS_FIELDS = ["delay_alert_minutes", *CAUSE_FIELDS.values()]
 ALERT_DELAYS_WEEKS = 13
 EXTENDED_TRIP_METRICS_TABLE = "DeliveredTripMetricsExtended"
 SCHEDULED_SERVICE_TABLE = "ScheduledServiceDaily"
