@@ -9,26 +9,32 @@ from typing import TypedDict
 # Thresholds are provisional until TM signs off on them.
 METRICS = {
     "service": {"direction": "higher", "thresholds": (1, 0.92, 0.8), "score_unit": "pct", "stale_days": 21},
-    "frequency": {"direction": "higher", "thresholds": (1, 0.9, 0.75), "score_unit": "pct", "stale_days": 21},
+    # Share of scheduled trips that didn't run.
+    "dropped": {"direction": "lower", "thresholds": (0.01, 0.02, 0.05), "score_unit": "pct", "stale_days": 21},
     "speed": {"direction": "higher", "thresholds": (1, 0.95, 0.88), "score_unit": "pct", "stale_days": 21},
     # Share of headways within 75-125% of the scheduled headway. Judged on complete weeks only.
     "reliability": {"direction": "higher", "thresholds": (0.8, 0.65, 0.5), "score_unit": "pct", "stale_days": 10},
     # Share of the service day with a delay alert up.
     "delays": {"direction": "lower", "thresholds": (0.02, 0.04, 0.08), "score_unit": "pct", "stale_days": 10},
+    # Change in riders from a year earlier. Shown, never judged: the T doesn't control it directly.
+    # Ferry and Commuter Rail counts arrive months late; the cell's note names the weeks compared.
+    "ridership": {"direction": "higher", "thresholds": None, "score_unit": "pct", "stale_days": 270},
 }
 
-METRIC_ORDER = ["service", "frequency", "reliability", "delays", "speed"]
+METRIC_ORDER = ["service", "dropped", "reliability", "delays", "speed", "ridership"]
+
+# Measures left out of a row's headline.
+UNJUDGED_METRICS = {"ridership"}
 
 # Commuter Rail's Reliability cell is the MBTA's on-time share, not headways. "Good" is the MBTA's
 # 92% target. The MBTA publishes in batches months apart, so data stays usable for longer.
 CR_RELIABILITY = {"direction": "higher", "thresholds": (0.95, 0.92, 0.85), "score_unit": "pct", "stale_days": 150}
 
+# Commuter Rail cancellations come from the same batches as its on-time counts.
+CR_DROPPED = {**METRICS["dropped"], "stale_days": CR_RELIABILITY["stale_days"]}
+
 # Slow zones have no column of their own: subway Speed takes the worse of speed and slow zones.
 SLOW_ZONES = {"direction": "lower", "thresholds": (30, 60, 180), "score_unit": "seconds", "stale_days": 7}
-
-# Headway goals in minutes. Commuter Rail has none: the MBTA hasn't committed to one for the whole
-# system (Full T Ahead only names the inner core and busier corridors).
-FREQUENCY_GOALS = {"subway": 10, "frequentBus": 15, "bus": 15}
 
 # Complete weeks in the status window.
 WINDOW_WEEKS = 12
@@ -62,9 +68,6 @@ FALLBACK_FREQUENT_BUS_LINE_IDS = [
     "line-116",
 ]
 
-# The four core lines; Mattapan sits under "Also running".
-SUBWAY_FREQUENCY_LINE_IDS = ["line-Red", "line-Orange", "line-Blue", "line-Green"]
-
 
 class RowConfig(TypedDict):
     id: str
@@ -96,7 +99,6 @@ ROWS: list[RowConfig] = [
         "href": "/commuter-rail/ridership",
         "minMeasured": 2,
     },
-    # Frequency is the promise; service backs it up.
     {
         "id": "frequent-bus",
         "label": "Frequent Bus",
@@ -121,7 +123,7 @@ ROWS: list[RowConfig] = [
         "href": "/mattapan",
         "minMeasured": 2,
     },
-    # Scheduled service is the only measure for ferries so far.
+    # Scheduled service and ridership are the only measures for ferries so far.
     {
         "id": "ferry",
         "label": "Ferry",
@@ -136,13 +138,6 @@ ROWS: list[RowConfig] = [
 # file stands on its own.
 HERO = [
     {
-        "id": "subwayFrequency",
-        "label": "Subway",
-        "unit": "pct",
-        "detail": f"of service hours at every {FREQUENCY_GOALS['subway']} min or better",
-        "direction": "higher",
-    },
-    {
         "id": "service",
         "label": "Scheduled service",
         "unit": "pct",
@@ -155,13 +150,6 @@ HERO = [
         "unit": "minutes",
         "detail": "added per day across the subway, last week",
         "direction": "lower",
-    },
-    {
-        "id": "frequentBus",
-        "label": "Frequent Bus",
-        "unit": "pct",
-        "detail": f"of service hours at every {FREQUENCY_GOALS['frequentBus']} min or better",
-        "direction": "higher",
     },
     {
         "id": "crHeadway",

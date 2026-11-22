@@ -16,6 +16,7 @@ from .. import keys, landing, s3
 from ..baselines.sources import SERVICE_RIDERSHIP_BUCKET, SERVICE_RIDERSHIP_KEY, _paginate
 from ..delays.process import DAILY_TABLE_NAME as ALERT_DELAYS_TABLE
 from ..headway_reliability.buckets import HEADWAY_FIELDS
+from ..ridership.dynamo import DYNAMO_TABLE_NAME as RIDERSHIP_TABLE
 from .config import FALLBACK_FREQUENT_BUS_LINE_IDS, ROWS
 from .delays import CAUSE_FIELDS, SUBWAY_DELAY_LINES, bus_delay_lines
 from .delivered import BUS_TRIP_FIELDS, EXTENDED_FIELDS, SCHEDULED_FIELDS, SUBWAY_ROUTES
@@ -39,6 +40,11 @@ EXTENDED_TRIP_METRICS_TABLE = "DeliveredTripMetricsExtended"
 SCHEDULED_SERVICE_TABLE = "ScheduledServiceDaily"
 # Enough to cover the delivered share's 4 complete weeks.
 DELIVERED_WEEKS = 5
+# Dropped trips compare against the same weeks a year earlier.
+YEAR = timedelta(weeks=52)
+# The service & ridership file ends ferry ridership where its ferry schedules end, so the Ferry row
+# reads the weekly counts the dashboard's ferry ridership page shows.
+FERRY_RIDERSHIP_LINE = "line-ferry"
 
 MBTA_ROUTES_URL = "https://api-v3.mbta.com/routes"
 FREQUENT_BUS_DESCRIPTION = "Frequent Bus"
@@ -58,6 +64,9 @@ LOCAL_FILES = {
     "subway_delivered": "subway_delivered.json",
     "subway_scheduled": "subway_scheduled.json",
     "frequent_bus_routes": "frequent_bus_routes.json",
+    "bus_trips_year_ago": "bus_trips_year_ago.json",
+    "cr_reliability_year_ago": "cr_reliability_year_ago.json",
+    "ferry_ridership": "ferry_ridership.json",
 }
 
 
@@ -80,6 +89,11 @@ class Sources:
     # per subway line; None when they couldn't be loaded.
     subway_delivered: dict[str, list[dict]] | None = None
     subway_scheduled: dict[str, list[dict]] | None = None
+    # The same rows a year earlier, for dropped trips; None when they couldn't be loaded.
+    bus_trips_year_ago: dict[str, list[dict]] | None = None
+    cr_reliability_year_ago: list[dict] | None = None
+    # Weekly Ridership rows for every ferry, all history; None when they couldn't be loaded.
+    ferry_ridership: list[dict] | None = None
     # Service & ridership line ids in the Frequent Bus row.
     frequent_bus_line_ids: list[str] = field(default_factory=lambda: list(FALLBACK_FREQUENT_BUS_LINE_IDS))
 
@@ -176,6 +190,30 @@ def get_headways(
         return None
 
 
+def get_bus_trips(routes: list[str], now: datetime) -> dict[str, list[dict]] | None:
+    try:
+        return _query_daily(BUS_TRIPS_TABLE, routes, BUS_TRIP_FIELDS, DELIVERED_WEEKS, now)
+    except Exception as e:  # the scoreboard still stands without a year-ago comparison
+        print(f"Couldn't load bus trip counts: {e}")
+        return None
+
+
+def get_ferry_ridership() -> list[dict] | None:
+    try:
+        table = boto3.resource("dynamodb").Table(RIDERSHIP_TABLE)
+        return _plain(
+            _paginate(
+                table.query,
+                KeyConditionExpression=Key("lineId").eq(FERRY_RIDERSHIP_LINE),
+                ProjectionExpression="#date, #count",
+                ExpressionAttributeNames={"#date": "date", "#count": "count"},
+            )
+        )
+    except Exception as e:  # the Ferry row falls back to the service & ridership file
+        print(f"Couldn't load ferry ridership: {e}")
+        return None
+
+
 def get_cr_reliability(routes: list[str], now: datetime) -> list[dict] | None:
     try:
         by_route = _query_daily(
@@ -224,6 +262,7 @@ def load(now: datetime) -> Sources:
     service_ridership = _download_json(SERVICE_RIDERSHIP_BUCKET, SERVICE_RIDERSHIP_KEY)
     frequent_line_ids = frequent_bus_line_ids(service_ridership, get_frequent_bus_routes())
     subway_delivered, subway_scheduled = get_subway_delivered(now)
+    cr_route_ids = cr_routes(service_ridership)
     return Sources(
         trip_metrics=_download_json(DASHBOARD_BUCKET, TRIP_METRICS_KEY),
         baselines=_download_json(DASHBOARD_BUCKET, BASELINES_KEY),
@@ -232,11 +271,14 @@ def load(now: datetime) -> Sources:
         now=now,
         subway_headways=get_headways(SUBWAY_HEADWAYS_TABLE, SUBWAY_LINES, now),
         bus_headways=get_headways(BUS_TRIPS_TABLE, bus_routes(service_ridership), now, BUS_TRIP_FIELDS),
-        cr_reliability=get_cr_reliability(cr_routes(service_ridership), now),
+        cr_reliability=get_cr_reliability(cr_route_ids, now),
         delays=get_delays(service_ridership, now),
         subway_delivered=subway_delivered,
         subway_scheduled=subway_scheduled,
         frequent_bus_line_ids=frequent_line_ids,
+        bus_trips_year_ago=get_bus_trips(bus_routes(service_ridership), now - YEAR),
+        cr_reliability_year_ago=get_cr_reliability(cr_route_ids, now - YEAR),
+        ferry_ridership=get_ferry_ridership(),
     )
 
 
@@ -259,4 +301,7 @@ def load_local(directory: str, now: datetime) -> Sources:
         subway_delivered=read("subway_delivered"),
         subway_scheduled=read("subway_scheduled"),
         frequent_bus_line_ids=frequent_bus_line_ids(service_ridership, read("frequent_bus_routes")),
+        bus_trips_year_ago=read("bus_trips_year_ago"),
+        cr_reliability_year_ago=read("cr_reliability_year_ago"),
+        ferry_ridership=read("ferry_ridership"),
     )

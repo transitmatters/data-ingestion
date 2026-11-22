@@ -14,7 +14,6 @@ from .. import constants, landing, s3
 from . import sources
 from .cells import (
     baseline_for,
-    frequency_cell,
     judged_cell,
     mph,
     na_cell,
@@ -25,20 +24,22 @@ from .cells import (
     worst_of,
 )
 from .config import (
-    FREQUENCY_GOALS,
+    CR_DROPPED,
     HERO,
     METRIC_ORDER,
     METRICS,
     ROWS,
     SLOW_ZONES,
-    SUBWAY_FREQUENCY_LINE_IDS,
+    UNJUDGED_METRICS,
     WINDOW_WEEKS,
     RowConfig,
 )
 from .delays import bus_delays_cell, subway_delays_cell
-from .delivered import SUBWAY_ROUTES, bus_delivered_share, subway_delivered_share, with_delivered
-from .frequency import combine_coverage, goal_coverage, midday_headway
+from .delivered import BUS_TRIP_FIELDS, SUBWAY_ROUTES, bus_delivered_share, subway_delivered_share, with_delivered
+from .dropped import dropped_cell, weekly_totals
+from .frequency import midday_headway
 from .reliability import cr_reliability_cell, reliability_cell
+from .ridership import ridership_cell
 from .series import Window, days_between, from_record, js_round, mean, median, take_window, trend_of
 from .status import headline_for
 
@@ -54,6 +55,7 @@ SLOW_ZONE_KEYS = {
 }
 
 COMING_SOON = "Coming to the home page soon."
+SUBWAY_DROPPED_SOON = "Coming soon: trains seen at a central stop against the trips scheduled there."
 
 NOT_MEASURED = {"reliability": "Runs to a timetable, so it isn't judged on headways."}
 
@@ -84,7 +86,7 @@ def slow_zone_history(delay_totals: dict, keys: list[str]) -> list[list]:
     return [[month, round(mean(values), 1)] for month, values in sorted(months.items())]
 
 
-def subway_cells(row: RowConfig, src: sources.Sources, frequency_lines: list[dict]) -> dict[str, dict]:
+def subway_cells(row: RowConfig, src: sources.Sources, srd_line: dict | None) -> dict[str, dict]:
     line = row["line"]
     now, baselines = src.now, src.baselines
     trips = src.trip_metrics.get(line)
@@ -110,17 +112,7 @@ def subway_cells(row: RowConfig, src: sources.Sources, frequency_lines: list[dic
         "service",
     )
 
-    if frequency_lines:
-        cells["frequency"] = frequency_cell(
-            [(frequency_line, None) for frequency_line in frequency_lines],
-            FREQUENCY_GOALS["subway"],
-            now=now,
-            as_of=src.service_ridership["summaryData"]["endDate"],
-            href=line_href(row, "service"),
-            notes=["Trips on the shared trunk, all branches together."] if line == "line-green" else None,
-        )
-    else:
-        cells["frequency"] = {**na_cell("frequency", "pct", "Not in the schedule data yet."), "status": "insufficient"}
+    cells["dropped"] = na_cell("dropped", "pct", SUBWAY_DROPPED_SOON)
 
     speed = ratio_cell(
         "speed",
@@ -143,7 +135,7 @@ def subway_cells(row: RowConfig, src: sources.Sources, frequency_lines: list[dic
 
     cells["delays"] = subway_delays_cell(
         line,
-        frequency_lines[0] if frequency_lines else None,
+        srd_line,
         src.delays,
         now=now,
         href=line_href(row, "delays"),
@@ -167,16 +159,18 @@ def subway_cells(row: RowConfig, src: sources.Sources, frequency_lines: list[dic
             (part_of("Slow zones", slow_zones, "a day"), slow_zones),
         ],
     )
+
+    if srd_line and srd_line.get("ridershipHistory"):
+        cells["ridership"] = ridership_cell(
+            from_record(srd_line["ridershipHistory"]), now=now, href=line_href(row, "ridership")
+        )
+    else:
+        cells["ridership"] = na_cell("ridership", "pct", "The MBTA doesn't publish ridership for this line.")
     return cells
 
 
 def lines_of_kind(srd: dict, kinds: list[str]) -> list[dict]:
     return [line for line in srd["lineData"].values() if line.get("lineKind") in kinds]
-
-
-def recent_riders(line: dict) -> float:
-    values = [value for _, value in from_record(line.get("ridershipHistory"))[-WINDOW_WEEKS:]]
-    return mean(values) if values else 0
 
 
 def mode_service_cell(row: RowConfig, src: sources.Sources, mode: str, baseline_id: str) -> dict:
@@ -203,6 +197,42 @@ def bus_routes_rows(src: sources.Sources, lines: list[dict]) -> list[dict] | Non
     return [r for line in lines for route in line.get("routeIds", []) for r in src.bus_headways.get(route, [])]
 
 
+def mode_ridership_cell(row: RowConfig, src: sources.Sources, mode: str) -> dict:
+    history = (src.service_ridership["modeData"].get(mode) or {}).get("totalRidershipHistory")
+    return ridership_cell(from_record(history), now=src.now, href=row["href"])
+
+
+def bus_dropped_cell(row: RowConfig, src: sources.Sources, lines: list[dict]) -> dict:
+    routes = [route for line in lines for route in line.get("routeIds", [])]
+
+    def weeks(by_route: dict[str, list[dict]] | None, now: datetime):
+        rows = [r for route in routes for r in (by_route or {}).get(route, [])]
+        return weekly_totals(rows, *BUS_TRIP_FIELDS, now)
+
+    if src.bus_headways is None:
+        return {**na_cell("dropped", "pct", "Couldn't load bus trip counts."), "status": "insufficient"}
+    return dropped_cell(
+        weeks(src.bus_headways, src.now),
+        weeks(src.bus_trips_year_ago, src.now - sources.YEAR),
+        now=src.now,
+        href="/bus/leaderboard?rank=dropped",
+        notes=["A scheduled trip with no bus location data counts as dropped."],
+    )
+
+
+def cr_dropped_cell(src: sources.Sources) -> dict:
+    if src.cr_reliability is None:
+        return {**na_cell("dropped", "pct", "Couldn't load cancellation data."), "status": "insufficient"}
+    return dropped_cell(
+        weekly_totals(src.cr_reliability, "otpDenominator", "cancelled", src.now),
+        weekly_totals(src.cr_reliability_year_ago, "otpDenominator", "cancelled", src.now - sources.YEAR),
+        now=src.now,
+        method=CR_DROPPED,
+        href="/commuter-rail/reliability",
+        notes=["Trains the MBTA reports as cancelled, from its published counts."],
+    )
+
+
 def bus_reliability_cell(row: RowConfig, src: sources.Sources, lines: list[dict]) -> dict:
     if src.bus_headways is None:
         return reliability_cell(None, now=src.now, href=row["href"])
@@ -224,20 +254,20 @@ def bus_reliability_cell(row: RowConfig, src: sources.Sources, lines: list[dict]
 
 def build_cells(row: RowConfig, src: sources.Sources) -> dict[str, dict]:
     now, baselines, srd = src.now, src.baselines, src.service_ridership
-    as_of = srd["summaryData"]["endDate"]
     row_id = row["id"]
 
     if row_id in ("red", "orange", "blue", "green", "mattapan"):
         gtfs_id = constants.RIDERSHIP_KEYS.get(row["line"], row["line"])
-        return subway_cells(row, src, [srd["lineData"][gtfs_id]] if gtfs_id in srd["lineData"] else [])
+        return subway_cells(row, src, srd["lineData"].get(gtfs_id))
 
     if row_id == "commuter-rail":
         return {
             "service": mode_service_cell(row, src, "regional-rail", "mode-regional-rail"),
-            "frequency": na_cell("frequency", "pct", "The MBTA hasn't set a frequency goal for Commuter Rail."),
+            "dropped": cr_dropped_cell(src),
             "reliability": cr_reliability_cell(src.cr_reliability, now=now, href="/commuter-rail/reliability"),
             "delays": na_cell("delays", "pct", "Late trains count against on-time % in Reliability instead."),
             "speed": na_cell("speed", "mph", "Not measured for Commuter Rail yet."),
+            "ridership": mode_ridership_cell(row, src, "regional-rail"),
         }
 
     if row_id == "frequent-bus":
@@ -264,17 +294,13 @@ def build_cells(row: RowConfig, src: sources.Sources) -> dict[str, dict]:
                 bus_delivered_share(bus_routes_rows(src, lines), now),
                 "trips",
             ),
-            "frequency": frequency_cell(
-                [(line, None) for line in lines],
-                FREQUENCY_GOALS["frequentBus"],
-                now=now,
-                as_of=as_of,
-                href=row["href"],
-                notes=["Silver Line branches that share a street count together."],
-            ),
+            "dropped": bus_dropped_cell(row, src, lines),
             "reliability": bus_reliability_cell(row, src, lines),
             "delays": bus_delays_cell(lines, src.delays, now=now),
             "speed": na_cell("speed", "mph", COMING_SOON),
+            "ridership": ridership_cell(
+                sum_histories([line.get("ridershipHistory") for line in lines]), now=now, href=row["href"]
+            ),
         }
 
     if row_id == "all-bus":
@@ -285,23 +311,23 @@ def build_cells(row: RowConfig, src: sources.Sources) -> dict[str, dict]:
                 bus_delivered_share(bus_routes_rows(src, lines), now),
                 "trips",
             ),
-            "frequency": frequency_cell(
-                [(line, recent_riders(line)) for line in lines],
-                FREQUENCY_GOALS["bus"],
-                now=now,
-                as_of=as_of,
-                href=row["href"],
-            ),
+            "dropped": bus_dropped_cell(row, src, lines),
             "reliability": bus_reliability_cell(row, src, lines),
             "delays": bus_delays_cell(lines, src.delays, now=now),
             "speed": na_cell("speed", "mph", COMING_SOON),
+            "ridership": mode_ridership_cell(row, src, "bus"),
         }
 
     if row_id == "ferry":
         return {
             "service": mode_service_cell(row, src, "boat", "mode-boat"),
-            "frequency": na_cell("frequency", "pct", "No frequency goal for ferries yet."),
+            "dropped": na_cell("dropped", "pct", "Not measured for ferries."),
             "speed": na_cell("speed", "mph", "Not measured for ferries."),
+            "ridership": (
+                ridership_cell([(r["date"], r.get("count")) for r in src.ferry_ridership], now=now, href=row["href"])
+                if src.ferry_ridership
+                else mode_ridership_cell(row, src, "boat")
+            ),
         }
 
     return {}
@@ -321,7 +347,9 @@ def build_row(row: RowConfig, src: sources.Sources) -> dict:
         "line": row["line"],
         "href": row["href"],
         "cells": cells,
-        "headline": headline_for(list(cells.values()), row["minMeasured"]),
+        "headline": headline_for(
+            [cell for metric, cell in cells.items() if metric not in UNJUDGED_METRICS], row["minMeasured"]
+        ),
     }
 
 
@@ -334,23 +362,15 @@ def hero_current(value: float | None, window: Window, method: dict, now: datetim
 
 def build_hero(src: sources.Sources) -> list[dict]:
     srd, baselines = src.service_ridership, src.baselines
-    subway_lines = [srd["lineData"][i] for i in SUBWAY_FREQUENCY_LINE_IDS if i in srd["lineData"]]
-    subway = combine_coverage([(goal_coverage(line, FREQUENCY_GOALS["subway"]), None) for line in subway_lines])
-
     service_window = take_window(from_record(srd["summaryData"].get("totalServiceHistory")))
     service_best = baseline_for(baselines, "scheduledService", ["total"]).value
 
     slow_zones = slow_zone_window(src.delay_totals, list(SLOW_ZONE_KEYS.values()))
 
-    frequent = combine_coverage(
-        [(goal_coverage(line, FREQUENCY_GOALS["frequentBus"]), None) for line in frequent_bus_lines(src)]
-    )
-
     cr_lines = lines_of_kind(srd, ["regional-rail"])
     cr_saturday = midday_headway(cr_lines, "saturday")
 
     values = {
-        "subwayFrequency": {"value": subway},
         "service": {
             **hero_current(
                 median(service_window.values) / service_best if service_best else None,
@@ -372,7 +392,6 @@ def build_hero(src: sources.Sources) -> list[dict]:
             "trend": trend_of(slow_zones),
             "history": slow_zone_history(src.delay_totals, list(SLOW_ZONE_KEYS.values())),
         },
-        "frequentBus": {"value": frequent},
         "crHeadway": {"value": midday_headway(cr_lines, "weekday")},
     }
     if cr_saturday is not None:
