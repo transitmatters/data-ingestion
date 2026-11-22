@@ -17,8 +17,7 @@ METRICS = {
     # Share of the service day with a delay alert up.
     "delays": {"direction": "lower", "thresholds": (0.02, 0.04, 0.08), "score_unit": "pct", "stale_days": 10},
     # Change in riders from a year earlier. Shown, never judged: the T doesn't control it directly.
-    # Ferry and Commuter Rail counts arrive months late; the cell's note names the weeks compared.
-    "ridership": {"direction": "higher", "thresholds": None, "score_unit": "pct", "stale_days": 270},
+    "ridership": {"direction": "higher", "thresholds": None, "score_unit": "pct", "stale_days": 120},
 }
 
 METRIC_ORDER = ["service", "dropped", "reliability", "delays", "speed", "ridership"]
@@ -29,6 +28,9 @@ UNJUDGED_METRICS = {"ridership"}
 # Commuter Rail's Reliability cell is the MBTA's on-time share, not headways. "Good" is the MBTA's
 # 92% target. The MBTA publishes in batches months apart, so data stays usable for longer.
 CR_RELIABILITY = {"direction": "higher", "thresholds": (0.95, 0.92, 0.85), "score_unit": "pct", "stale_days": 150}
+
+# Commuter Rail and ferry ridership arrive months late; the cell's note names the weeks compared.
+LATE_RIDERSHIP = {**METRICS["ridership"], "stale_days": 270}
 
 # Commuter Rail cancellations come from the same batches as its on-time counts.
 CR_DROPPED = {**METRICS["dropped"], "stale_days": CR_RELIABILITY["stale_days"]}

@@ -26,7 +26,8 @@ def status_for(score: float | None, direction: str, thresholds) -> str:
 
 
 def is_measured(status: str) -> bool:
-    return status not in ("insufficient", "na")
+    """Whether a cell counts toward its row's headline. Unscored cells (ridership) never do."""
+    return status not in ("insufficient", "na", "unscored")
 
 
 SEVERITY = {"problem": 3, "room": 2, "good": 1}

@@ -153,9 +153,11 @@ def judged_cell(
     )
 
 
-def part_of(label: str, cell: dict, unit_label: str | None = None) -> dict:
-    """One measure behind a combined cell, shown as the score it's judged on."""
+def part_of(part_id: str, label: str, cell: dict, unit_label: str | None = None) -> dict:
+    """One measure behind a combined cell, shown as the score it's judged on. The dashboard finds a
+    part by `id`; `label` is display copy."""
     part = {
+        "id": part_id,
         "label": label,
         "status": cell["status"],
         "score": cell["score"],

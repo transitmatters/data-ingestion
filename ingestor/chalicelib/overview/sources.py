@@ -191,8 +191,10 @@ def get_headways(
 
 
 def get_bus_trips(routes: list[str], now: datetime) -> dict[str, list[dict]] | None:
+    # Two spare weeks: the first day fetched usually falls midweek, and the recent weeks can sit a
+    # week further back when last week is incomplete.
     try:
-        return _query_daily(BUS_TRIPS_TABLE, routes, BUS_TRIP_FIELDS, DELIVERED_WEEKS, now)
+        return _query_daily(BUS_TRIPS_TABLE, routes, BUS_TRIP_FIELDS, DELIVERED_WEEKS + 2, now)
     except Exception as e:  # the scoreboard still stands without a year-ago comparison
         print(f"Couldn't load bus trip counts: {e}")
         return None

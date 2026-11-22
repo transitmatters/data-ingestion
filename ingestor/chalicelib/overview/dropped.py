@@ -12,16 +12,15 @@ from .cells import judged_cell, month_year
 from .series import Window, js_round, week_start
 
 RECENT_WEEKS = 4
-# Weeks of a year-ago window that must have data to compare against.
-MIN_YEAR_AGO_WEEKS = 3
 
 # (week start, scheduled trips, dropped trips)
 WeekTotal = tuple[str, float, float]
 
 
 def weekly_totals(rows: list[dict] | None, scheduled_field: str, dropped_field: str, now: datetime) -> list[WeekTotal]:
-    """Totals per Monday-to-Sunday week before the current one, oldest first. A week needs a row on
-    all 7 days to count, so a batch that ends partway through a week doesn't read as a quiet one."""
+    """Totals per Monday-to-Sunday week before the current one, oldest first. The newest week is
+    dropped if it's missing a day, so a batch that ends partway through it doesn't count, the same
+    rule as Commuter Rail's on-time weeks (reliability._cr_weekly_totals)."""
     this_week = week_start(now.date().isoformat())
     totals: dict[str, list[float]] = {}
     days: dict[str, set[str]] = {}
@@ -35,7 +34,10 @@ def weekly_totals(rows: list[dict] | None, scheduled_field: str, dropped_field: 
         total[0] += row[scheduled_field]
         total[1] += row.get(dropped_field) or 0
         days.setdefault(week, set()).add(row["date"])
-    return [(week, *totals[week]) for week in sorted(totals) if len(days[week]) == 7]
+    weeks = sorted(totals)
+    if weeks and len(days[weeks[-1]]) < 7:
+        weeks.pop()
+    return [(week, *totals[week]) for week in weeks]
 
 
 def _share(weeks: list[WeekTotal]) -> float | None:
@@ -56,7 +58,8 @@ def dropped_cell(
     href: str | None = None,
     notes: list[str] | None = None,
 ) -> dict:
-    """`weeks` and `year_ago` are weekly totals; the year-ago weeks are matched 52 weeks back."""
+    """`weeks` and `year_ago` are weekly totals. The trend compares the same weeks 52 weeks back, and
+    only when every recent week has its twin, so both sides cover like-for-like weeks."""
     recent = weeks[-RECENT_WEEKS:]
     window = Window(
         points=[(week, dropped / scheduled) for week, scheduled, dropped in recent],
@@ -71,7 +74,7 @@ def dropped_cell(
 
     wanted = {_year_before(week) for week, _, _ in recent}
     matched = [week for week in year_ago if week[0] in wanted]
-    then = _share(matched) if len(matched) >= min(MIN_YEAR_AGO_WEEKS, len(recent)) else None
+    then = _share(matched) if len(matched) == len(recent) else None
     cell = judged_cell(
         "dropped",
         share,

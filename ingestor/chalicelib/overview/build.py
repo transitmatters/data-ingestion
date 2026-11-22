@@ -8,7 +8,7 @@ uploads):
 import argparse
 import json
 import math
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from .. import constants, landing, s3
 from . import sources
@@ -26,6 +26,7 @@ from .cells import (
 from .config import (
     CR_DROPPED,
     HERO,
+    LATE_RIDERSHIP,
     METRIC_ORDER,
     METRICS,
     ROWS,
@@ -35,12 +36,12 @@ from .config import (
     RowConfig,
 )
 from .delays import bus_delays_cell, subway_delays_cell
-from .delivered import BUS_TRIP_FIELDS, SUBWAY_ROUTES, bus_delivered_share, subway_delivered_share, with_delivered
-from .dropped import dropped_cell, weekly_totals
+from .delivered import SUBWAY_ROUTES, bus_delivered_share, subway_delivered_share, with_delivered
+from .dropped import RECENT_WEEKS, dropped_cell, weekly_totals
 from .frequency import midday_headway
 from .reliability import cr_reliability_cell, reliability_cell
 from .ridership import ridership_cell
-from .series import Window, days_between, from_record, js_round, mean, median, take_window, trend_of
+from .series import Window, days_between, week_start, from_record, js_round, mean, median, take_window, trend_of
 from .status import headline_for
 
 SCHEMA_VERSION = 1
@@ -55,6 +56,13 @@ SLOW_ZONE_KEYS = {
 }
 
 COMING_SOON = "Coming to the home page soon."
+
+# The MBTA publishes no ridership for these lines (service_ridership_dashboard LINE_IDS_WITHOUT_RIDERSHIP).
+LINES_WITHOUT_RIDERSHIP = {"line-mattapan"}
+
+# Routes with at least this many dropped trips and under this share waived may include tracking gaps.
+MIN_DROPPED_FOR_WAIVER_CHECK = 10
+MAX_WAIVED_SHARE = 0.1
 SUBWAY_DROPPED_SOON = "Coming soon: trains seen at a central stop against the trips scheduled there."
 
 NOT_MEASURED = {"reliability": "Runs to a timetable, so it isn't judged on headways."}
@@ -155,8 +163,8 @@ def subway_cells(row: RowConfig, src: sources.Sources, srd_line: dict | None) ->
     cells["speed"] = worst_of(
         speed,
         [
-            (part_of("Speed", speed, "of best"), speed),
-            (part_of("Slow zones", slow_zones, "a day"), slow_zones),
+            (part_of("speed", "Speed", speed, "of best"), speed),
+            (part_of("slowZones", "Slow zones", slow_zones, "a day"), slow_zones),
         ],
     )
 
@@ -164,8 +172,10 @@ def subway_cells(row: RowConfig, src: sources.Sources, srd_line: dict | None) ->
         cells["ridership"] = ridership_cell(
             from_record(srd_line["ridershipHistory"]), now=now, href=line_href(row, "ridership")
         )
-    else:
+    elif line in LINES_WITHOUT_RIDERSHIP:
         cells["ridership"] = na_cell("ridership", "pct", "The MBTA doesn't publish ridership for this line.")
+    else:
+        cells["ridership"] = {**na_cell("ridership", "pct", "No ridership data."), "status": "insufficient"}
     return cells
 
 
@@ -197,26 +207,53 @@ def bus_routes_rows(src: sources.Sources, lines: list[dict]) -> list[dict] | Non
     return [r for line in lines for route in line.get("routeIds", []) for r in src.bus_headways.get(route, [])]
 
 
-def mode_ridership_cell(row: RowConfig, src: sources.Sources, mode: str) -> dict:
-    history = (src.service_ridership["modeData"].get(mode) or {}).get("totalRidershipHistory")
-    return ridership_cell(from_record(history), now=src.now, href=row["href"])
+def mode_ridership_history(src: sources.Sources, mode: str) -> dict[str, float] | None:
+    return (src.service_ridership["modeData"].get(mode) or {}).get("totalRidershipHistory")
+
+
+def mode_ridership_cell(row: RowConfig, src: sources.Sources, mode: str, method: dict | None = None) -> dict:
+    return ridership_cell(from_record(mode_ridership_history(src, mode)), now=src.now, href=row["href"], method=method)
+
+
+def may_include_tracking_gaps(rows: list[dict]) -> bool:
+    """Few of the route's dropped trips have an MBTA waiver, so some may be buses that ran with
+    their tracking off. The bus leaderboard sets these routes apart the same way
+    (common/utils/busTripCounts.ts mayIncludeTrackingGaps)."""
+    dropped = sum(r.get("unobserved_trips") or 0 for r in rows)
+    waived = sum(r.get("unobserved_waived_trips") or 0 for r in rows)
+    return dropped >= MIN_DROPPED_FOR_WAIVER_CHECK and waived < MAX_WAIVED_SHARE * dropped
 
 
 def bus_dropped_cell(row: RowConfig, src: sources.Sources, lines: list[dict]) -> dict:
-    routes = [route for line in lines for route in line.get("routeIds", [])]
-
-    def weeks(by_route: dict[str, list[dict]] | None, now: datetime):
-        rows = [r for route in routes for r in (by_route or {}).get(route, [])]
-        return weekly_totals(rows, *BUS_TRIP_FIELDS, now)
-
     if src.bus_headways is None:
         return {**na_cell("dropped", "pct", "Couldn't load bus trip counts."), "status": "insufficient"}
+    routes = [route for line in lines for route in line.get("routeIds", [])]
+    # Judged over the same 4 weeks the cell scores; the same routes are left out a year earlier.
+    since = (date.fromisoformat(week_start(src.now.date().isoformat())) - timedelta(weeks=RECENT_WEEKS)).isoformat()
+    set_aside = {
+        route
+        for route in routes
+        if may_include_tracking_gaps([r for r in src.bus_headways.get(route, []) if r["date"] >= since])
+    }
+    counted = [route for route in routes if route not in set_aside]
+
+    def weeks(by_route: dict[str, list[dict]] | None, now: datetime):
+        rows = [r for route in counted for r in (by_route or {}).get(route, [])]
+        return weekly_totals(rows, "scheduled_trips", "unobserved_trips", now)
+
+    notes = ["A scheduled trip with no bus location data counts as dropped."]
+    if set_aside:
+        count = len(set_aside)
+        notes.append(
+            f"Leaves out {count} route{'' if count == 1 else 's'} whose missing trips look like tracking gaps, "
+            "as the bus leaderboard does."
+        )
     return dropped_cell(
         weeks(src.bus_headways, src.now),
         weeks(src.bus_trips_year_ago, src.now - sources.YEAR),
         now=src.now,
         href="/bus/leaderboard?rank=dropped",
-        notes=["A scheduled trip with no bus location data counts as dropped."],
+        notes=notes,
     )
 
 
@@ -267,7 +304,7 @@ def build_cells(row: RowConfig, src: sources.Sources) -> dict[str, dict]:
             "reliability": cr_reliability_cell(src.cr_reliability, now=now, href="/commuter-rail/reliability"),
             "delays": na_cell("delays", "pct", "Late trains count against on-time % in Reliability instead."),
             "speed": na_cell("speed", "mph", "Not measured for Commuter Rail yet."),
-            "ridership": mode_ridership_cell(row, src, "regional-rail"),
+            "ridership": mode_ridership_cell(row, src, "regional-rail", LATE_RIDERSHIP),
         }
 
     if row_id == "frequent-bus":
@@ -315,7 +352,17 @@ def build_cells(row: RowConfig, src: sources.Sources) -> dict[str, dict]:
             "reliability": bus_reliability_cell(row, src, lines),
             "delays": bus_delays_cell(lines, src.delays, now=now),
             "speed": na_cell("speed", "mph", COMING_SOON),
-            "ridership": mode_ridership_cell(row, src, "bus"),
+            # The service & ridership file counts the Silver Line as rapid transit, not bus.
+            "ridership": ridership_cell(
+                sum_histories(
+                    [
+                        mode_ridership_history(src, "bus"),
+                        *(line.get("ridershipHistory") for line in lines if line.get("lineKind") == "silver"),
+                    ]
+                ),
+                now=now,
+                href=row["href"],
+            ),
         }
 
     if row_id == "ferry":
@@ -324,9 +371,14 @@ def build_cells(row: RowConfig, src: sources.Sources) -> dict[str, dict]:
             "dropped": na_cell("dropped", "pct", "Not measured for ferries."),
             "speed": na_cell("speed", "mph", "Not measured for ferries."),
             "ridership": (
-                ridership_cell([(r["date"], r.get("count")) for r in src.ferry_ridership], now=now, href=row["href"])
+                ridership_cell(
+                    [(r["date"], r.get("count")) for r in src.ferry_ridership],
+                    now=now,
+                    href=row["href"],
+                    method=LATE_RIDERSHIP,
+                )
                 if src.ferry_ridership
-                else mode_ridership_cell(row, src, "boat")
+                else mode_ridership_cell(row, src, "boat", LATE_RIDERSHIP)
             ),
         }
 

@@ -26,7 +26,7 @@ SUBWAY_ROUTES = {
 
 EXTENDED_FIELDS = ["dir_0_exclusive_count", "dir_1_exclusive_count", "dir_0_inclusive_mean", "dir_1_inclusive_mean"]
 SCHEDULED_FIELDS = ["serviceMinutes"]
-BUS_TRIP_FIELDS = ["scheduled_trips", "unobserved_trips"]
+BUS_TRIP_FIELDS = ["scheduled_trips", "unobserved_trips", "unobserved_waived_trips"]
 
 
 def _recent_days(days: set[str], now: datetime) -> set[str]:

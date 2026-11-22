@@ -151,7 +151,9 @@ def judged(status: str, score: float | None, direction: str, thresholds, notes: 
 
 
 def speed_and_slow_zones(speed: dict, slow_zones: dict) -> dict:
-    return worst_of(speed, [(part_of("Speed", speed), speed), (part_of("Slow zones", slow_zones), slow_zones)])
+    return worst_of(
+        speed, [(part_of("speed", "Speed", speed), speed), (part_of("slowZones", "Slow zones", slow_zones), slow_zones)]
+    )
 
 
 def test_worst_of_takes_the_worse_part():
@@ -322,7 +324,7 @@ def test_build_overview_end_to_end():
         subway_headways={"line-red": headway_rows("2026-08-31", 41, within=70, outside=30)},
         bus_headways={
             "1": [
-                {**r, "scheduled_trips": 100, "unobserved_trips": 4}
+                {**r, "scheduled_trips": 100, "unobserved_trips": 4, "unobserved_waived_trips": 2}
                 for r in headway_rows("2026-08-31", 41, within=50, outside=50)
             ],
             "9": daily("2026-08-31", 41),
@@ -607,7 +609,29 @@ def test_dropped_compares_four_complete_weeks_with_a_year_earlier():
     assert result["direction"] == "lower"
 
 
-def test_dropped_counts_only_whole_weeks_and_needs_most_of_the_year_ago_weeks():
+def test_bus_dropped_sets_aside_routes_that_look_like_tracking_gaps():
+    """Like the bus leaderboard: many missed trips and few waivers suggest buses ran untracked."""
+    srd = service_ridership()
+    src = sources.Sources(
+        trip_metrics={},
+        baselines=None,
+        delay_totals={},
+        service_ridership=srd,
+        now=NOW,
+        bus_headways={
+            "1": daily("2026-09-07", 28, scheduled_trips=100, unobserved_trips=1, unobserved_waived_trips=1),
+            "9": bus_trip_rows("2026-09-07", 28, scheduled=100, unobserved=12),  # none waived
+        },
+    )
+    cell = build.bus_dropped_cell(build.ROWS[0], src, list(srd["lineData"].values()))
+    assert cell["score"] == pytest.approx(0.01)
+    assert (
+        cell["notes"][-1]
+        == "Leaves out 1 route whose missing trips look like tracking gaps, as the bus leaderboard does."
+    )
+
+
+def test_dropped_counts_only_whole_weeks_and_needs_every_year_ago_week():
     # A Commuter Rail batch that ends partway through a week: that week is left out.
     rows = cr_rows("2026-06-01", 30, on_time=90, trips=100, cancelled=3)
     weeks = weekly_totals(rows, "otpDenominator", "cancelled", NOW)
@@ -634,6 +658,20 @@ def test_ridership_compares_with_the_same_weeks_a_year_earlier():
     assert result["baselineLabel"] == "100% of its busiest stretch (Aug 2026), in records from Aug 2025"
     assert result["notes"] == ["The 4 weeks to Sep 27, against the same weeks a year earlier."]
     assert "thresholds" not in result
+
+
+def test_ridership_compares_only_weeks_with_a_twin_a_year_earlier():
+    # The newest week (a busy 200) has no twin, so it's left out of both sides.
+    history = [*weekly("2025-08-25", [80, 80, 80]), *weekly("2026-08-24", [100, 100, 100, 200])]
+    assert ridership_cell(history, now=NOW)["value"] == pytest.approx(0.25)
+
+
+def test_ridership_missing_for_a_line_that_has_it_says_so():
+    srd = service_ridership()
+    srd["lineData"]["line-Red"]["ridershipHistory"] = None
+    src = sources.Sources(trip_metrics={}, baselines=None, delay_totals={}, service_ridership=srd, now=NOW)
+    red = build.build_cells(next(row for row in build.ROWS if row["id"] == "red"), src)["ridership"]
+    assert (red["status"], red["notes"]) == ("insufficient", ["No ridership data."])
 
 
 def test_ridership_without_a_year_ago_or_recent_data_has_no_figure():
