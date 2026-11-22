@@ -620,7 +620,11 @@ def test_bus_dropped_sets_aside_routes_that_look_like_tracking_gaps():
         now=NOW,
         bus_headways={
             "1": daily("2026-09-07", 28, scheduled_trips=100, unobserved_trips=1, unobserved_waived_trips=1),
-            "9": bus_trip_rows("2026-09-07", 28, scheduled=100, unobserved=12),  # none waived
+            "9": [
+                *bus_trip_rows("2026-09-07", 28, scheduled=100, unobserved=12),  # none waived
+                # This week's waivers would clear it, but the check only looks at the scored weeks.
+                *daily("2026-10-05", 6, scheduled_trips=100, unobserved_trips=10, unobserved_waived_trips=10),
+            ],
         },
     )
     cell = build.bus_dropped_cell(build.ROWS[0], src, list(srd["lineData"].values()))

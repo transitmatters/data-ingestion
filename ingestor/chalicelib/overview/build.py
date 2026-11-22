@@ -229,11 +229,12 @@ def bus_dropped_cell(row: RowConfig, src: sources.Sources, lines: list[dict]) ->
         return {**na_cell("dropped", "pct", "Couldn't load bus trip counts."), "status": "insufficient"}
     routes = [route for line in lines for route in line.get("routeIds", [])]
     # Judged over the same 4 weeks the cell scores; the same routes are left out a year earlier.
-    since = (date.fromisoformat(week_start(src.now.date().isoformat())) - timedelta(weeks=RECENT_WEEKS)).isoformat()
+    this_week = week_start(src.now.date().isoformat())
+    since = (date.fromisoformat(this_week) - timedelta(weeks=RECENT_WEEKS)).isoformat()
     set_aside = {
         route
         for route in routes
-        if may_include_tracking_gaps([r for r in src.bus_headways.get(route, []) if r["date"] >= since])
+        if may_include_tracking_gaps([r for r in src.bus_headways.get(route, []) if since <= r["date"] < this_week])
     }
     counted = [route for route in routes if route not in set_aside]
 
