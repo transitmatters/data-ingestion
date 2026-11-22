@@ -1,8 +1,9 @@
-"""Daily headway reliability per subway line, written to the HeadwayReliability table.
+"""Daily headway reliability and dropped trips per subway line, written to the HeadwayReliability table.
 
 Every non-terminal stop counts, weighted by how many headways it has. Items hold raw bucket counts
 so the dashboard and the home page can roll them up over any period and pick their own band. Bus
 counts are written per route by mbta-performance into DeliveredTripMetricsBus, with the same names.
+Dropped trips (trips.py) come from the same stops' events, against the GTFS schedule.
 """
 
 import json
@@ -14,8 +15,9 @@ from pathlib import Path
 import boto3
 import pandas as pd
 
-from . import events
+from . import events, schedule
 from .compute import HEADWAY_FIELDS, KEYS, headway_counts
+from .trips import line_trip_counts, trains_seen
 
 TABLE_NAME = "HeadwayReliability"
 
@@ -25,20 +27,22 @@ SUBWAY_STOPS: dict[str, dict[str, list[str]]] = json.loads((Path(__file__).paren
 MAX_WORKERS = 32
 
 
-def _stop_counts(line: str, stop: str, days: list[date], archived: bool) -> list[tuple[str, str, pd.DataFrame]]:
-    """(line, source, counts) for one stop, from the monthly archive or each day's best source."""
+def _stop_counts(line: str, stop: str, days: list[date], archived: bool) -> list[tuple[str, str, pd.DataFrame, dict]]:
+    """(line, source, counts, trains seen by date) for one stop, from the monthly archive or each
+    day's best source."""
     if archived:
         df = events.read_events(events.key_for(events.MONTHLY, stop, days[0]))
         if df is None:
             return []
-        return [(line, "monthly", headway_counts(df[df["service_date"].isin({d.isoformat() for d in days})]))]
+        df = df[df["service_date"].isin({d.isoformat() for d in days})]
+        return [(line, "monthly", headway_counts(df), trains_seen(df))]
 
     found = []
     for day in days:
         for source, template in events.DAILY:
             df = events.read_events(events.key_for(template, stop, day))
             if df is not None and not df.empty:
-                found.append((line, source, headway_counts(df)))
+                found.append((line, source, headway_counts(df), trains_seen(df)))
                 break
     return found
 
@@ -69,14 +73,42 @@ def to_items(results: list[tuple[str, str, pd.DataFrame]]) -> list[dict]:
     return items
 
 
-def compute_days(days: list[date]) -> list[dict]:
-    """Items for days within one calendar month."""
+def with_trip_counts(items: list[dict], trains: dict[tuple[str, str], int], scheduled: dict[date, dict]) -> list[dict]:
+    """Adds scheduled_trips and dropped_trips to each line's day, where the schedule and enough
+    stops' events allow. `trains` is keyed by (stop, date)."""
+    for item in items:
+        day = item["date"]
+        on_day = scheduled.get(date.fromisoformat(day))
+        if on_day is None:
+            continue
+        stops = SUBWAY_STOPS[item["route"]]
+        seen = {stop: trains.get((stop, day)) for ids in stops.values() for stop in ids}
+        counts = line_trip_counts(item["route"], stops, on_day, seen)
+        if counts:
+            item.update(counts)
+    return items
+
+
+def _stops() -> list[tuple[str, str]]:
+    return [(line, stop) for line, dirs in SUBWAY_STOPS.items() for ids in dirs.values() for stop in ids]
+
+
+def compute_days(days: list[date], scheduled: dict[date, dict] | None = None) -> list[dict]:
+    """Items for days within one calendar month. Days in `scheduled` (schedule.scheduled_trips) also
+    get trip counts."""
     assert len({(d.year, d.month) for d in days}) == 1, "days must fall in one month"
     archived = events.month_archived(days[0])
-    stops = [(line, stop) for line, dirs in SUBWAY_STOPS.items() for ids in dirs.values() for stop in ids]
+    stops = _stops()
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as pool:
-        results = pool.map(lambda s: _stop_counts(*s, days, archived), stops)
-        return to_items([r for stop_results in results for r in stop_results])
+        results = list(pool.map(lambda s: _stop_counts(*s, days, archived), stops))
+    trains = {
+        (stop, day): n
+        for (_, stop), stop_results in zip(stops, results)
+        for *_, seen in stop_results
+        for day, n in seen.items()
+    }
+    items = to_items([(line, source, counts) for stop_results in results for line, source, counts, _ in stop_results])
+    return with_trip_counts(items, trains, scheduled or {})
 
 
 def write_items(items: list[dict]):
@@ -88,8 +120,19 @@ def write_items(items: list[dict]):
 
 def update_days(start: date, end: date):
     days = [start + timedelta(days=i) for i in range((end - start).days + 1)]
+    failures = []
     for _, month in groupby(days, key=lambda d: (d.year, d.month)):
         month = list(month)
-        items = compute_days(month)
+        try:
+            scheduled = schedule.scheduled_trips(month, {stop for _, stop in _stops()})
+        except Exception as e:  # headway reliability doesn't need the schedule, so write it and raise after
+            print(f"Couldn't read the GTFS schedule for {month[0]} to {month[-1]}: {e!r}")
+            failures.append(e)
+            scheduled = {}
+        items = compute_days(month, scheduled)
         print(f"Writing {len(items)} headway reliability items for {month[0]} to {month[-1]}")
         write_items(items)
+    if failures:
+        raise RuntimeError(f"Wrote headway reliability without trip counts for {len(failures)} month(s)") from failures[
+            0
+        ]

@@ -157,7 +157,7 @@
         },
         "update_headway_reliability": {
           "iam_policy_file": "policy-headway-reliability.json",
-          "lambda_timeout": 180,
+          "lambda_timeout": 300,
           "lambda_memory_size": 512
         }
       }

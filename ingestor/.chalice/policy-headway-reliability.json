@@ -38,6 +38,24 @@
         "arn:aws:s3:::tm-mbta-performance/Events-lamp/daily-data/*",
         "arn:aws:s3:::tm-mbta-performance/Events-live/daily-rapid-data/*"
       ]
+    },
+    {
+      "Action": [
+        "s3:ListBucket"
+      ],
+      "Effect": "Allow",
+      "Resource": [
+        "arn:aws:s3:::tm-gtfs"
+      ]
+    },
+    {
+      "Action": [
+        "s3:GetObject"
+      ],
+      "Effect": "Allow",
+      "Resource": [
+        "arn:aws:s3:::tm-gtfs/*"
+      ]
     }
   ]
 }

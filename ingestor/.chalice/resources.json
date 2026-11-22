@@ -1132,6 +1132,9 @@
     "UpdateHeadwayReliability": {
       "Type": "AWS::Serverless::Function",
       "Properties": {
+        "EphemeralStorage": {
+          "Size": 1024
+        },
         "Environment": {
           "Variables": {
             "DD_API_KEY": {
