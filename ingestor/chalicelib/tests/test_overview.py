@@ -635,6 +635,28 @@ def test_bus_dropped_sets_aside_routes_that_look_like_tracking_gaps():
     )
 
 
+def test_bus_dropped_judges_routes_over_the_weeks_it_scores():
+    """When last week is missing a day it isn't scored, so its waivers don't clear a route either."""
+    srd = service_ridership()
+    src = sources.Sources(
+        trip_metrics={},
+        baselines=None,
+        delay_totals={},
+        service_ridership=srd,
+        now=NOW,
+        bus_headways={
+            "1": daily("2026-08-31", 34, scheduled_trips=100, unobserved_trips=1, unobserved_waived_trips=1),
+            "9": [
+                *bus_trip_rows("2026-08-31", 28, scheduled=100, unobserved=12),  # none waived
+                *daily("2026-09-28", 6, scheduled_trips=100, unobserved_trips=10, unobserved_waived_trips=10),
+            ],
+        },
+    )
+    cell = build.bus_dropped_cell(build.ROWS[0], src, list(srd["lineData"].values()))
+    assert (cell["asOf"], cell["score"]) == ("2026-09-21", pytest.approx(0.01))
+    assert cell["notes"][-1].startswith("Leaves out 1 route")
+
+
 def test_dropped_counts_only_whole_weeks_and_needs_every_year_ago_week():
     # A Commuter Rail batch that ends partway through a week: that week is left out.
     rows = cr_rows("2026-06-01", 30, on_time=90, trips=100, cancelled=3)
@@ -667,7 +689,11 @@ def test_ridership_compares_with_the_same_weeks_a_year_earlier():
 def test_ridership_compares_only_weeks_with_a_twin_a_year_earlier():
     # The newest week (a busy 200) has no twin, so it's left out of both sides.
     history = [*weekly("2025-08-25", [80, 80, 80]), *weekly("2026-08-24", [100, 100, 100, 200])]
-    assert ridership_cell(history, now=NOW)["value"] == pytest.approx(0.25)
+    result = ridership_cell(history, now=NOW)
+    assert result["value"] == pytest.approx(0.25)
+    assert result["notes"] == [
+        "3 of the 4 weeks to Sep 20, against the same weeks a year earlier. Weeks with no count from then are left out."
+    ]
 
 
 def test_ridership_missing_for_a_line_that_has_it_says_so():

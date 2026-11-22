@@ -8,7 +8,7 @@ uploads):
 import argparse
 import json
 import math
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 from .. import constants, landing, s3
 from . import sources
@@ -228,19 +228,19 @@ def bus_dropped_cell(row: RowConfig, src: sources.Sources, lines: list[dict]) ->
     if src.bus_headways is None:
         return {**na_cell("dropped", "pct", "Couldn't load bus trip counts."), "status": "insufficient"}
     routes = [route for line in lines for route in line.get("routeIds", [])]
-    # Judged over the same 4 weeks the cell scores; the same routes are left out a year earlier.
-    this_week = week_start(src.now.date().isoformat())
-    since = (date.fromisoformat(this_week) - timedelta(weeks=RECENT_WEEKS)).isoformat()
+
+    def weeks(by_route: dict[str, list[dict]] | None, now: datetime, route_ids: list[str]):
+        rows = [r for route in route_ids for r in (by_route or {}).get(route, [])]
+        return weekly_totals(rows, "scheduled_trips", "unobserved_trips", now)
+
+    # Judged over the weeks the cell scores; the same routes are left out a year earlier.
+    scored = {week for week, _, _ in weeks(src.bus_headways, src.now, routes)[-RECENT_WEEKS:]}
     set_aside = {
         route
         for route in routes
-        if may_include_tracking_gaps([r for r in src.bus_headways.get(route, []) if since <= r["date"] < this_week])
+        if may_include_tracking_gaps([r for r in src.bus_headways.get(route, []) if week_start(r["date"]) in scored])
     }
     counted = [route for route in routes if route not in set_aside]
-
-    def weeks(by_route: dict[str, list[dict]] | None, now: datetime):
-        rows = [r for route in counted for r in (by_route or {}).get(route, [])]
-        return weekly_totals(rows, "scheduled_trips", "unobserved_trips", now)
 
     notes = ["A scheduled trip with no bus location data counts as dropped."]
     if set_aside:
@@ -250,8 +250,8 @@ def bus_dropped_cell(row: RowConfig, src: sources.Sources, lines: list[dict]) ->
             "as the bus leaderboard does."
         )
     return dropped_cell(
-        weeks(src.bus_headways, src.now),
-        weeks(src.bus_trips_year_ago, src.now - sources.YEAR),
+        weeks(src.bus_headways, src.now, counted),
+        weeks(src.bus_trips_year_ago, src.now - sources.YEAR, counted),
         now=src.now,
         href="/bus/leaderboard?rank=dropped",
         notes=notes,

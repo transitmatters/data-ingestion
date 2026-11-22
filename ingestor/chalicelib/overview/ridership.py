@@ -39,6 +39,13 @@ def _busiest(series: list[Point]) -> tuple[str, float] | None:
     return best
 
 
+def _compared(matched: int, as_of: str) -> str:
+    to = f"weeks to {month_day(_week_end(as_of))}, against the same weeks a year earlier"
+    if matched == RECENT_WEEKS:
+        return f"The {RECENT_WEEKS} {to}."
+    return f"{matched} of the {RECENT_WEEKS} {to}. Weeks with no count from then are left out."
+
+
 def _insufficient(note: str, as_of: str | None = None) -> dict:
     cell = {**na_cell("ridership", "pct", note), "status": "insufficient"}
     return {**cell, "asOf": as_of} if as_of else cell
@@ -79,6 +86,6 @@ def ridership_cell(series: list[Point], *, now: datetime, href: str | None = Non
         ),
         "spark": [value for _, value in series[-WINDOW_WEEKS:]],
         "asOf": as_of,
-        "notes": [f"The {RECENT_WEEKS} weeks to {month_day(_week_end(as_of))}, against the same weeks a year earlier."],
+        "notes": [_compared(len(pairs), as_of)],
         "href": href,
     }
