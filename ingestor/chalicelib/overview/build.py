@@ -63,7 +63,6 @@ LINES_WITHOUT_RIDERSHIP = {"line-mattapan"}
 # Routes with at least this many dropped trips and under this share waived may include tracking gaps.
 MIN_DROPPED_FOR_WAIVER_CHECK = 10
 MAX_WAIVED_SHARE = 0.1
-SUBWAY_DROPPED_SOON = "Coming soon: trains seen at a central stop against the trips scheduled there."
 
 NOT_MEASURED = {"reliability": "Runs to a timetable, so it isn't judged on headways."}
 
@@ -120,7 +119,7 @@ def subway_cells(row: RowConfig, src: sources.Sources, srd_line: dict | None) ->
         "service",
     )
 
-    cells["dropped"] = na_cell("dropped", "pct", SUBWAY_DROPPED_SOON)
+    cells["dropped"] = subway_dropped_cell(row, src)
 
     speed = ratio_cell(
         "speed",
@@ -222,6 +221,21 @@ def may_include_tracking_gaps(rows: list[dict]) -> bool:
     dropped = sum(r.get("unobserved_trips") or 0 for r in rows)
     waived = sum(r.get("unobserved_waived_trips") or 0 for r in rows)
     return dropped >= MIN_DROPPED_FOR_WAIVER_CHECK and waived < MAX_WAIVED_SHARE * dropped
+
+
+def subway_dropped_cell(row: RowConfig, src: sources.Sources) -> dict:
+    if src.subway_headways is None:
+        return {**na_cell("dropped", "pct", "Couldn't load subway trip counts."), "status": "insufficient"}
+
+    def weeks(by_line: dict[str, list[dict]] | None, now: datetime):
+        return weekly_totals((by_line or {}).get(row["line"]), "scheduled_trips", "dropped_trips", now)
+
+    return dropped_cell(
+        weeks(src.subway_headways, src.now),
+        weeks(src.subway_trips_year_ago, src.now - sources.YEAR),
+        now=src.now,
+        href=line_href(row, "service"),
+    )
 
 
 def bus_dropped_cell(row: RowConfig, src: sources.Sources, lines: list[dict]) -> dict:

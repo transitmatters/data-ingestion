@@ -16,6 +16,7 @@ from .. import keys, landing, s3
 from ..baselines.sources import SERVICE_RIDERSHIP_BUCKET, SERVICE_RIDERSHIP_KEY, _paginate
 from ..delays.process import DAILY_TABLE_NAME as ALERT_DELAYS_TABLE
 from ..headway_reliability.buckets import HEADWAY_FIELDS
+from ..headway_reliability.trips import TRIP_FIELDS as SUBWAY_TRIP_FIELDS
 from ..ridership.dynamo import DYNAMO_TABLE_NAME as RIDERSHIP_TABLE
 from .config import FALLBACK_FREQUENT_BUS_LINE_IDS, ROWS
 from .delays import CAUSE_FIELDS, SUBWAY_DELAY_LINES, bus_delay_lines
@@ -65,6 +66,7 @@ LOCAL_FILES = {
     "subway_scheduled": "subway_scheduled.json",
     "frequent_bus_routes": "frequent_bus_routes.json",
     "bus_trips_year_ago": "bus_trips_year_ago.json",
+    "subway_trips_year_ago": "subway_trips_year_ago.json",
     "cr_reliability_year_ago": "cr_reliability_year_ago.json",
     "ferry_ridership": "ferry_ridership.json",
 }
@@ -91,6 +93,7 @@ class Sources:
     subway_scheduled: dict[str, list[dict]] | None = None
     # The same rows a year earlier, for dropped trips; None when they couldn't be loaded.
     bus_trips_year_ago: dict[str, list[dict]] | None = None
+    subway_trips_year_ago: dict[str, list[dict]] | None = None
     cr_reliability_year_ago: list[dict] | None = None
     # Weekly Ridership rows for every ferry, all history; None when they couldn't be loaded.
     ferry_ridership: list[dict] | None = None
@@ -190,6 +193,14 @@ def get_headways(
         return None
 
 
+def get_subway_trips(now: datetime) -> dict[str, list[dict]] | None:
+    try:
+        return _query_daily(SUBWAY_HEADWAYS_TABLE, SUBWAY_LINES, SUBWAY_TRIP_FIELDS, DELIVERED_WEEKS + 2, now)
+    except Exception as e:  # the scoreboard still stands without a year-ago comparison
+        print(f"Couldn't load subway trip counts: {e}")
+        return None
+
+
 def get_bus_trips(routes: list[str], now: datetime) -> dict[str, list[dict]] | None:
     # Two spare weeks: the first day fetched usually falls midweek, and the recent weeks can sit a
     # week further back when last week is incomplete.
@@ -271,7 +282,7 @@ def load(now: datetime) -> Sources:
         delay_totals=_download_json(DASHBOARD_BUCKET, DELAY_TOTALS_KEY),
         service_ridership=service_ridership,
         now=now,
-        subway_headways=get_headways(SUBWAY_HEADWAYS_TABLE, SUBWAY_LINES, now),
+        subway_headways=get_headways(SUBWAY_HEADWAYS_TABLE, SUBWAY_LINES, now, SUBWAY_TRIP_FIELDS),
         bus_headways=get_headways(BUS_TRIPS_TABLE, bus_routes(service_ridership), now, BUS_TRIP_FIELDS),
         cr_reliability=get_cr_reliability(cr_route_ids, now),
         delays=get_delays(service_ridership, now),
@@ -279,6 +290,7 @@ def load(now: datetime) -> Sources:
         subway_scheduled=subway_scheduled,
         frequent_bus_line_ids=frequent_line_ids,
         bus_trips_year_ago=get_bus_trips(bus_routes(service_ridership), now - YEAR),
+        subway_trips_year_ago=get_subway_trips(now - YEAR),
         cr_reliability_year_ago=get_cr_reliability(cr_route_ids, now - YEAR),
         ferry_ridership=get_ferry_ridership(),
     )
@@ -304,6 +316,7 @@ def load_local(directory: str, now: datetime) -> Sources:
         subway_scheduled=read("subway_scheduled"),
         frequent_bus_line_ids=frequent_bus_line_ids(service_ridership, read("frequent_bus_routes")),
         bus_trips_year_ago=read("bus_trips_year_ago"),
+        subway_trips_year_ago=read("subway_trips_year_ago"),
         cr_reliability_year_ago=read("cr_reliability_year_ago"),
         ferry_ridership=read("ferry_ridership"),
     )

@@ -321,7 +321,12 @@ def test_build_overview_end_to_end():
         delay_totals={"data": [{"date": f"{d['date']}T00:00:00", "Red": 45} for d in daily("2026-07-19", 84)]},
         service_ridership=service_ridership(),
         now=NOW,
-        subway_headways={"line-red": headway_rows("2026-08-31", 41, within=70, outside=30)},
+        subway_headways={
+            "line-red": [
+                {**r, "scheduled_trips": 400, "dropped_trips": 4}
+                for r in headway_rows("2026-08-31", 41, within=70, outside=30)
+            ]
+        },
         bus_headways={
             "1": [
                 {**r, "scheduled_trips": 100, "unobserved_trips": 4, "unobserved_waived_trips": 2}
@@ -349,7 +354,7 @@ def test_build_overview_end_to_end():
 
     red = rows["red"]["cells"]
     assert red["service"]["status"] == "win"
-    assert red["dropped"]["status"] == "na"
+    assert (red["dropped"]["status"], red["dropped"]["value"]) == ("win", pytest.approx(0.01))
     # No speed baseline, so 45 s a day of slow zones decides it.
     assert red["speed"]["status"] == "good"
     assert [(part["label"], part["status"]) for part in red["speed"]["parts"]] == [
@@ -655,6 +660,32 @@ def test_bus_dropped_judges_routes_over_the_weeks_it_scores():
     cell = build.bus_dropped_cell(build.ROWS[0], src, list(srd["lineData"].values()))
     assert (cell["asOf"], cell["score"]) == ("2026-09-21", pytest.approx(0.01))
     assert cell["notes"][-1].startswith("Leaves out 1 route")
+
+
+def test_subway_dropped_compares_trip_counts_with_a_year_earlier():
+    def rows(start: str, days: int, dropped: int) -> list[dict]:
+        return daily(start, days, scheduled_trips=400, dropped_trips=dropped)
+
+    src = sources.Sources(
+        trip_metrics={},
+        baselines=None,
+        delay_totals={},
+        service_ridership=service_ridership(),
+        now=NOW,
+        # Older rows from before trip counts were kept have neither field.
+        subway_headways={"line-red": [*daily("2026-08-24", 7), *rows("2026-08-31", 35, dropped=40)]},
+        subway_trips_year_ago={"line-red": rows("2025-09-01", 35, dropped=60)},
+    )
+    red_row = next(row for row in build.ROWS if row["id"] == "red")
+    cell = build.subway_dropped_cell(red_row, src)
+    assert (cell["value"], cell["status"], cell["asOf"]) == (pytest.approx(0.1), "problem", "2026-09-28")
+    assert cell["trend"] == pytest.approx(-0.05)
+    assert cell["href"] == "/red/service"
+
+    no_counts = sources.Sources(
+        trip_metrics={}, baselines=None, delay_totals={}, service_ridership=service_ridership(), now=NOW
+    )
+    assert build.subway_dropped_cell(red_row, no_counts)["status"] == "insufficient"
 
 
 def test_dropped_counts_only_whole_weeks_and_needs_every_year_ago_week():
