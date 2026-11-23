@@ -5,7 +5,6 @@ from datetime import date, datetime
 from decimal import ROUND_HALF_UP, Decimal
 
 from .config import METRICS, MIN_WEEKS
-from .frequency import combine_coverage, goal_coverage
 from .series import Point, Window, days_between, is_finite, js_round, mean, median, take_window, trend_of
 from .status import SEVERITY, is_measured, status_for
 
@@ -154,9 +153,11 @@ def judged_cell(
     )
 
 
-def part_of(label: str, cell: dict, unit_label: str | None = None) -> dict:
-    """One measure behind a combined cell, shown as the score it's judged on."""
+def part_of(part_id: str, label: str, cell: dict, unit_label: str | None = None) -> dict:
+    """One measure behind a combined cell, shown as the score it's judged on. The dashboard finds a
+    part by `id`; `label` is display copy."""
     part = {
+        "id": part_id,
         "label": label,
         "status": cell["status"],
         "score": cell["score"],
@@ -246,35 +247,3 @@ def sum_histories(histories: list[dict[str, float] | None]) -> list[Point]:
         return []
     dates = sorted(day for day in present[0] if all(day in history for history in present))
     return [(day, sum(history[day] for history in present)) for day in dates]
-
-
-def frequency_cell(
-    lines: list[tuple[dict, float | None]],
-    goal_minutes: float,
-    *,
-    now: datetime,
-    as_of: str,
-    notes: list[str] | None = None,
-    href: str | None = None,
-) -> dict:
-    current = combine_coverage([(goal_coverage(line, goal_minutes), weight) for line, weight in lines])
-    year_ago = combine_coverage([(goal_coverage(line, goal_minutes, "oneYearAgo"), weight) for line, weight in lines])
-    cell = judged_cell(
-        "frequency",
-        current,
-        unit="pct",
-        window=Window(values=[1], as_of=as_of),
-        now=now,
-        min_points=1,
-        as_of_offset_days=0,
-        href=href,
-        notes=notes,
-        secondary=f"Goal: every {goal_minutes} min",
-        baseline_label=f"A year ago: {js_round(year_ago * 100)}% of hours" if year_ago is not None else None,
-    )
-    cell.pop("spark", None)
-    return {
-        **cell,
-        "trend": current - year_ago if current is not None and year_ago is not None else None,
-        "trendBasis": "yearAgo",
-    }

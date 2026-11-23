@@ -7,8 +7,9 @@ from ..overview import build, sources
 from ..overview.cells import baseline_for, format_number, part_of, worst_of
 from ..overview.delays import bus_delay_line, bus_delays_cell, subway_delays_cell
 from ..overview.delivered import bus_delivered_share, subway_delivered_share, with_delivered
-from ..overview.frequency import combine_coverage, goal_coverage
+from ..overview.dropped import dropped_cell, weekly_totals
 from ..overview.reliability import cr_reliability_cell, reliability_cell
+from ..overview.ridership import ridership_cell
 from ..overview.series import take_window, trend_of
 from ..overview.status import headline_for, status_for
 
@@ -126,10 +127,10 @@ def test_headline_is_worst_of_and_lists_the_worst_first():
     cells = [
         cell("service", "room", 0.85),
         cell("speed", "problem", 0.5),
-        cell("frequency", "problem", 0.7),
+        cell("dropped", "problem", 0.1),
         cell("delays", "na"),
     ]
-    assert headline_for(cells, 2) == {"kind": "needsWork", "heldBackBy": ["speed", "frequency", "service"]}
+    assert headline_for(cells, 2) == {"kind": "needsWork", "heldBackBy": ["dropped", "speed", "service"]}
     assert headline_for(cells, 4)["kind"] == "limited"
     wins = [cell("service", "win", 1), cell("speed", "good", 0.96)]
     assert headline_for(wins, 2)["kind"] == "strong"
@@ -150,7 +151,9 @@ def judged(status: str, score: float | None, direction: str, thresholds, notes: 
 
 
 def speed_and_slow_zones(speed: dict, slow_zones: dict) -> dict:
-    return worst_of(speed, [(part_of("Speed", speed), speed), (part_of("Slow zones", slow_zones), slow_zones)])
+    return worst_of(
+        speed, [(part_of("speed", "Speed", speed), speed), (part_of("slowZones", "Slow zones", slow_zones), slow_zones)]
+    )
 
 
 def test_worst_of_takes_the_worse_part():
@@ -202,27 +205,6 @@ def hours(**by_hour: int) -> list[int]:
     for hour, trips in by_hour.items():
         tph[int(hour[1:])] = trips
     return tph
-
-
-def test_goal_coverage_counts_gaps_and_service_after_midnight():
-    # 5 AM to 1 AM: 21 service hours, a gap at noon, and 1 AM belongs to the day before.
-    tph = hours(**{f"h{h}": 6 for h in range(5, 24) if h != 12}, h0=4, h1=2)
-    coverage = goal_coverage(line(tph), 10)
-    assert coverage.total == 21 * 5
-    assert coverage.met == 18 * 5
-
-
-def test_goal_coverage_weights_weekdays_five_times():
-    coverage = goal_coverage(line(hours(h8=6, h9=6), saturday=hours(h8=2, h9=2)), 10)
-    assert (coverage.met, coverage.total) == (10, 12)
-
-
-def test_combine_coverage_pools_hours_or_weights_by_riders():
-    busy = goal_coverage(line(hours(h8=6, h9=6)), 10)  # 10 of 10
-    quiet = goal_coverage(line(hours(h8=1, h9=1, h10=1, h11=1)), 10)  # 0 of 20
-    assert combine_coverage([(busy, None), (quiet, None)]) == pytest.approx(10 / 30)
-    assert combine_coverage([(busy, 900), (quiet, 100)]) == pytest.approx(0.9)
-    assert combine_coverage([]) is None
 
 
 def headway_rows(start: str, days: int, within: int, outside: int) -> list[dict]:
@@ -342,7 +324,7 @@ def test_build_overview_end_to_end():
         subway_headways={"line-red": headway_rows("2026-08-31", 41, within=70, outside=30)},
         bus_headways={
             "1": [
-                {**r, "scheduled_trips": 100, "unobserved_trips": 4}
+                {**r, "scheduled_trips": 100, "unobserved_trips": 4, "unobserved_waived_trips": 2}
                 for r in headway_rows("2026-08-31", 41, within=50, outside=50)
             ],
             "9": daily("2026-08-31", 41),
@@ -367,7 +349,7 @@ def test_build_overview_end_to_end():
 
     red = rows["red"]["cells"]
     assert red["service"]["status"] == "win"
-    assert red["frequency"]["score"] == 1
+    assert red["dropped"]["status"] == "na"
     # No speed baseline, so 45 s a day of slow zones decides it.
     assert red["speed"]["status"] == "good"
     assert [(part["label"], part["status"]) for part in red["speed"]["parts"]] == [
@@ -382,7 +364,7 @@ def test_build_overview_end_to_end():
     assert red["reliability"]["bunched"] == pytest.approx(0.3)
     # No Vehicles column, and nothing is held back by it.
     for row in overview["rows"]:
-        assert list(row["cells"]) == ["service", "frequency", "reliability", "delays", "speed"]
+        assert list(row["cells"]) == ["service", "dropped", "reliability", "delays", "speed", "ridership"]
         assert "fleet" not in row["headline"]["heldBackBy"]
     # 57 of 1,140 weekday service minutes (5 AM to midnight); weekends have no schedule here.
     assert red["delays"]["score"] == pytest.approx(0.05)
@@ -392,8 +374,17 @@ def test_build_overview_end_to_end():
     # Route 1 has 96 of 960 minutes under an alert and route 9 none.
     assert rows["all-bus"]["cells"]["delays"]["score"] == pytest.approx(0.05)
     assert rows["commuter-rail"]["cells"]["delays"]["status"] == "na"
-    # The MBTA hasn't committed to a Commuter Rail frequency goal, so it isn't judged on one.
-    assert rows["commuter-rail"]["cells"]["frequency"]["status"] == "na"
+    # 4 of 100 scheduled bus trips a day never seen; no year-ago rows to compare with.
+    bus_dropped = rows["all-bus"]["cells"]["dropped"]
+    assert (bus_dropped["score"], bus_dropped["status"], bus_dropped["asOf"]) == (
+        pytest.approx(0.04),
+        "room",
+        "2026-09-28",
+    )
+    assert (bus_dropped["trend"], bus_dropped["trendBasis"]) == (None, "yearAgo")
+    assert bus_dropped["secondary"] == "112 of 2,800 scheduled trips in 4 weeks"
+    assert rows["commuter-rail"]["cells"]["dropped"]["score"] == 0
+    assert rows["ferry"]["cells"]["dropped"]["status"] == "na"
     assert red["service"]["secondary"] == "200 trips/day · 100% of scheduled service delivered"
     assert rows["all-bus"]["cells"]["service"]["secondary"] == "96% of scheduled trips delivered"
     assert "secondary" not in rows["ferry"]["cells"]["service"]
@@ -406,16 +397,10 @@ def test_build_overview_end_to_end():
     assert rows["ferry"]["cells"]["reliability"]["status"] == "na"
 
     assert rows["ferry"]["headline"]["kind"] == "limited"
-    assert [stat["id"] for stat in overview["hero"]] == [
-        "subwayFrequency",
-        "service",
-        "slowZones",
-        "frequentBus",
-        "crHeadway",
-    ]
-    assert "trend" not in overview["hero"][0]
+    assert [stat["id"] for stat in overview["hero"]] == ["service", "slowZones", "crHeadway"]
+    assert "trend" not in overview["hero"][2]
     # Monthly means of 45 s a day, in minutes.
-    assert overview["hero"][2]["history"] == [["2026-07", 0.8], ["2026-08", 0.8], ["2026-09", 0.8], ["2026-10", 0.8]]
+    assert overview["hero"][1]["history"] == [["2026-07", 0.8], ["2026-08", 0.8], ["2026-09", 0.8], ["2026-10", 0.8]]
     # Valid JSON: no NaN or infinity anywhere.
     build.to_json(overview)
 
@@ -580,8 +565,8 @@ def test_get_frequent_bus_routes_reads_route_descriptions(monkeypatch):
     assert sources.get_frequent_bus_routes() is None
 
 
-def test_mattapan_frequency_builds_from_a_line_without_ridership():
-    """Mattapan has no ridership, so it used to be missing from lineData and read "Not in the schedule data yet" (#281)."""
+def test_mattapan_builds_from_a_line_without_ridership():
+    """Mattapan has no ridership, so it used to be missing from lineData (#281)."""
     srd = service_ridership()
     regime = {"weekday": {"cancelled": False, "tripsPerHour": hours(**{f"h{h}": 6 for h in range(5, 24)})}}
     srd["lineData"]["line-Mattapan"] = {
@@ -592,9 +577,170 @@ def test_mattapan_frequency_builds_from_a_line_without_ridership():
     }
     src = sources.Sources(trip_metrics={}, baselines=None, delay_totals={}, service_ridership=srd, now=NOW)
     row = next(row for row in build.ROWS if row["id"] == "mattapan")
-    frequency = build.build_cells(row, src)["frequency"]
-    assert "Not in the schedule data yet." not in (frequency.get("notes") or [])
-    assert frequency["score"] is not None
+    cells = build.build_cells(row, src)
+    assert cells["ridership"]["status"] == "na"
+    assert cells["delays"]["status"] != "na"
+
+
+def bus_trip_rows(start: str, days: int, scheduled: int, unobserved: int) -> list[dict]:
+    return daily(start, days, scheduled_trips=scheduled, unobserved_trips=unobserved)
+
+
+def test_dropped_compares_four_complete_weeks_with_a_year_earlier():
+    weeks = weekly_totals(
+        [
+            *bus_trip_rows("2026-08-03", 28, scheduled=100, unobserved=50),  # older weeks, outside the score
+            *bus_trip_rows("2026-08-31", 35, scheduled=100, unobserved=2),
+            *bus_trip_rows("2026-10-05", 6, scheduled=100, unobserved=100),  # this week isn't over yet
+        ],
+        "scheduled_trips",
+        "unobserved_trips",
+        NOW,
+    )
+    year_ago = weekly_totals(
+        bus_trip_rows("2025-09-08", 28, scheduled=100, unobserved=6), "scheduled_trips", "unobserved_trips", NOW
+    )
+    result = dropped_cell(weeks, year_ago, now=NOW)
+    assert (result["score"], result["status"], result["asOf"]) == (pytest.approx(0.02), "good", "2026-09-28")
+    assert result["trend"] == pytest.approx(-0.04)
+    assert result["trendBasis"] == "yearAgo"
+    assert result["baselineLabel"] == "Sep 2025: 6.0% dropped"
+    assert result["secondary"] == "56 of 2,800 scheduled trips in 4 weeks"
+    assert result["direction"] == "lower"
+
+
+def test_bus_dropped_sets_aside_routes_that_look_like_tracking_gaps():
+    """Like the bus leaderboard: many missed trips and few waivers suggest buses ran untracked."""
+    srd = service_ridership()
+    src = sources.Sources(
+        trip_metrics={},
+        baselines=None,
+        delay_totals={},
+        service_ridership=srd,
+        now=NOW,
+        bus_headways={
+            "1": daily("2026-09-07", 28, scheduled_trips=100, unobserved_trips=1, unobserved_waived_trips=1),
+            "9": [
+                *bus_trip_rows("2026-09-07", 28, scheduled=100, unobserved=12),  # none waived
+                # This week's waivers would clear it, but the check only looks at the scored weeks.
+                *daily("2026-10-05", 6, scheduled_trips=100, unobserved_trips=10, unobserved_waived_trips=10),
+            ],
+        },
+    )
+    cell = build.bus_dropped_cell(build.ROWS[0], src, list(srd["lineData"].values()))
+    assert cell["score"] == pytest.approx(0.01)
+    assert (
+        cell["notes"][-1]
+        == "Leaves out 1 route whose missing trips look like tracking gaps, as the bus leaderboard does."
+    )
+
+
+def test_bus_dropped_judges_routes_over_the_weeks_it_scores():
+    """When last week is missing a day it isn't scored, so its waivers don't clear a route either."""
+    srd = service_ridership()
+    src = sources.Sources(
+        trip_metrics={},
+        baselines=None,
+        delay_totals={},
+        service_ridership=srd,
+        now=NOW,
+        bus_headways={
+            "1": daily("2026-08-31", 34, scheduled_trips=100, unobserved_trips=1, unobserved_waived_trips=1),
+            "9": [
+                *bus_trip_rows("2026-08-31", 28, scheduled=100, unobserved=12),  # none waived
+                *daily("2026-09-28", 6, scheduled_trips=100, unobserved_trips=10, unobserved_waived_trips=10),
+            ],
+        },
+    )
+    cell = build.bus_dropped_cell(build.ROWS[0], src, list(srd["lineData"].values()))
+    assert (cell["asOf"], cell["score"]) == ("2026-09-21", pytest.approx(0.01))
+    assert cell["notes"][-1].startswith("Leaves out 1 route")
+
+
+def test_dropped_counts_only_whole_weeks_and_needs_every_year_ago_week():
+    # A Commuter Rail batch that ends partway through a week: that week is left out.
+    rows = cr_rows("2026-06-01", 30, on_time=90, trips=100, cancelled=3)
+    weeks = weekly_totals(rows, "otpDenominator", "cancelled", NOW)
+    assert [week for week, *_ in weeks] == ["2026-06-01", "2026-06-08", "2026-06-15", "2026-06-22"]
+    one_week_a_year_ago = weekly_totals(
+        cr_rows("2025-06-02", 7, on_time=90, trips=100, cancelled=10), "otpDenominator", "cancelled", NOW
+    )
+    result = dropped_cell(weeks, one_week_a_year_ago, now=NOW, method=build.CR_DROPPED)
+    assert result["score"] == pytest.approx(0.03)
+    assert (result["trend"], result.get("baselineLabel")) == (None, None)
+    assert dropped_cell([], [], now=NOW)["notes"] == ["No recent data."]
+
+
+def test_ridership_compares_with_the_same_weeks_a_year_earlier():
+    history = [
+        *weekly("2025-08-04", [80, 80, 80, 80, 80, 80, 80, 80]),
+        *weekly("2026-08-03", [100, 100, 100, 100, 10, 100, 100, 100]),  # one glitched week
+    ]
+    result = ridership_cell(history, now=NOW, href="/red/ridership")
+    assert result["status"] == "unscored"
+    assert result["value"] == pytest.approx(0.25)
+    assert result["asOf"] == "2026-09-21"
+    assert result["secondary"] == "100 riders a day"
+    assert result["baselineLabel"] == "100% of its busiest stretch (Aug 2026), in records from Aug 2025"
+    assert result["notes"] == ["The 4 weeks to Sep 27, against the same weeks a year earlier."]
+    assert "thresholds" not in result
+
+
+def test_ridership_compares_only_weeks_with_a_twin_a_year_earlier():
+    # The newest week (a busy 200) has no twin, so it's left out of both sides.
+    history = [*weekly("2025-08-25", [80, 80, 80]), *weekly("2026-08-24", [100, 100, 100, 200])]
+    result = ridership_cell(history, now=NOW)
+    assert result["value"] == pytest.approx(0.25)
+    assert result["notes"] == [
+        "3 of the 4 weeks to Sep 20, against the same weeks a year earlier. Weeks with no count from then are left out."
+    ]
+
+
+def test_ridership_missing_for_a_line_that_has_it_says_so():
+    srd = service_ridership()
+    srd["lineData"]["line-Red"]["ridershipHistory"] = None
+    src = sources.Sources(trip_metrics={}, baselines=None, delay_totals={}, service_ridership=srd, now=NOW)
+    red = build.build_cells(next(row for row in build.ROWS if row["id"] == "red"), src)["ridership"]
+    assert (red["status"], red["notes"]) == ("insufficient", ["No ridership data."])
+
+
+def test_ridership_without_a_year_ago_or_recent_data_has_no_figure():
+    assert ridership_cell(weekly("2026-08-03", [100] * 8), now=NOW)["notes"] == [
+        "No ridership from a year earlier to compare with."
+    ]
+    stale = ridership_cell([*weekly("2024-09-02", [90] * 8), *weekly("2025-09-01", [100] * 8)], now=NOW)
+    assert (stale["status"], stale["notes"]) == ("insufficient", ["Latest ridership data is from Oct 2025."])
+    assert ridership_cell([], now=NOW)["status"] == "insufficient"
+
+
+def test_ferry_ridership_reads_the_weekly_counts_the_ferry_page_shows():
+    """The service & ridership file stops ferry ridership where its ferry schedules end."""
+    counts = [*weekly("2025-04-07", [80] * 8), *weekly("2026-04-06", [100] * 8)]
+    src = sources.Sources(
+        trip_metrics={},
+        baselines=None,
+        delay_totals={},
+        service_ridership=service_ridership(),
+        now=NOW,
+        ferry_ridership=[{"date": day, "count": count} for day, count in counts],
+    )
+    row = next(row for row in build.ROWS if row["id"] == "ferry")
+    ridership = build.build_cells(row, src)["ridership"]
+    assert (ridership["status"], ridership["value"], ridership["asOf"]) == (
+        "unscored",
+        pytest.approx(0.25),
+        "2026-05-25",
+    )
+
+
+def test_ridership_never_counts_toward_the_headline(monkeypatch):
+    service = {"metric": "service", "status": "win", "score": 1}
+    ridership = {"metric": "ridership", "status": "unscored", "score": None}
+    monkeypatch.setattr(build, "build_cells", lambda row, src: {"service": service, "ridership": ridership})
+    row = next(row for row in build.ROWS if row["id"] == "commuter-rail")  # needs 2 measured cells
+    built = build.build_row(row, None)
+    assert built["cells"]["ridership"] is ridership
+    assert built["headline"] == {"kind": "limited", "heldBackBy": []}
 
 
 # --- Missing or stale data (#269) ---
